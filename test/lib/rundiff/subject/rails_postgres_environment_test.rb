@@ -54,6 +54,25 @@ class RunDiffSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
     assert_equal root.to_s, call.fetch(:chdir)
   end
 
+  test "uses distinct PostgreSQL app and queue state for repeated samples" do
+    environment = RunDiff::Subject::RailsPostgresEnvironment.new(
+      command_runner: CommandRecorder.new,
+      postgres_url: "postgres://db.example"
+    )
+    execution = Execution.new("github-abcdef1234567890")
+    root = Pathname("/tmp/customer-subject")
+
+    first = environment.env_for(root:, execution:, role: "candidate", sample_index: 1)
+    second = environment.env_for(root:, execution:, role: "candidate", sample_index: 2)
+
+    assert_match(/_candidate_s1\z/, first.fetch("DATABASE_URL"))
+    assert_match(/_candidate_s2\z/, second.fetch("DATABASE_URL"))
+    assert_match(/_candidate_queue_s1\z/, first.fetch("SOLID_QUEUE_DATABASE_URL"))
+    assert_match(/_candidate_queue_s2\z/, second.fetch("SOLID_QUEUE_DATABASE_URL"))
+    refute_equal first.fetch("DATABASE_URL"), second.fetch("DATABASE_URL")
+    refute_equal first.fetch("SOLID_QUEUE_DATABASE_URL"), second.fetch("SOLID_QUEUE_DATABASE_URL")
+  end
+
   test "uses distinct subject state for baseline and candidate" do
     command_runner = CommandRecorder.new
     environment = RunDiff::Subject::RailsPostgresEnvironment.new(
