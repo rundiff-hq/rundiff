@@ -1,3 +1,4 @@
+require_relative "state_identity"
 require "fileutils"
 require "rbconfig"
 require_relative "execution_identity"
@@ -75,8 +76,8 @@ module RunDiff
 
       def database_path(root:, execution:, role:)
         directory = @state_root || root.join("tmp", "rundiff", "sqlite")
-        suffix = execution.execution_id.delete_prefix("github-")[0, 12]
-        directory.join("rundiff_subject_#{suffix}_#{role}.sqlite3")
+        state = StateIdentity.for(execution:, role:)
+        directory.join("rundiff_subject_#{state.suffix}.sqlite3")
       end
 
       def remove_database_files(path)
