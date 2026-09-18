@@ -97,7 +97,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
 
     bundle = build_bundle(authentication:, client:, clock: -> { installed_at + 120 })
 
-    assert_equal 1, bundle.fetch("schema_version")
+    assert_equal "1", bundle.fetch("schema_version")
     assert_equal REPOSITORY, bundle.fetch("repository")
     assert_equal [ INSTALLATION_ID ], bundle.fetch("installation_ids")
     assert_equal installed_at.iso8601(6), bundle.fetch("installation_received_at")
