@@ -151,7 +151,6 @@ module RunDiff
     def findings_section
       return [] if findings.empty?
 
-      primary = findings.first
       lines = [ paint("Finding", :bold), "" ]
       findings.each do |finding|
         lines << "  #{paint(finding.fetch("reason_code"), :red, :bold)}"
