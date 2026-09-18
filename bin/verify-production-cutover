@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+INFRA_REPO="${RUNDIFF_INFRA_REPO:-}"
+PROOF_REPO=""
+REGRESSION_PR=""
+NEUTRAL_PR=""
+PROOF_OUTPUT=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  bin/verify-production-cutover --infra-repo PATH
+
+  bin/verify-production-cutover \
+    --infra-repo PATH \
+    --proof-repo OWNER/REPO \
+    --regression-pr N \
+    --neutral-pr N \
+    --proof-output FILE
+EOF
+}
+
+fail() {
+  printf 'production cutover verification failed: %s\n' "$*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --infra-repo)
+      [[ $# -ge 2 ]] || fail "--infra-repo requires a path"
+      INFRA_REPO="$2"
+      shift 2
+      ;;
+    --proof-repo)
+      [[ $# -ge 2 ]] || fail "--proof-repo requires owner/repo"
+      PROOF_REPO="$2"
+      shift 2
+      ;;
+    --regression-pr)
+      [[ $# -ge 2 ]] || fail "--regression-pr requires a number"
+      REGRESSION_PR="$2"
+      shift 2
+      ;;
+    --neutral-pr)
+      [[ $# -ge 2 ]] || fail "--neutral-pr requires a number"
+      NEUTRAL_PR="$2"
+      shift 2
+      ;;
+    --proof-output)
+      [[ $# -ge 2 ]] || fail "--proof-output requires a path"
+      PROOF_OUTPUT="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      fail "unknown argument: $1"
+      ;;
+  esac
+done
+
+[[ -n "$INFRA_REPO" ]] || fail "--infra-repo or RUNDIFF_INFRA_REPO is required"
+
+INFRA_REPO="$(cd -- "$INFRA_REPO" 2>/dev/null && pwd)" ||
+  fail "infra repository path does not exist: $INFRA_REPO"
+
+CLOUDFLARE_VERIFIER="$INFRA_REPO/scripts/verify_cloudflare_identity.py"
+[[ -f "$CLOUDFLARE_VERIFIER" ]] ||
+  fail "Cloudflare verifier not found at $CLOUDFLARE_VERIFIER"
+
+proof_arg_count=0
+[[ -n "$PROOF_REPO" ]] && proof_arg_count=$((proof_arg_count + 1))
+[[ -n "$REGRESSION_PR" ]] && proof_arg_count=$((proof_arg_count + 1))
+[[ -n "$NEUTRAL_PR" ]] && proof_arg_count=$((proof_arg_count + 1))
+[[ -n "$PROOF_OUTPUT" ]] && proof_arg_count=$((proof_arg_count + 1))
+
+if [[ "$proof_arg_count" -ne 0 && "$proof_arg_count" -ne 4 ]]; then
+  fail "proof mode requires --proof-repo, --regression-pr, --neutral-pr, and --proof-output together"
+fi
+
+if [[ -n "$PROOF_REPO" ]]; then
+  [[ "$PROOF_REPO" == */* ]] || fail "--proof-repo must use owner/repo form"
+  [[ "$REGRESSION_PR" =~ ^[1-9][0-9]*$ ]] || fail "--regression-pr must be a positive integer"
+  [[ "$NEUTRAL_PR" =~ ^[1-9][0-9]*$ ]] || fail "--neutral-pr must be a positive integer"
+fi
+
+IDENTITY_VERIFIER="${RUNDIFF_IDENTITY_VERIFIER:-$SCRIPT_DIR/verify-production-identity}"
+PROOF_COLLECTOR="${RUNDIFF_PROOF_COLLECTOR:-$SCRIPT_DIR/collect-production-proof}"
+
+[[ -x "$IDENTITY_VERIFIER" ]] || fail "identity verifier is not executable: $IDENTITY_VERIFIER"
+if [[ -n "$PROOF_REPO" ]]; then
+  [[ -x "$PROOF_COLLECTOR" ]] || fail "proof collector is not executable: $PROOF_COLLECTOR"
+fi
+
+printf 'stage=production_identity status=running\n'
+"$IDENTITY_VERIFIER"
+printf 'stage=production_identity status=verified\n'
+
+printf 'stage=cloudflare_identity status=running\n'
+python3 "$CLOUDFLARE_VERIFIER"
+printf 'stage=cloudflare_identity status=verified\n'
+
+if [[ -z "$PROOF_REPO" ]]; then
+  printf 'stage=production_proof status=not_requested\n'
+else
+  printf 'stage=production_proof status=running\n'
+  "$PROOF_COLLECTOR"     "$PROOF_REPO"     --regression-pr "$REGRESSION_PR"     --neutral-pr "$NEUTRAL_PR"     --output "$PROOF_OUTPUT"
+  printf 'stage=production_proof status=verified output=%s\n' "$PROOF_OUTPUT"
+fi
+
+printf 'production_cutover=verified\n'
