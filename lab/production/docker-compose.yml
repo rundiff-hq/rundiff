@@ -47,6 +47,7 @@ x-executor-environment: &executor-environment
   RUNDIFF_EXECUTOR_SERVICE_ADAPTER: git_clone
   RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS: "360"
   RUNDIFF_GITHUB_GIT_BASE_URL: http://git-origin
+  RUNDIFF_SUBJECT_BUNDLE_SEED_ROOT: /lab-bundle-seed
   SSL_CERT_FILE: /lab-tls/ca.pem
 
 services:
@@ -57,10 +58,12 @@ services:
       RUNDIFF_LAB_GIT_ROOT: /lab-git
       RUNDIFF_LAB_STATE_ROOT: /lab-state
       RUNDIFF_LAB_TLS_ROOT: /lab-tls
+      RUNDIFF_LAB_BUNDLE_SEED_ROOT: /lab-bundle-seed
     volumes:
       - lab-git:/lab-git
       - lab-state:/lab-state
       - lab-tls:/lab-tls
+      - lab-bundle-seed:/lab-bundle-seed
 
   git-origin:
     image: nginx:1.29-alpine
@@ -206,6 +209,7 @@ services:
     command: bin/rails server -b 0.0.0.0 -p 3000
     volumes:
       - lab-tls:/lab-tls:ro
+      - lab-bundle-seed:/lab-bundle-seed:ro
 
   executor-tls:
     image: nginx:1.29-alpine
@@ -247,3 +251,4 @@ volumes:
   lab-git:
   lab-state:
   lab-tls:
+  lab-bundle-seed:
