@@ -252,6 +252,18 @@ jobs:
       - name: Build deployable image
         run: docker build -t "$RUNDIFF_IMAGE" .
 
+      - name: Prepare trusted subject bundle seed
+        run: |
+          docker volume create rundiff-topology-bundle-seed >/dev/null
+          docker run --rm \
+            -v rundiff-topology-bundle-seed:/rundiff-bundle-seed \
+            -e RUNDIFF_BUNDLE_SEED_ROOT=/rundiff-bundle-seed \
+            "$RUNDIFF_IMAGE" ruby script/prepare_trusted_bundle_seed.rb
+          docker run --rm \
+            -v rundiff-topology-bundle-seed:/rundiff-bundle-seed:ro \
+            "$RUNDIFF_IMAGE" sh -lc \
+            'test -d /rundiff-bundle-seed && ! touch /rundiff-bundle-seed/.write-test'
+
       - name: Prepare executor database
         run: |
           docker run --rm --network host \
@@ -267,6 +279,7 @@ jobs:
       - name: Start production executor service
         run: |
           docker run -d --name rundiff-executor --network host \
+            -v rundiff-topology-bundle-seed:/rundiff-bundle-seed:ro \
             -e SECRET_KEY_BASE_DUMMY=1 \
             -e RAILS_ENV=production \
             -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
@@ -275,6 +288,7 @@ jobs:
             -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
             -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
             -e RUNDIFF_LOCAL_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:5432 \
+            -e RUNDIFF_SUBJECT_BUNDLE_SEED_ROOT=/rundiff-bundle-seed \
             "$RUNDIFF_IMAGE" bin/rails server -b 0.0.0.0 -p 4010
 
       - name: Verify executor readiness and secret isolation
@@ -347,4 +361,6 @@ jobs:
 
       - name: Stop executor service
         if: always()
-        run: docker rm -f rundiff-executor || true
+        run: |
+          docker rm -f rundiff-executor || true
+          docker volume rm -f rundiff-topology-bundle-seed || true
