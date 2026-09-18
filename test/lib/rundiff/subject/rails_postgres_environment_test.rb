@@ -16,6 +16,30 @@ class RunDiffSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
     end
   end
 
+  class RecordingAdminConnection
+    attr_reader :url, :exec_params_calls, :exec_calls
+    attr_accessor :closed
+
+    def initialize(url)
+      @url = url
+      @exec_params_calls = []
+      @exec_calls = []
+      @closed = false
+    end
+
+    def exec_params(sql, params)
+      @exec_params_calls << [ sql, params ]
+    end
+
+    def exec(sql)
+      @exec_calls << sql
+    end
+
+    def close
+      self.closed = true
+    end
+  end
+
   test "declares the subject capabilities it actually provides" do
     environment = RunDiff::Subject::RailsPostgresEnvironment.new(
       command_runner: CommandRecorder.new,
@@ -71,6 +95,48 @@ class RunDiffSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
     assert_match(/_candidate_queue_s2\z/, second.fetch("SOLID_QUEUE_DATABASE_URL"))
     refute_equal first.fetch("DATABASE_URL"), second.fetch("DATABASE_URL")
     refute_equal first.fetch("SOLID_QUEUE_DATABASE_URL"), second.fetch("SOLID_QUEUE_DATABASE_URL")
+  end
+
+  test "drops sample-specific queue and app databases during cleanup" do
+    connections = []
+    factory = lambda do |url|
+      RecordingAdminConnection.new(url).tap { |connection| connections << connection }
+    end
+    environment = RunDiff::Subject::RailsPostgresEnvironment.new(
+      command_runner: CommandRecorder.new,
+      postgres_url: "postgres://db.example",
+      admin_connection_factory: factory
+    )
+    execution = Execution.new("github-abcdef1234567890")
+
+    environment.cleanup(
+      root: Pathname("/tmp/customer-subject"),
+      execution:,
+      role: "candidate",
+      sample_index: 2
+    )
+
+    assert_equal 2, connections.length
+    assert connections.all? { |connection| connection.url == "postgres://db.example/postgres" }
+    assert connections.all?(&:closed)
+
+    queue, app = connections
+    assert_equal(
+      [ "rundiff_app_abcdef123456_candidate_queue_s2" ],
+      queue.exec_params_calls.fetch(0).fetch(1)
+    )
+    assert_equal(
+      [ "rundiff_app_abcdef123456_candidate_s2" ],
+      app.exec_params_calls.fetch(0).fetch(1)
+    )
+    assert_equal(
+      'DROP DATABASE IF EXISTS "rundiff_app_abcdef123456_candidate_queue_s2"',
+      queue.exec_calls.fetch(0)
+    )
+    assert_equal(
+      'DROP DATABASE IF EXISTS "rundiff_app_abcdef123456_candidate_s2"',
+      app.exec_calls.fetch(0)
+    )
   end
 
   test "uses distinct subject state for baseline and candidate" do
