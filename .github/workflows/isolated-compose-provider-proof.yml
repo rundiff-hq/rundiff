@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - "app/**"
+      - "bin/lab"
       - "config/**"
       - "db/**"
+      - "lab/executor/isolated-compose-provider.sh"
       - "lib/**"
       - "script/prove_isolated_compose_provider.rb"
       - "script/prove_subject_privilege_boundary.rb"
@@ -18,8 +20,10 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "bin/lab"
       - "config/**"
       - "db/**"
+      - "lab/executor/isolated-compose-provider.sh"
       - "lib/**"
       - "script/prove_isolated_compose_provider.rb"
       - "script/prove_subject_privilege_boundary.rb"
@@ -38,92 +42,20 @@ concurrency:
 
 jobs:
   isolated_compose_provider:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
-
-    env:
-      RUNDIFF_EXECUTOR_IMAGE: rundiff-isolated-executor:${{ github.sha }}
-      RUNDIFF_PROVIDER_IMAGE: rundiff-compose-provider:${{ github.sha }}
-      RUNDIFF_PROVIDER_VOLUME: rundiff-provider-${{ github.run_id }}-${{ github.run_attempt }}
-      RUNDIFF_COMPOSE_PROVIDER_SOCKET: /run/rundiff-provider/provider.sock
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build executor and isolated provider images
-        run: |
-          docker build -t "$RUNDIFF_EXECUTOR_IMAGE" .
-          docker build -f Dockerfile.compose-provider -t "$RUNDIFF_PROVIDER_IMAGE" .
+      - name: Run isolated Compose provider lab
+        run: bin/lab run executor --case isolated-compose-provider
 
-      - name: Start isolated provider authority
-        run: |
-          docker volume create "$RUNDIFF_PROVIDER_VOLUME"
-          docker run -d --name rundiff-compose-provider \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
-            -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
-            "$RUNDIFF_PROVIDER_IMAGE"
-
-          for attempt in $(seq 1 60); do
-            if docker exec rundiff-compose-provider test -S "$RUNDIFF_COMPOSE_PROVIDER_SOCKET"; then
-              break
-            fi
-            if [ "$attempt" -eq 60 ]; then
-              docker logs rundiff-compose-provider
-              exit 1
-            fi
-            sleep 1
-          done
-
-      - name: Verify executor has no container-management authority
-        run: |
-          docker run --rm \
-            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
-            "$RUNDIFF_EXECUTOR_IMAGE" \
-            sh -c 'test ! -S /var/run/docker.sock && ! command -v docker'
-
-      - name: Verify customer UID cannot access provider control socket
-        run: |
-          docker run --rm --user 10001:10001 \
-            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
-            -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
-            "$RUNDIFF_EXECUTOR_IMAGE" \
-            ruby -rsocket -e '
-              begin
-                UNIXSocket.new(ENV.fetch("RUNDIFF_COMPOSE_PROVIDER_SOCKET"))
-                abort "subject UID unexpectedly opened provider control socket"
-              rescue Errno::EACCES
-                puts "subject_provider_authority_access=false"
-              end
-            '
-
-      - name: Prove typed Compose lifecycle through isolated provider
-        run: |
-          docker run --rm --network host \
-            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
-            -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
-            "$RUNDIFF_EXECUTOR_IMAGE" \
-            ruby script/prove_isolated_compose_provider.rb
-
-      - name: Verify provider resources were removed
-        run: |
-          if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^rundiff-' ; then
-            echo "Compose containers leaked after proof"
-            docker ps -a
-            exit 1
-          fi
-          if docker network ls --filter label=com.docker.compose.project --format '{{.Name}}' | grep '^rundiff-' ; then
-            echo "Compose networks leaked after proof"
-            docker network ls
-            exit 1
-          fi
-
-      - name: Provider logs
+      - name: Upload lab artifacts
         if: always()
-        run: docker logs rundiff-compose-provider || true
-
-      - name: Teardown provider authority
-        if: always()
-        run: |
-          docker rm -f rundiff-compose-provider || true
-          docker volume rm -f "$RUNDIFF_PROVIDER_VOLUME" || true
+        uses: actions/upload-artifact@v4
+        with:
+          name: executor-isolated-compose-provider-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/lab/executor/isolated-compose-provider
+          if-no-files-found: warn
+          retention-days: 7
