@@ -1,10 +1,10 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectNodeProcessServiceTest < ActiveSupport::TestCase
+class RunDiffSubjectNodeProcessServiceTest < ActiveSupport::TestCase
   class Detector
     def call(root:, configuration:)
-      Plywo::Subject::SetupPlan.new(
+      RunDiff::Subject::SetupPlan.new(
         framework: "test",
         steps: [
           {
@@ -18,19 +18,19 @@ class PlywoSubjectNodeProcessServiceTest < ActiveSupport::TestCase
   end
 
   test "loads Node service and compiles it when executor declares Node" do
-    Dir.mktmpdir("plywo-node-service-") do |directory|
+    Dir.mktmpdir("rundiff-node-service-") do |directory|
       root = Pathname(directory)
       write_configuration(root)
-      configuration = Plywo::Subject::Configuration.load(root:)
+      configuration = RunDiff::Subject::Configuration.load(root:)
       service = configuration.services.fetch(0)
 
       assert_equal "node", service.runtime
 
-      capabilities = Plywo::Subject::RuntimeCapabilities.new(
+      capabilities = RunDiff::Subject::RuntimeCapabilities.new(
         runtimes: { ruby: "3.4.10", node: "24.20.0" },
         package_managers: {}
       )
-      compiler = Plywo::Subject::SetupPlanCompiler.new(
+      compiler = RunDiff::Subject::SetupPlanCompiler.new(
         detectors: [ Detector.new ],
         runtime_capabilities: capabilities
       )
@@ -45,16 +45,16 @@ class PlywoSubjectNodeProcessServiceTest < ActiveSupport::TestCase
   end
 
   test "fails closed before execution when Node is not a declared executor runtime" do
-    Dir.mktmpdir("plywo-node-service-") do |directory|
+    Dir.mktmpdir("rundiff-node-service-") do |directory|
       root = Pathname(directory)
       write_configuration(root)
-      configuration = Plywo::Subject::Configuration.load(root:)
-      compiler = Plywo::Subject::SetupPlanCompiler.new(
+      configuration = RunDiff::Subject::Configuration.load(root:)
+      compiler = RunDiff::Subject::SetupPlanCompiler.new(
         detectors: [ Detector.new ],
-        runtime_capabilities: Plywo::Subject::RuntimeCapabilities.ruby_only(version: "3.4.10")
+        runtime_capabilities: RunDiff::Subject::RuntimeCapabilities.ruby_only(version: "3.4.10")
       )
 
-      error = assert_raises(Plywo::Subject::SetupPlanCompiler::Error) do
+      error = assert_raises(RunDiff::Subject::SetupPlanCompiler::Error) do
         compiler.call(root:, configuration:)
       end
 
@@ -66,7 +66,7 @@ class PlywoSubjectNodeProcessServiceTest < ActiveSupport::TestCase
   private
 
   def write_configuration(root)
-    root.join("plywo.yml").write(<<~YAML)
+    root.join("rundiff.yml").write(<<~YAML)
       version: 1
       subject:
         services:

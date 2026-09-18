@@ -5,10 +5,10 @@ require "socket"
 require "timeout"
 require "uri"
 
-class PlywoSubjectLifecycleProcessServiceTest < ActiveSupport::TestCase
+class RunDiffSubjectLifecycleProcessServiceTest < ActiveSupport::TestCase
   Configuration = Data.define(:capture_env)
 
-  class HttpProcessEnvironment < Plywo::Subject::Environment
+  class HttpProcessEnvironment < RunDiff::Subject::Environment
     READINESS_TIMEOUT_SECONDS = 5
     STOP_TIMEOUT_SECONDS = 2
 
@@ -22,13 +22,13 @@ class PlywoSubjectLifecycleProcessServiceTest < ActiveSupport::TestCase
     def prepare(root:, execution:, role:)
       @port = allocate_port
       {
-        "PLYWO_TEST_SERVICE_URL" => "http://127.0.0.1:#{port}"
+        "RUNDIFF_TEST_SERVICE_URL" => "http://127.0.0.1:#{port}"
       }
     end
 
     def env_for(root:, execution:, role:)
       {
-        "PLYWO_TEST_SERVICE_URL" => "http://127.0.0.1:#{port}"
+        "RUNDIFF_TEST_SERVICE_URL" => "http://127.0.0.1:#{port}"
       }
     end
 
@@ -43,7 +43,7 @@ class PlywoSubjectLifecycleProcessServiceTest < ActiveSupport::TestCase
     end
 
     def healthcheck(root:, execution:, role:, env:)
-      wait_until_ready(env.fetch("PLYWO_TEST_SERVICE_URL"))
+      wait_until_ready(env.fetch("RUNDIFF_TEST_SERVICE_URL"))
       raise "forced readiness failure" if @fail_healthcheck
     end
 
@@ -128,7 +128,7 @@ class PlywoSubjectLifecycleProcessServiceTest < ActiveSupport::TestCase
     ) do |session|
       assert_operator environment.port, :>, 0
       assert environment.process_alive?
-      assert_equal "service-ready", Net::HTTP.get(URI("#{session.env.fetch("PLYWO_TEST_SERVICE_URL")}/value"))
+      assert_equal "service-ready", Net::HTTP.get(URI("#{session.env.fetch("RUNDIFF_TEST_SERVICE_URL")}/value"))
     end
 
     refute environment.process_alive?(environment.stopped_pid)
@@ -167,7 +167,7 @@ class PlywoSubjectLifecycleProcessServiceTest < ActiveSupport::TestCase
   end
 
   def build_lifecycle(environment:)
-    Plywo::Subject::Lifecycle.new(
+    RunDiff::Subject::Lifecycle.new(
       discovery: nil,
       environment:
     )

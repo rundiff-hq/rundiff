@@ -1,9 +1,9 @@
 require "test_helper"
 
-class PlywoSubjectLifecycleTest < ActiveSupport::TestCase
+class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
   Configuration = Data.define(:capture_env)
 
-  class RecordingEnvironment < Plywo::Subject::Environment
+  class RecordingEnvironment < RunDiff::Subject::Environment
     attr_reader :events
 
     def initialize(events:, fail_on: nil)
@@ -99,7 +99,7 @@ class PlywoSubjectLifecycleTest < ActiveSupport::TestCase
     events = []
     environment = RecordingEnvironment.new(events:)
     discovery = RecordingDiscovery.new(events:, environment:)
-    setup_plan = Plywo::Subject::SetupPlan.new(
+    setup_plan = RunDiff::Subject::SetupPlan.new(
       framework: "rails",
       steps: [
         {
@@ -114,7 +114,7 @@ class PlywoSubjectLifecycleTest < ActiveSupport::TestCase
       events << [ :bootstrap, setup_plan ]
       { "FROM_BOOTSTRAP" => "1" }
     end
-    lifecycle = Plywo::Subject::Lifecycle.new(
+    lifecycle = RunDiff::Subject::Lifecycle.new(
       discovery:,
       bootstrap:,
       setup_plan_compiler: compiler
@@ -206,6 +206,6 @@ class PlywoSubjectLifecycleTest < ActiveSupport::TestCase
     end
     discovery = RecordingDiscovery.new(events:, environment:)
 
-    Plywo::Subject::Lifecycle.new(discovery:, bootstrap:)
+    RunDiff::Subject::Lifecycle.new(discovery:, bootstrap:)
   end
 end
