@@ -2,8 +2,32 @@ name: Isolated Compose Provider Proof
 
 on:
   pull_request:
+    paths:
+      - "app/**"
+      - "config/**"
+      - "db/**"
+      - "lib/**"
+      - "script/prove_isolated_compose_provider.rb"
+      - "script/prove_subject_privilege_boundary.rb"
+      - "Dockerfile"
+      - "Dockerfile.compose-provider"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".github/workflows/isolated-compose-provider-proof.yml"
   push:
     branches: [main]
+    paths:
+      - "app/**"
+      - "config/**"
+      - "db/**"
+      - "lib/**"
+      - "script/prove_isolated_compose_provider.rb"
+      - "script/prove_subject_privilege_boundary.rb"
+      - "Dockerfile"
+      - "Dockerfile.compose-provider"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".github/workflows/isolated-compose-provider-proof.yml"
 
 permissions:
   contents: read
@@ -15,6 +39,7 @@ concurrency:
 jobs:
   isolated_compose_provider:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     env:
       RUNDIFF_EXECUTOR_IMAGE: rundiff-isolated-executor:${{ github.sha }}
@@ -23,7 +48,7 @@ jobs:
       RUNDIFF_COMPOSE_PROVIDER_SOCKET: /run/rundiff-provider/provider.sock
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build executor and isolated provider images
         run: |
