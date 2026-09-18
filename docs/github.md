@@ -1,6 +1,6 @@
 # GitHub integration
 
-One Plywo run projects into several GitHub surfaces.
+One RunDiff run projects into several GitHub surfaces.
 
 ## PR comment
 
@@ -11,13 +11,13 @@ Concise human summary. Use GitHub-flavored Markdown and update one durable bot-o
 Stable merge and agent state. The initial Actions check name is:
 
 ```text
-Plywo / Behavioral Diff
+RunDiff / Behavioral Diff
 ```
 
 The Development GitHub App uses a distinct context while both delivery paths are dogfooded:
 
 ```text
-Plywo Development / Behavioral Diff
+RunDiff Development / Behavioral Diff
 ```
 
 Behavioral decision mapping:
@@ -40,7 +40,7 @@ An `INFRA_FAILURE` Check says that Plywo could not produce trustworthy behaviora
 
 The check uses the Plywo execution/run identity as `external_id`. For App-native executions, `check_run.rerequested` resolves that external ID back to the durable `PlywoExecution`. Plywo only requeues the check when the execution outcome is `infra_failure` and the PR still points at the exact recorded base and head. Each successful claim increments `attempt_count`; stale or behavioral outcomes are not re-run through the infrastructure retry path.
 
-GitHub Actions may assign its own Check Run page as `details_url`, so the output summary also carries an explicit link to the Actions execution. GitHub presents the latest `Plywo / Behavioral Diff` context for the current head; internal Check Run IDs may differ across workflow attempts.
+GitHub Actions may assign its own Check Run page as `details_url`, so the output summary also carries an explicit link to the Actions execution. GitHub presents the latest `RunDiff / Behavioral Diff` context for the current head; internal Check Run IDs may differ across workflow attempts.
 
 ## Annotations
 
@@ -113,6 +113,6 @@ Agents should never be required to parse the PR comment, Check Run, or annotatio
 PR comment -> What changed?
 Check      -> Can this merge?
 Annotation -> Where is a confidently attributed runtime source?
-Plywo UI   -> Why did it happen?
+RunDiff UI -> Why did it happen?
 API/MCP    -> What should an agent do next?
 ```
