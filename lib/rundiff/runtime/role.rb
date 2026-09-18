@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Runtime
     class Role
       Error = Class.new(StandardError)
@@ -8,9 +8,9 @@ module Plywo
       attr_reader :name
 
       def self.from_env(env: ENV, rails_env: ::Rails.env)
-        explicit = env["PLYWO_RUNTIME_ROLE"].to_s
+        explicit = env["RUNDIFF_RUNTIME_ROLE"].to_s
         name = if explicit.empty?
-          if env["PLYWO_EXECUTOR_SERVICE"] == "1"
+          if env["RUNDIFF_EXECUTOR_SERVICE"] == "1"
             "executor_service"
           elsif %w[development test].include?(rails_env.to_s)
             "combined"
@@ -26,7 +26,7 @@ module Plywo
 
       def initialize(name)
         @name = name.to_s
-        raise Error, "Unsupported PLYWO_RUNTIME_ROLE=#{@name.inspect}" unless VALUES.include?(@name)
+        raise Error, "Unsupported RUNDIFF_RUNTIME_ROLE=#{@name.inspect}" unless VALUES.include?(@name)
       end
 
       def control_plane?

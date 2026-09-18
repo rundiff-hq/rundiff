@@ -4,7 +4,7 @@ require "pathname"
 require "securerandom"
 require "yaml"
 
-module Plywo
+module RunDiff
   module Subject
     class ComposeServiceProvider
       Error = Class.new(StandardError)
@@ -259,7 +259,7 @@ module Plywo
       def project_name(role:)
         role = role.to_s.downcase.gsub(/[^a-z0-9_-]+/, "-").gsub(/\A[-_]+|[-_]+\z/, "")
         role = "subject" if role.empty?
-        "plywo-#{role}-#{SecureRandom.hex(6)}"
+        "rundiff-#{role}-#{SecureRandom.hex(6)}"
       end
 
       def parse_loopback_port(value, service_name:)

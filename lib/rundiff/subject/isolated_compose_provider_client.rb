@@ -3,14 +3,14 @@ require "pathname"
 require "securerandom"
 require "socket"
 
-module Plywo
+module RunDiff
   module Subject
     class IsolatedComposeProviderClient
       Error = Class.new(StandardError)
 
       PROTOCOL_VERSION = 1
       PROVIDER_NAME = "compose".freeze
-      ENV_SOCKET = "PLYWO_COMPOSE_PROVIDER_SOCKET".freeze
+      ENV_SOCKET = "RUNDIFF_COMPOSE_PROVIDER_SOCKET".freeze
       MAX_MANIFEST_BYTES = 128 * 1024
       MAX_RESPONSE_BYTES = 256 * 1024
 

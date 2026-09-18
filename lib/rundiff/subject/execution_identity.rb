@@ -1,15 +1,15 @@
 require "fileutils"
 require "pathname"
 
-module Plywo
+module RunDiff
   module Subject
     class ExecutionIdentity
       Error = Class.new(StandardError)
 
-      ENV_UID = "PLYWO_SUBJECT_UID".freeze
-      ENV_GID = "PLYWO_SUBJECT_GID".freeze
-      ENV_HOME = "PLYWO_SUBJECT_HOME".freeze
-      ENV_USER = "PLYWO_SUBJECT_USER".freeze
+      ENV_UID = "RUNDIFF_SUBJECT_UID".freeze
+      ENV_GID = "RUNDIFF_SUBJECT_GID".freeze
+      ENV_HOME = "RUNDIFF_SUBJECT_HOME".freeze
+      ENV_USER = "RUNDIFF_SUBJECT_USER".freeze
 
       attr_reader :uid, :gid, :home, :user
 
@@ -97,7 +97,7 @@ module Plywo
       end
 
       def runtime_home(workspace)
-        Pathname(workspace).expand_path.join("tmp", "plywo", "home")
+        Pathname(workspace).expand_path.join("tmp", "rundiff", "home")
       end
 
       def prepare_parent_directory(path)

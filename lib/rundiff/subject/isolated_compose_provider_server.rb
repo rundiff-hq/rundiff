@@ -8,7 +8,7 @@ require_relative "compose_service_provider"
 require_relative "isolated_compose_provider_client"
 require_relative "setup_plan"
 
-module Plywo
+module RunDiff
   module Subject
     class IsolatedComposeProviderServer
       Error = Class.new(StandardError)
@@ -157,7 +157,7 @@ module Plywo
             "Compose provider start is missing detail keys: #{missing_details.sort.join(", ")}"
         end
 
-        workspace = Pathname(Dir.mktmpdir("plywo-compose-authority-"))
+        workspace = Pathname(Dir.mktmpdir("rundiff-compose-authority-"))
         manifest_path = workspace.join("compose.yml")
         manifest_path.binwrite(manifest)
         File.chmod(0o600, manifest_path)

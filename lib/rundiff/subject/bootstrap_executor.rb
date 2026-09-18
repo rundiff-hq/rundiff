@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Subject
     class BootstrapExecutor
       Error = Class.new(StandardError)

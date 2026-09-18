@@ -1,7 +1,7 @@
 require "pathname"
 require_relative "execution_identity"
 
-module Plywo
+module RunDiff
   module Subject
     class Discovery
       Error = Class.new(StandardError)
@@ -81,7 +81,7 @@ module Plywo
           raise Error, "Ambiguous Rails persistence from Gemfile evidence: #{gem_candidates.sort.join(", ")}"
         end
 
-        raise Error, "Could not discover Rails persistence for #{root}; add config/database.yml evidence or set subject.persistence in plywo.yml"
+        raise Error, "Could not discover Rails persistence for #{root}; add config/database.yml evidence or set subject.persistence in rundiff.yml"
       end
 
       def persistence_gems(root)

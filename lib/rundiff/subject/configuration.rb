@@ -1,7 +1,7 @@
 require "pathname"
 require "yaml"
 
-module Plywo
+module RunDiff
   module Subject
     class Configuration
       Error = Class.new(StandardError)
@@ -37,7 +37,7 @@ module Plywo
 
       def self.load(root:)
         canonical_path = Pathname(root).join("rundiff.yml")
-        legacy_path = Pathname(root).join("plywo.yml")
+        legacy_path = Pathname(root).join("rundiff.yml")
         path = canonical_path.file? ? canonical_path : legacy_path
         return new(
           scenario_path: nil,
@@ -91,7 +91,7 @@ module Plywo
       def capture_env
         return {} unless scenario_path
 
-        { "PLYWO_SCENARIO_PATH" => scenario_path }
+        { "RUNDIFF_SCENARIO_PATH" => scenario_path }
       end
 
       class << self

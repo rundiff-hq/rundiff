@@ -1,6 +1,6 @@
 require "uri"
 
-module Plywo
+module RunDiff
   module Runtime
     class Readiness
       Result = Data.define(:role, :errors) do
@@ -18,13 +18,13 @@ module Plywo
       end
 
       EXECUTOR_FORBIDDEN_SECRETS = %w[
-        PLYWO_GITHUB_PRIVATE_KEY_PATH
-        PLYWO_GITHUB_WEBHOOK_SECRET
+        RUNDIFF_GITHUB_PRIVATE_KEY_PATH
+        RUNDIFF_GITHUB_WEBHOOK_SECRET
       ].freeze
 
       EXECUTOR_FORBIDDEN_REMOTE_CONFIG = %w[
-        PLYWO_REMOTE_EXECUTOR_URL
-        PLYWO_REMOTE_EXECUTOR_TOKEN
+        RUNDIFF_REMOTE_EXECUTOR_URL
+        RUNDIFF_REMOTE_EXECUTOR_TOKEN
       ].freeze
 
       def initialize(
@@ -69,50 +69,50 @@ module Plywo
       def validate_production_role!(errors)
         return unless production? && @role.combined?
 
-        errors << "PLYWO_RUNTIME_ROLE=combined is not allowed for production readiness"
+        errors << "RUNDIFF_RUNTIME_ROLE=combined is not allowed for production readiness"
       end
 
       def validate_control_plane!(errors)
-        require_https!(errors, "PLYWO_PUBLIC_URL")
-        require_value!(errors, "PLYWO_GITHUB_APP_ID")
-        require_value!(errors, "PLYWO_GITHUB_WEBHOOK_SECRET")
-        require_readable_file!(errors, "PLYWO_GITHUB_PRIVATE_KEY_PATH")
+        require_https!(errors, "RUNDIFF_PUBLIC_URL")
+        require_value!(errors, "RUNDIFF_GITHUB_APP_ID")
+        require_value!(errors, "RUNDIFF_GITHUB_WEBHOOK_SECRET")
+        require_readable_file!(errors, "RUNDIFF_GITHUB_PRIVATE_KEY_PATH")
         validate_repository_admission!(errors)
 
-        unless @env["PLYWO_EXECUTOR"].to_s == "remote"
-          errors << "PLYWO_EXECUTOR must be remote for a production control plane"
+        unless @env["RUNDIFF_EXECUTOR"].to_s == "remote"
+          errors << "RUNDIFF_EXECUTOR must be remote for a production control plane"
         end
 
-        require_https!(errors, "PLYWO_REMOTE_EXECUTOR_URL")
-        require_value!(errors, "PLYWO_REMOTE_EXECUTOR_TOKEN")
+        require_https!(errors, "RUNDIFF_REMOTE_EXECUTOR_URL")
+        require_value!(errors, "RUNDIFF_REMOTE_EXECUTOR_TOKEN")
       end
 
       def validate_repository_admission!(errors)
-        policy = Plywo::Github::RepositoryAdmissionPolicy.new(env: @env, rails_env: @rails_env)
+        policy = RunDiff::Github::RepositoryAdmissionPolicy.new(env: @env, rails_env: @rails_env)
 
         unless policy.configured?
-          errors << "PLYWO_GITHUB_REPOSITORY_ALLOWLIST is required for a production control plane"
+          errors << "RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST is required for a production control plane"
           return
         end
 
         if policy.wildcard?
-          errors << "PLYWO_GITHUB_REPOSITORY_ALLOWLIST must not contain * in production"
+          errors << "RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST must not contain * in production"
         end
       end
 
       def validate_executor_service!(errors)
-        require_value!(errors, "PLYWO_EXECUTOR_SERVICE_TOKEN")
+        require_value!(errors, "RUNDIFF_EXECUTOR_SERVICE_TOKEN")
 
-        unless @env["PLYWO_EXECUTOR_SERVICE_ADAPTER"].to_s == "git_clone"
-          errors << "PLYWO_EXECUTOR_SERVICE_ADAPTER must be git_clone for production executor service"
+        unless @env["RUNDIFF_EXECUTOR_SERVICE_ADAPTER"].to_s == "git_clone"
+          errors << "RUNDIFF_EXECUTOR_SERVICE_ADAPTER must be git_clone for production executor service"
         end
 
         EXECUTOR_FORBIDDEN_SECRETS.each do |name|
           errors << "#{name} must not be configured on the executor service" if configured?(name)
         end
 
-        if @env["PLYWO_EXECUTOR"].to_s == "remote"
-          errors << "PLYWO_EXECUTOR=remote must not be configured on the executor service"
+        if @env["RUNDIFF_EXECUTOR"].to_s == "remote"
+          errors << "RUNDIFF_EXECUTOR=remote must not be configured on the executor service"
         end
 
         EXECUTOR_FORBIDDEN_REMOTE_CONFIG.each do |name|
