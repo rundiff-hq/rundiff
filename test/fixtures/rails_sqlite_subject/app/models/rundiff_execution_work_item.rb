@@ -1,4 +1,4 @@
-class PlywoExecutionWorkItem < ApplicationRecord
+class RunDiffExecutionWorkItem < ApplicationRecord
   ACTIVE_STATUSES = %w[enqueued running].freeze
   TERMINAL_STATUSES = %w[completed failed].freeze
   STATUSES = (ACTIVE_STATUSES + TERMINAL_STATUSES).freeze

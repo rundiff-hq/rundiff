@@ -1,3 +1,3 @@
 class ApplicationJob < ActiveJob::Base
-  include Plywo::Rails::ActiveJobExecutionContext
+  include RunDiff::Rails::ActiveJobExecutionContext
 end
