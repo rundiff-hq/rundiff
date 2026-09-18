@@ -28,17 +28,17 @@ The runner is not required to be Playwright. Playwright CLI is the first web-ori
 
 A GitHub PR normally has one candidate: the PR head against its base ref. GitHub presentation therefore renders one candidate deeply.
 
-CLI and Plywo UI may render many candidates as a matrix/ranking. This keeps GitHub feedback concise without constraining the core model to one candidate.
+CLI and RunDiff UI may render many candidates as a matrix/ranking. This keeps GitHub feedback concise without constraining the core model to one candidate.
 
 ## Local agent workflow
 
 A future CLI can accept one baseline subject plus N candidate subjects, including worktree or directory paths:
 
 ```text
-plywo compare --baseline ./main \
+rundiff compare --baseline ./main \
   --candidate ./attempt-1 \
   --candidate ./attempt-2 \
   --candidate ./attempt-3
 ```
 
-The CLI should execute the same scenario corpus across all subjects, persist execution evidence, rank candidates, and optionally publish the comparison to Plywo UI.
+The CLI should execute the same scenario corpus across all subjects, persist execution evidence, rank candidates, and optionally publish the comparison to RunDiff UI.

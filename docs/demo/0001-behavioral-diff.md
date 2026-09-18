@@ -16,7 +16,7 @@ For the first executable slice, RunDiff runs two local-only Rails HTTP execution
 
 ```bash
 bin/rails db:prepare
-bin/rails plywo:dogfood
+bin/rails rundiff:dogfood
 ```
 
 Both executions return success. The candidate intentionally performs more work:
@@ -26,7 +26,7 @@ Both executions return success. The candidate intentionally performs more work:
 - a duplicate email side effect
 - longer request duration
 
-`Plywo::Rails::EvidenceCollector` subscribes to Rails instrumentation while `X-Plywo-Execution-Id` is active. The resulting measurements are passed to the portable `Plywo::BehavioralDiff` engine.
+`RunDiff::Rails::EvidenceCollector` subscribes to Rails instrumentation while `X-RunDiff-Execution-Id` is active. The resulting measurements are passed to the portable `RunDiff::BehavioralDiff` engine.
 
 This is deliberately not yet a fake PR checkout. The next slice replaces the demo subject switch with two real Git subjects/worktrees while keeping the evidence and result contracts unchanged.
 
