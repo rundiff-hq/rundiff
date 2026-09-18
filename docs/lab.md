@@ -5,6 +5,8 @@ RunDiff lab proofs use one runner-agnostic entry point:
 ```bash
 bin/lab list
 bin/lab run production --case topology
+bin/lab run executor --case compose-service
+bin/lab run executor --case isolated-compose-provider
 ```
 
 The contract is:
@@ -19,14 +21,36 @@ A lab case must not depend on GitHub Actions. The same command should run locall
 
 GitHub Actions is the default execution environment. A persistent Devbox should only be introduced when a proof has a demonstrated need for stable hardware/IP, large reusable caches, interactive debugging, or unusually long execution.
 
-## Current case
+## Current cases
 
 ### production/topology
 
-Runs the hermetic GitHub App -> control plane -> remote executor topology using the existing production Docker Compose lab. It preserves the current security assertions and additionally stores useful output under:
+Runs the hermetic GitHub App -> control plane -> remote executor topology using the production Docker Compose lab. It preserves the current security assertions and stores driver, executor proof, Compose state and Compose logs below:
 
 ```text
 tmp/lab/production/topology/
 ```
 
 The legacy `bin/production-lab` entrypoint remains as a compatibility shim and forwards to `bin/lab run production --case topology`.
+
+### executor/compose-service
+
+Proves the explicit Docker Compose service lifecycle against the host Docker capability. The GitHub workflow only prepares Ruby and then invokes the same lab command that can be run locally.
+
+Artifacts:
+
+```text
+tmp/lab/executor/compose-service/
+```
+
+### executor/isolated-compose-provider
+
+Builds the executor and provider images, starts the isolated provider authority, proves the executor has no Docker socket/CLI authority, proves the customer UID cannot open the provider control socket, exercises the typed Compose lifecycle, checks for leaked Compose resources, and always captures provider/Docker state before cleanup.
+
+Artifacts:
+
+```text
+tmp/lab/executor/isolated-compose-provider/
+```
+
+All disposable lab workflows keep `cancel-in-progress: true`; production mutation workflows remain separate and must never inherit that cancellation policy.

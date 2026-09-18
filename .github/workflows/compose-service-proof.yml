@@ -3,6 +3,8 @@ name: Compose Service Proof
 on:
   pull_request:
     paths:
+      - "bin/lab"
+      - "lab/executor/compose-service.sh"
       - "lib/**"
       - "script/prove_compose_service_provider.rb"
       - "Gemfile"
@@ -12,6 +14,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "bin/lab"
+      - "lab/executor/compose-service.sh"
       - "lib/**"
       - "script/prove_compose_service_provider.rb"
       - "Gemfile"
@@ -28,7 +32,7 @@ concurrency:
 
 jobs:
   compose_service_proof:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -39,10 +43,14 @@ jobs:
           ruby-version: "3.4.10"
           bundler-cache: true
 
-      - name: Verify Docker Compose is host capability
-        run: |
-          docker compose version
-          test -S /var/run/docker.sock
+      - name: Run Compose service lab
+        run: bin/lab run executor --case compose-service
 
-      - name: Prove explicit Compose service lifecycle
-        run: ruby script/prove_compose_service_provider.rb
+      - name: Upload lab artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: executor-compose-service-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/lab/executor/compose-service
+          if-no-files-found: warn
+          retention-days: 7
