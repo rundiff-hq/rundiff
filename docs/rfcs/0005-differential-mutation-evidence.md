@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed design direction for Plywo and its future RunDiff identity. This RFC records product and architecture criteria, not an implementation commitment to any particular mutation engine.
+Proposed design direction for RunDiff, formerly Plywo. This RFC records product and architecture criteria, not an implementation commitment to any particular mutation engine.
 
 ## Context
 
