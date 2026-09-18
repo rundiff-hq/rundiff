@@ -45,6 +45,27 @@ class RunDiffGithubCommentRendererTest < ActiveSupport::TestCase
     assert_includes markdown, "Evidence: exact Git worktrees + isolated PostgreSQL databases"
   end
 
+  test "explains that single-sample timing evidence is review-only" do
+    payload = RunDiff::ExecutionPair.call(
+      baseline: execution(sql_queries: 17).merge(
+        "measurements" => execution(sql_queries: 17).fetch("measurements").merge(
+          "duration_ms" => 70.0
+        )
+      ),
+      candidate: execution(sql_queries: 17).merge(
+        "measurements" => execution(sql_queries: 17).fetch("measurements").merge(
+          "duration_ms" => 93.7
+        )
+      )
+    )
+
+    markdown = RunDiff::Github::CommentRenderer.markdown(payload:)
+
+    assert_includes markdown, "Merge recommendation: **REVIEW**"
+    assert_includes markdown, "timing evidence is single-sample and review-only"
+    assert_includes markdown, "_single-sample timing, review-only_"
+  end
+
   test "explains which async stage caused a regression for legacy evidence" do
     markdown = RunDiff::Github::CommentRenderer.markdown(payload: async_regression_payload)
 
