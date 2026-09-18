@@ -166,7 +166,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
       regression_pr: 1,
       neutral_pr: 2,
       authentication: FakeAuthentication.new([]),
-      client_factory: ->(token:) { flunk("client should not be created for invalid repository") },
+      client_factory: ->(**) { flunk("client should not be created for invalid repository") },
       app_slug: "rundiff",
       clock: -> { Time.utc(2026, 9, 18) }
     )
@@ -184,7 +184,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
       regression_pr: 12,
       neutral_pr: 13,
       authentication:,
-      client_factory: ->(token:) { client },
+      client_factory: ->(**) { client },
       check_name: CHECK_NAME,
       bot_login: BOT_LOGIN,
       control_plane_url: "https://app.rundiff.com",
