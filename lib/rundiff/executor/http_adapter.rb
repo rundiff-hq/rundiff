@@ -68,6 +68,14 @@ module RunDiff
         raise Error, "Remote executor result must be a JSON object" unless payload.is_a?(Hash)
 
         Result.from_h(payload)
+      rescue Net::OpenTimeout => error
+        raise Error,
+          "Remote executor timeout execution_id=#{request.execution_id.inspect} " \
+          "phase=remote_executor_connect error_class=#{error.class.name}"
+      rescue Net::ReadTimeout => error
+        raise Error,
+          "Remote executor timeout execution_id=#{request.execution_id.inspect} " \
+          "phase=remote_executor_wait error_class=#{error.class.name}"
       rescue JSON::ParserError => error
         raise Error, "Remote executor returned invalid JSON: #{error.message}"
       rescue KeyError, ArgumentError => error
