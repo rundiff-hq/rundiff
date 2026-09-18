@@ -89,12 +89,14 @@ module RunDiff
         return false unless @seed_root
 
         seed = @seed_root.join(cache_key)
-        return false unless seed.directory?
+        seed_gems = seed.join("gems")
+        return false unless seed_gems.directory?
 
         FileUtils.rm_rf(bundle_root)
-        FileUtils.mkdir_p(bundle_root)
-        Dir.children(seed).each do |entry|
-          FileUtils.cp_r(seed.join(entry), bundle_root.join(entry), preserve: true)
+        local_gems = bundle_root.join("gems")
+        FileUtils.mkdir_p(local_gems)
+        Dir.children(seed_gems).each do |entry|
+          FileUtils.cp_r(seed_gems.join(entry), local_gems.join(entry), preserve: true)
         end
         true
       rescue Errno::EACCES, Errno::EPERM, Errno::ENOENT => error
