@@ -6,7 +6,7 @@ RunDiff keeps one manifest per environment under version control:
 - `.github/app-manifest.staging.json` for `RunDiff Staging`
 - `.github/app-manifest.json` for production `RunDiff`
 
-All manifests use `{{PLYWO_PUBLIC_URL}}` for callback and webhook URLs. The Rails bootstrap page resolves that placeholder at runtime.
+All manifests use `{{RUNDIFF_PUBLIC_URL}}` for callback and webhook URLs. The Rails bootstrap page resolves that placeholder at runtime.
 
 ## Unified launcher
 
@@ -39,9 +39,9 @@ Development may use a Quick Tunnel when `api.trycloudflare.com` is reachable. St
 Useful overrides:
 
 ```bash
-PLYWO_PUBLIC_URL=https://github-dev.example.com bash bin/setup-github-app development
-PLYWO_TUNNEL_MODE=named bash bin/setup-github-app staging
-PLYWO_TUNNEL_MODE=external PLYWO_PUBLIC_URL=https://app.example.com bash bin/setup-github-app production
+RUNDIFF_PUBLIC_URL=https://github-dev.example.com bash bin/setup-github-app development
+RUNDIFF_TUNNEL_MODE=named bash bin/setup-github-app staging
+RUNDIFF_TUNNEL_MODE=external RUNDIFF_PUBLIC_URL=https://app.example.com bash bin/setup-github-app production
 ```
 
 Supported tunnel modes are `auto`, `quick`, `named`, and `external`. `quick` is restricted to Development.
@@ -91,7 +91,7 @@ The webhook endpoint is:
 POST /github/webhooks
 ```
 
-It requires a valid `X-Hub-Signature-256` generated with `PLYWO_GITHUB_WEBHOOK_SECRET` and logs safe delivery metadata without logging credentials.
+It requires a valid `X-Hub-Signature-256` generated with `RUNDIFF_GITHUB_WEBHOOK_SECRET` and logs safe delivery metadata without logging credentials.
 
 ## Promotion policy
 
@@ -100,4 +100,4 @@ Bootstrap and dogfood `RunDiff Development` first. Create `RunDiff Staging` when
 
 ## Rename compatibility
 
-The current runtime still uses the legacy `PLYWO_*` environment-variable prefix and existing GitHub App credentials. Rename the Apps and their slugs/settings separately; do not rotate credentials merely for the product rename.
+The current runtime still uses the legacy `RUNDIFF_*` environment-variable prefix and existing GitHub App credentials. Rename the Apps and their slugs/settings separately; do not rotate credentials merely for the product rename.

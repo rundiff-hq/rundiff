@@ -1,10 +1,10 @@
 # Clock authority
 
-Plywo uses different clocks for different kinds of time.
+RunDiff uses different clocks for different kinds of time.
 
-## Plywo-owned durable lifecycle
+## RunDiff-owned durable lifecycle
 
-Plywo is intentionally a PostgreSQL-backed control plane. Durable lifecycle transitions that participate in distributed correctness use PostgreSQL as their shared wall-clock authority.
+RunDiff is intentionally a PostgreSQL-backed control plane. Durable lifecycle transitions that participate in distributed correctness use PostgreSQL as their shared wall-clock authority.
 
 The canonical database wall clock is:
 
@@ -27,7 +27,7 @@ executor-service request completion
 GitHub webhook delivery claim / completion
 ```
 
-Production lifecycle code should use `Plywo::ClockAuthority.database_now` rather than sampling `Time.current` on whichever host happens to run the transition.
+Production lifecycle code should use `RunDiff::ClockAuthority.database_now` rather than sampling `Time.current` on whichever host happens to run the transition.
 
 Generic Rails audit timestamps such as `created_at` and `updated_at` are not distributed timing evidence unless a lifecycle explicitly assigns them from the authoritative clock. For example, webhook claim assigns `updated_at` from the same database clock as `started_at` so that one transition has one clock domain.
 
@@ -43,7 +43,7 @@ Monotonic timestamps are only comparable when both endpoints belong to the same 
 
 ## Active Job queue-stage evidence
 
-Rails Active Job queue timing is customer runtime evidence, not Plywo control-plane lifecycle timing.
+Rails Active Job queue timing is customer runtime evidence, not RunDiff control-plane lifecycle timing.
 
 The built-in Rails instrumentation captures a monotonic enqueue timestamp together with a host-boot clock-domain identifier. It also converts deliberate scheduling into a duration at enqueue time, while both scheduling timestamps still belong to the enqueuer's local clock domain.
 
@@ -61,13 +61,13 @@ different or unknown clock domain
 
 This deliberately prefers missing evidence over fabricated cross-host precision. A future queue adapter may replace this fallback with backend-owned timing when it can prove that both boundaries share one trustworthy authority.
 
-`PLYWO_MONOTONIC_CLOCK_DOMAIN_ID` is an internal runtime capability override. Set it only when the runtime or scheduler can guarantee that the participating processes really share one monotonic clock domain. Never set it merely to force cross-host queue timing to become available.
+`RUNDIFF_MONOTONIC_CLOCK_DOMAIN_ID` is an internal runtime capability override. Set it only when the runtime or scheduler can guarantee that the participating processes really share one monotonic clock domain. Never set it merely to force cross-host queue timing to become available.
 
-`PlywoExecutionWorkItem.enqueued_at`, `started_at`, and `finished_at` remain lifecycle/audit fields for work tracking and quiescence. Behavioral queue-stage metrics must not be derived by subtracting those host wall-clock timestamps.
+`RunDiffExecutionWorkItem.enqueued_at`, `started_at`, and `finished_at` remain lifecycle/audit fields for work tracking and quiescence. Behavioral queue-stage metrics must not be derived by subtracting those host wall-clock timestamps.
 
 ## Customer runtime evidence
 
-The PostgreSQL rule above applies only to Plywo-owned lifecycle state. It does not make PostgreSQL a requirement for customer software.
+The PostgreSQL rule above applies only to RunDiff-owned lifecycle state. It does not make PostgreSQL a requirement for customer software.
 
 Customer timing is capability based:
 

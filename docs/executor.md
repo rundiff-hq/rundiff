@@ -1,11 +1,11 @@
 # Executor boundary
 
-Plywo's Rails control plane owns GitHub authentication, durable execution state, stale guards, policy, cancellation authority, and publication. The executor owns only the act of producing behavioral evidence for one exact execution request.
+RunDiff's Rails control plane owns GitHub authentication, durable execution state, stale guards, policy, cancellation authority, and publication. The executor owns only the act of producing behavioral evidence for one exact execution request.
 
 ```text
 GitHub webhook
   -> Rails control plane
-  -> durable PlywoExecution
+  -> durable RunDiffExecution
   -> executor request
   -> executor adapter
   -> executor result
@@ -16,7 +16,7 @@ GitHub webhook
 
 ## Portable request
 
-The control plane converts `PlywoExecution` into `Plywo::Executor::Request` before dispatch. Schema version `1` contains:
+The control plane converts `RunDiffExecution` into `RunDiff::Executor::Request` before dispatch. Schema version `1` contains:
 
 ```text
 schema_version
@@ -38,7 +38,7 @@ A remote executor may receive a separate short-lived capability for cloning a pr
 
 ## Portable result
 
-`Plywo::Executor::Result` schema version `1` is the return contract for every executor adapter.
+`RunDiff::Executor::Result` schema version `1` is the return contract for every executor adapter.
 
 A successful result contains the behavioral payload. A failed result contains only the source error class and message. Exception objects never cross the boundary.
 
@@ -50,13 +50,13 @@ error_class
 error_message
 ```
 
-Adapters consume `Plywo::Executor::Request` and return `Plywo::Executor::Result`. `PlywoExecutorJob` fails closed if an adapter returns an unversioned application payload instead of the portable result contract.
+Adapters consume `RunDiff::Executor::Request` and return `RunDiff::Executor::Result`. `RunDiffExecutorJob` fails closed if an adapter returns an unversioned application payload instead of the portable result contract.
 
 ## Dispatch lifecycle
 
-The GitHub orchestration job claims the durable execution and performs the first exact base/head check before enqueueing `PlywoExecutorJob` with a plain request hash. It schedules the first heartbeat before executor dispatch so queue delay is inside the lease-protected lifecycle.
+The GitHub orchestration job claims the durable execution and performs the first exact base/head check before enqueueing `RunDiffExecutorJob` with a plain request hash. It schedules the first heartbeat before executor dispatch so queue delay is inside the lease-protected lifecycle.
 
-`PlywoExecutorJob` reconstructs the request, invokes the selected adapter, and enqueues `GithubPullRequestExecutionFinalizeJob` with `Result.to_h`. If the adapter itself raises before returning a result, the job converts that transport or adapter exception into a failed portable result.
+`RunDiffExecutorJob` reconstructs the request, invokes the selected adapter, and enqueues `GithubPullRequestExecutionFinalizeJob` with `Result.to_h`. If the adapter itself raises before returning a result, the job converts that transport or adapter exception into a failed portable result.
 
 The finalizer is back inside the control-plane trust boundary. It renews the still-live lease, refreshes GitHub state, rejects stale results, and then atomically moves the exact running attempt to `finalizing`. That transition is the publication point of no return: cancellation can win before it, but cannot overwrite a finalizer that has already acquired the fence. Heartbeats continue while `finalizing` so a slow publication path remains leased.
 
@@ -66,7 +66,7 @@ GithubPullRequestExecutionJob
   -> GitHub preflight
   -> schedule heartbeat
   -> Request.to_h
-  -> PlywoExecutorJob
+  -> RunDiffExecutorJob
        -> adapter(Request)
        -> Result.to_h
   -> GithubPullRequestExecutionFinalizeJob
@@ -81,17 +81,17 @@ The executor job does not receive a GitHub App private key. Remote execution can
 
 ## Execution leases and heartbeats
 
-A successful claim creates a lease and records `heartbeat_at` plus `lease_expires_at`. The default lease is 30 minutes and can be configured with `PLYWO_EXECUTION_LEASE_SECONDS`.
+A successful claim creates a lease and records `heartbeat_at` plus `lease_expires_at`. The default lease is 30 minutes and can be configured with `RUNDIFF_EXECUTION_LEASE_SECONDS`.
 
 `GithubPullRequestExecutionHeartbeatJob` renews only an exact attempt whose status is `running` or `finalizing` and whose existing lease is still live. Each successful heartbeat schedules the next heartbeat. A previous attempt, expired attempt, cancelled execution, or other terminal execution cannot renew or reschedule.
 
 The default heartbeat cadence is one third of the execution lease. It can be configured with:
 
 ```text
-PLYWO_EXECUTION_HEARTBEAT_INTERVAL_SECONDS=600
+RUNDIFF_EXECUTION_HEARTBEAT_INTERVAL_SECONDS=600
 ```
 
-The interval must remain positive and shorter than `PLYWO_EXECUTION_LEASE_SECONDS`.
+The interval must remain positive and shorter than `RUNDIFF_EXECUTION_LEASE_SECONDS`.
 
 A result is accepted only while the lease is still live. The finalizer renews that lease before doing network publication work. A late result cannot revive an execution whose lease has already expired or which has been cancelled.
 
@@ -102,7 +102,7 @@ An abandoned execution becomes:
 ```text
 status  = failed
 outcome = infra_failure
-failure = Plywo::Executor::LeaseExpired: ...
+failure = RunDiff::Executor::LeaseExpired: ...
 ```
 
 The control plane then publishes the normal `INFRA_FAILURE` Check and comment. Publication is idempotent, and the expiry job can retry publication for an execution already terminal with the same lease-expiry failure.
@@ -111,7 +111,7 @@ The control plane then publishes the normal `INFRA_FAILURE` Check and comment. P
 
 Cancellation is an explicit durable outcome, not an infrastructure failure.
 
-`Plywo::Executor::Cancellation` atomically cancels only the exact current queued or running attempt. A successful cancellation records:
+`RunDiff::Executor::Cancellation` atomically cancels only the exact current queued or running attempt. A successful cancellation records:
 
 ```text
 status              = cancelled
@@ -122,7 +122,7 @@ lease_expires_at     = nil
 failure              = nil
 ```
 
-If work had already been dispatched, `PlywoExecutorCancellationJob` sends a cooperative cancellation request to the selected executor adapter. Delivery failure is logged but never rewrites the durable control-plane execution as `infra_failure`.
+If work had already been dispatched, `RunDiffExecutorCancellationJob` sends a cooperative cancellation request to the selected executor adapter. Delivery failure is logged but never rewrites the durable control-plane execution as `infra_failure`.
 
 The finalizer and cancellation operation are fenced against each other. Cancellation can win while the execution is `queued` or `running`. Once the finalizer atomically moves the exact attempt to `finalizing`, the result has reached the publication point of no return and cancellation is rejected for that attempt.
 
@@ -134,28 +134,28 @@ Hard process or container termination is intentionally separate from the durable
 
 ### Local
 
-`PLYWO_EXECUTOR=local` selects the development adapter. It uses the exact-worktree + isolated PostgreSQL + Solid Queue implementation behind `Plywo::Github::LocalPullRequestRunner` and wraps either its payload or exception in `Plywo::Executor::Result`.
+`RUNDIFF_EXECUTOR=local` selects the development adapter. It uses the exact-worktree + isolated PostgreSQL + Solid Queue implementation behind `RunDiff::Github::LocalPullRequestRunner` and wraps either its payload or exception in `RunDiff::Executor::Result`.
 
 The local adapter accepts the cancellation protocol as a no-op because hard in-process interruption is outside this slice. The control-plane cancellation fence still prevents a late local result from becoming authoritative.
 
-`PLYWO_GITHUB_EXECUTION_MODE=local` remains a temporary compatibility fallback for existing Development App setups.
+`RUNDIFF_GITHUB_EXECUTION_MODE=local` remains a temporary compatibility fallback for existing Development App setups.
 
 ### Remote HTTP
 
-`PLYWO_EXECUTOR=remote` selects `Plywo::Executor::HttpAdapter`.
+`RUNDIFF_EXECUTOR=remote` selects `RunDiff::Executor::HttpAdapter`.
 
 Required settings:
 
 ```text
-PLYWO_REMOTE_EXECUTOR_URL=https://executor.example.com/v1/executions
-PLYWO_REMOTE_EXECUTOR_TOKEN=...
+RUNDIFF_REMOTE_EXECUTOR_URL=https://executor.example.com/v1/executions
+RUNDIFF_REMOTE_EXECUTOR_TOKEN=...
 ```
 
 Optional transport settings:
 
 ```text
-PLYWO_REMOTE_EXECUTOR_OPEN_TIMEOUT_SECONDS=5
-PLYWO_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS=2100
+RUNDIFF_REMOTE_EXECUTOR_OPEN_TIMEOUT_SECONDS=5
+RUNDIFF_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS=2100
 ```
 
 The adapter sends one `POST` containing `Request.to_h` JSON and expects one `Result.to_h` JSON response. Execution requests include:
@@ -165,12 +165,12 @@ Content-Type: application/json
 Accept: application/json
 Authorization: Bearer <executor service token>
 Idempotency-Key: <execution_id>:<attempt_number>
-Plywo-Repository-Authorization: Bearer <short-lived repository capability>  # when available
+RunDiff-Repository-Authorization: Bearer <short-lived repository capability>  # when available
 ```
 
 The normal `Authorization` bearer authenticates the control plane to the executor service. It is not a GitHub token and is never added to the stable request body. The idempotency key gives a remote service a stable identity for duplicate transport submissions of the same attempt.
 
-For a durable GitHub execution, the control plane can mint a second short-lived capability from the recorded installation. The token request is narrowed to the one repository and to `contents: read`. The resulting token is sent only in `Plywo-Repository-Authorization`; it is not added to `Request.to_h` or `Result.to_h`.
+For a durable GitHub execution, the control plane can mint a second short-lived capability from the recorded installation. The token request is narrowed to the one repository and to `contents: read`. The resulting token is sent only in `RunDiff-Repository-Authorization`; it is not added to `Request.to_h` or `Result.to_h`.
 
 A non-2xx response, invalid JSON, or invalid result schema becomes a transport `INFRA_FAILURE`; a valid failed `Result` preserves the remote worker's original error class and message through finalization.
 
@@ -189,7 +189,7 @@ Authorization: Bearer <executor service token>
 The same codebase can be deployed in a separate executor-service role. The endpoints are mounted only when:
 
 ```text
-PLYWO_EXECUTOR_SERVICE=1
+RUNDIFF_EXECUTOR_SERVICE=1
 ```
 
 The service accepts:
@@ -202,26 +202,26 @@ POST /v1/executions/:execution_id/attempts/:attempt_number/cancel
 and requires a dedicated bearer token:
 
 ```text
-PLYWO_EXECUTOR_SERVICE_TOKEN=...
+RUNDIFF_EXECUTOR_SERVICE_TOKEN=...
 ```
 
-The control-plane `PLYWO_REMOTE_EXECUTOR_TOKEN` and the service-side `PLYWO_EXECUTOR_SERVICE_TOKEN` are the two ends of the same service-authentication credential. They are separate from GitHub App credentials.
+The control-plane `RUNDIFF_REMOTE_EXECUTOR_TOKEN` and the service-side `RUNDIFF_EXECUTOR_SERVICE_TOKEN` are the two ends of the same service-authentication credential. They are separate from GitHub App credentials.
 
 Worker implementation is selected independently:
 
 ```text
-PLYWO_EXECUTOR_SERVICE_ADAPTER=local
+RUNDIFF_EXECUTOR_SERVICE_ADAPTER=local
 # or
-PLYWO_EXECUTOR_SERVICE_ADAPTER=git_clone
+RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone
 ```
 
 `local` reuses an already-present checkout. `git_clone` requires the ephemeral repository capability and prepares a disposable Git workspace before invoking the same exact-worktree execution path.
 
-This separation is intentional. A service deployment must not set `PLYWO_EXECUTOR=remote` and recursively call itself. It must not receive the GitHub App private key or webhook secret. The only GitHub credential it may receive is the per-execution, repository-scoped, contents-read clone capability.
+This separation is intentional. A service deployment must not set `RUNDIFF_EXECUTOR=remote` and recursively call itself. It must not receive the GitHub App private key or webhook secret. The only GitHub credential it may receive is the per-execution, repository-scoped, contents-read clone capability.
 
 ### Durable transport idempotency and cancellation
 
-Every executor service request is stored in `plywo_executor_requests`, keyed uniquely by the HTTP `Idempotency-Key`. The ledger stores only the portable request, its digest, the portable result, service-side claim metadata, and cancellation metadata. It does not store either bearer token or the repository capability.
+Every executor service request is stored in `rundiff_executor_requests`, keyed uniquely by the HTTP `Idempotency-Key`. The ledger stores only the portable request, its digest, the portable result, service-side claim metadata, and cancellation metadata. It does not store either bearer token or the repository capability.
 
 For the same idempotency key:
 
@@ -243,14 +243,14 @@ Request digests canonicalize nested hash key ordering before hashing, so semanti
 The service-side request lease defaults to 40 minutes:
 
 ```text
-PLYWO_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS=2400
+RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS=2400
 ```
 
-This lease protects transport idempotency. It is separate from the control-plane `PlywoExecution` lease, which protects the product execution lifecycle.
+This lease protects transport idempotency. It is separate from the control-plane `RunDiffExecution` lease, which protects the product execution lifecycle.
 
 ### Repository clone capability
 
-`Plywo::Github::RepositoryCapabilityProvider` loads the durable execution by `execution_id`, reads the installation ID only inside the control-plane trust boundary, and asks GitHub for a narrowed installation access token:
+`RunDiff::Github::RepositoryCapabilityProvider` loads the durable execution by `execution_id`, reads the installation ID only inside the control-plane trust boundary, and asks GitHub for a narrowed installation access token:
 
 ```text
 repository: exact request repository
@@ -258,7 +258,7 @@ permissions:
   contents: read
 ```
 
-The token is deliberately out-of-band from request serialization. The executor controller parses it into `Plywo::Executor::RepositoryCapability` and passes it to the selected worker adapter without adding it to `plywo_executor_requests`.
+The token is deliberately out-of-band from request serialization. The executor controller parses it into `RunDiff::Executor::RepositoryCapability` and passes it to the selected worker adapter without adding it to `rundiff_executor_requests`.
 
 `GitCloneAdapter` currently supports same-repository pull requests. It initializes a disposable repository, configures the normal GitHub HTTPS remote, and fetches the recorded base branch plus the PR head ref. Authentication is supplied to Git through process environment Git config, not embedded in the clone URL or Git command arguments. The workspace is removed after the attempt.
 
@@ -284,7 +284,7 @@ The executor service role owns only:
 - consuming the short-lived clone capability for repository access
 - durable idempotency and cancellation fencing for one execution attempt
 - acquiring a service-side worker claim
-- producing `Plywo::Executor::Result`
+- producing `RunDiff::Executor::Result`
 
 This keeps an executor replaceable: local process, container, VM, Kubernetes job, or another disposable worker can implement the same boundary.
 
@@ -294,7 +294,7 @@ Repository authorization, control-plane heartbeats, finalization fencing, and co
 
 1. worker-host progress/heartbeat transport independent of the control-plane queue
 2. hard worker/container termination after cooperative cancellation
-3. generalized subject instrumentation so an arbitrary customer repository does not need Plywo's dogfood files committed into it
+3. generalized subject instrumentation so an arbitrary customer repository does not need RunDiff's dogfood files committed into it
 4. fork pull requests, which require an explicit multi-repository capability model rather than reusing the base-repository capability
 5. deployment isolation proving the executor role actually runs without the GitHub App private key or webhook secret
 6. a real control-plane -> executor-service E2E on separate processes or hosts using the `git_clone` adapter

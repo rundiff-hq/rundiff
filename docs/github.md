@@ -36,9 +36,9 @@ stale                  -> no publication for the stale execution
 manual_review_required -> action_required
 ```
 
-An `INFRA_FAILURE` Check says that Plywo could not produce trustworthy behavioral evidence. The durable execution remains failed with `outcome=infra_failure` and may be re-run. It uses the failed Check conclusion so GitHub presents retry semantics instead of the manual `Resolve` flow reserved for `action_required`. A high or critical behavioral regression is not rerunnable as infrastructure and must not be silently accepted as a new baseline.
+An `INFRA_FAILURE` Check says that RunDiff could not produce trustworthy behavioral evidence. The durable execution remains failed with `outcome=infra_failure` and may be re-run. It uses the failed Check conclusion so GitHub presents retry semantics instead of the manual `Resolve` flow reserved for `action_required`. A high or critical behavioral regression is not rerunnable as infrastructure and must not be silently accepted as a new baseline.
 
-The check uses the Plywo execution/run identity as `external_id`. For App-native executions, `check_run.rerequested` resolves that external ID back to the durable `PlywoExecution`. Plywo only requeues the check when the execution outcome is `infra_failure` and the PR still points at the exact recorded base and head. Each successful claim increments `attempt_count`; stale or behavioral outcomes are not re-run through the infrastructure retry path.
+The check uses the RunDiff execution/run identity as `external_id`. For App-native executions, `check_run.rerequested` resolves that external ID back to the durable `RunDiffExecution`. RunDiff only requeues the check when the execution outcome is `infra_failure` and the PR still points at the exact recorded base and head. Each successful claim increments `attempt_count`; stale or behavioral outcomes are not re-run through the infrastructure retry path.
 
 GitHub Actions may assign its own Check Run page as `details_url`, so the output summary also carries an explicit link to the Actions execution. GitHub presents the latest `RunDiff / Behavioral Diff` context for the current head; internal Check Run IDs may differ across workflow attempts.
 
@@ -46,11 +46,11 @@ GitHub Actions may assign its own Check Run page as `details_url`, so the output
 
 Annotations are deliberately conservative. A finding is source-localized only when runtime evidence provides a trustworthy source and the attributed path is present in the exact `base...head` changed-file set.
 
-Plywo currently recognizes two trusted source modes:
+RunDiff currently recognizes two trusted source modes:
 
 ```text
 explicit -> an integration supplied an exact source location
-runtime  -> Plywo captured an application callsite while the signal occurred
+runtime  -> RunDiff captured an application callsite while the signal occurred
 ```
 
 Trust order is conservative:
@@ -63,7 +63,7 @@ changed single runtime source
 otherwise no source annotation
 ```
 
-An explicit source always wins. Automatic runtime attribution is accepted only when exactly one changed-code runtime location exists for the finding. If multiple runtime callsites are plausible, the regression still affects the Check conclusion and PR comment, but Plywo does not guess which line to blame.
+An explicit source always wins. Automatic runtime attribution is accepted only when exactly one changed-code runtime location exists for the finding. If multiple runtime callsites are plausible, the regression still affects the Check conclusion and PR comment, but RunDiff does not guess which line to blame.
 
 ```text
 runtime evidence
@@ -79,7 +79,7 @@ GitHub annotation
 
 ### Rails runtime sources
 
-`Plywo::Rails::SourceLocator` is the shared project-callsite primitive for synchronous Rails signals. It excludes Plywo internals and dependency/runtime paths such as `vendor/`, `tmp/`, `.bundle/`, `log/`, and `storage/`, then returns the first application-owned frame.
+`RunDiff::Rails::SourceLocator` is the shared project-callsite primitive for synchronous Rails signals. It excludes RunDiff internals and dependency/runtime paths such as `vendor/`, `tmp/`, `.bundle/`, `log/`, and `storage/`, then returns the first application-owned frame.
 
 Current automatic integrations:
 
@@ -88,12 +88,12 @@ sql.active_record       -> SQL execution site
 enqueue.active_job      -> background-job enqueue site
 enqueue_at.active_job   -> scheduled-job enqueue site
 deliver.action_mailer   -> synchronous email delivery site
-request.net_http.plywo  -> outbound Net::HTTP request site
+request.net_http.rundiff  -> outbound Net::HTTP request site
 ```
 
-`http_requests` now means outbound application network calls, not the inbound Rails action used to invoke a Plywo scenario. `process_action.action_controller` remains useful for detecting action exceptions, but it no longer increments the HTTP side-effect count.
+`http_requests` now means outbound application network calls, not the inbound Rails action used to invoke a RunDiff scenario. `process_action.action_controller` remains useful for detecting action exceptions, but it no longer increments the HTTP side-effect count.
 
-The initial outbound adapter instruments `Net::HTTP#request`. It covers direct stdlib usage and libraries that execute through Net::HTTP. It does not claim universal Ruby HTTP coverage. Other transports such as HTTPX, Excon, or adapters that bypass Net::HTTP should publish equivalent evidence through their own Plywo adapter or through a future OpenTelemetry ingestion path.
+The initial outbound adapter instruments `Net::HTTP#request`. It covers direct stdlib usage and libraries that execute through Net::HTTP. It does not claim universal Ruby HTTP coverage. Other transports such as HTTPX, Excon, or adapters that bypass Net::HTTP should publish equivalent evidence through their own RunDiff adapter or through a future OpenTelemetry ingestion path.
 
 The captured runtime source means "where this observed behavior happened". It is not necessarily the root cause of why a PR changed the behavior. For example, a changed configuration or loop count can create an extra job or request while the runtime source correctly points to an unchanged `perform_later` or `Net::HTTP` call. Future causal analysis may connect runtime sites to changed-code cause candidates, but GitHub annotations must not claim that inference today.
 
@@ -101,9 +101,9 @@ Background-job count changes currently produce a medium-severity `SIDE_EFFECT_CH
 
 Synchronous email count changes remain high severity and default to `BLOCK`.
 
-This instrumentation is intended for Plywo executions such as CI and test environments, not as an always-on production profiler by default.
+This instrumentation is intended for RunDiff executions such as CI and test environments, not as an always-on production profiler by default.
 
-`Plywo::Rails::Evidence.attribute_next_line` remains a low-level explicit override. Keep the call on one physical line and place it immediately above the causal line that should receive the annotation. For integrations that already know the exact location, prefer `Plywo::Rails::Evidence.attribute(..., line:)`.
+`RunDiff::Rails::Evidence.attribute_next_line` remains a low-level explicit override. Keep the call on one physical line and place it immediately above the causal line that should receive the annotation. For integrations that already know the exact location, prefer `RunDiff::Rails::Evidence.attribute(..., line:)`.
 
 ## Agent contract
 

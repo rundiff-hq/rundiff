@@ -32,7 +32,7 @@ Use separate IDs:
 
 One execution can contain many traces.
 
-Preferred propagation is W3C `traceparent` plus baggage such as `plywo.execution.id`. In controlled test environments, `X-Plywo-Execution-Id` is also acceptable.
+Preferred propagation is W3C `traceparent` plus baggage such as `rundiff.execution.id`. In controlled test environments, `X-RunDiff-Execution-Id` is also acceptable.
 
 Propagate through HTTP/gRPC, jobs, Temporal, internal services, logs/spans, and controlled emulators. Do not blindly leak internal baggage to untrusted providers.
 
@@ -46,12 +46,12 @@ PostgreSQL holds product metadata. Large immutable evidence belongs in R2/S3: Pl
 
 Potential future packages:
 
-- `plywo-protocol`
-- `plywo-cli`
-- `plywo-playwright`
-- `plywo-recorder`
-- `plywo-otel`
-- `plywo-mobile`
-- `plywo-github`
+- `rundiff-protocol`
+- `rundiff-cli`
+- `rundiff-playwright`
+- `rundiff-recorder`
+- `rundiff-otel`
+- `rundiff-mobile`
+- `rundiff-github`
 
 Extract only when a component gains an independent runtime, language, release cadence, or external consumer.
