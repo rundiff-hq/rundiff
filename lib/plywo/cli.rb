@@ -16,14 +16,14 @@ module Plywo
       when "diff"
         run_diff
       when "version", "--version", "-v"
-        @stdout.puts "plywo 0.0.1"
+        @stdout.puts "rundiff 0.0.1"
         0
       else
         @stderr.puts usage
         command.nil? ? 0 : 2
       end
     rescue OptionParser::ParseError, KeyError, JSON::ParserError, Errno::ENOENT => error
-      @stderr.puts "plywo: #{error.message}"
+      @stderr.puts "rundiff: #{error.message}"
       2
     end
 
@@ -54,7 +54,7 @@ module Plywo
     end
 
     def usage
-      "Usage: bin/plywo diff --baseline FILE --candidate FILE [--format markdown|json]"
+      "Usage: bin/rundiff diff --baseline FILE --candidate FILE [--format markdown|json]"
     end
   end
 end
