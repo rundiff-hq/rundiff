@@ -92,6 +92,43 @@ class RunDiffExecutorHttpAdapterTest < ActiveSupport::TestCase
     assert_equal "repository unavailable", result.error_message
   end
 
+  test "reports execution id and wait phase on remote read timeout" do
+    transport = Struct.new(:calls) do
+      def call(**arguments)
+        calls << arguments
+        raise Net::ReadTimeout.new("timed out")
+      end
+    end.new([])
+
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
+      adapter(transport:).call(request: executor_request)
+    end
+
+    assert_includes error.message, 'execution_id="github-123"'
+    assert_includes error.message, "phase=remote_executor_wait"
+    assert_includes error.message, "error_class=Net::ReadTimeout"
+    refute_includes error.message, "remote-secret"
+    refute_includes error.message, "clone-token"
+  end
+
+  test "reports execution id and connect phase on remote open timeout" do
+    transport = Struct.new(:calls) do
+      def call(**arguments)
+        calls << arguments
+        raise Net::OpenTimeout.new("timed out")
+      end
+    end.new([])
+
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
+      adapter(transport:).call(request: executor_request)
+    end
+
+    assert_includes error.message, 'execution_id="github-123"'
+    assert_includes error.message, "phase=remote_executor_connect"
+    assert_includes error.message, "error_class=Net::OpenTimeout"
+    refute_includes error.message, "remote-secret"
+  end
+
   test "fails on a non-success HTTP response" do
     transport = recording_transport(status: 503, body: "unavailable")
 
