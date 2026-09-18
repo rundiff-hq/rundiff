@@ -1,4 +1,5 @@
 require "digest"
+  self.table_name = "rundiff_executor_requests"
 require "json"
 require "securerandom"
 
