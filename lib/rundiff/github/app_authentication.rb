@@ -28,6 +28,14 @@ module RunDiff
         @clock = clock
       end
 
+      def app
+        request(:get, "/app", authorization: "Bearer #{app_jwt}")
+      end
+
+      def webhook_configuration
+        request(:get, "/app/hook/config", authorization: "Bearer #{app_jwt}")
+      end
+
       def installation_token(installation_id:, repositories: nil, permissions: nil)
         body = {}
         body[:repositories] = Array(repositories) if repositories
@@ -84,14 +92,16 @@ module RunDiff
 
       def request(method, path, authorization:, body: {})
         uri = URI("#{@api_url}#{path}")
-        request_class = { post: Net::HTTP::Post, patch: Net::HTTP::Patch }.fetch(method)
+        request_class = { get: Net::HTTP::Get, post: Net::HTTP::Post, patch: Net::HTTP::Patch }.fetch(method)
         http_request = request_class.new(uri)
         http_request["Authorization"] = authorization
         http_request["Accept"] = "application/vnd.github+json"
         http_request["X-GitHub-Api-Version"] = "2022-11-28"
         http_request["User-Agent"] = "rundiff-github-app"
-        http_request["Content-Type"] = "application/json"
-        http_request.body = JSON.generate(body)
+        unless method == :get
+          http_request["Content-Type"] = "application/json"
+          http_request.body = JSON.generate(body)
+        end
 
         response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
           http.request(http_request)
