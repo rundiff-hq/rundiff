@@ -300,3 +300,17 @@ neutral candidate          -> no behavioral regression -> ALLOW
 ```
 
 Record webhook delivery IDs, execution IDs, Check Run IDs, PR comment IDs, exact base/head SHAs, and install-to-first-review elapsed time in #75.
+
+
+## Capture #75 evidence
+
+Once the external proof repository has both required PR outcomes, run this on the production control plane with the normal RunDiff App credentials and database:
+
+```bash
+bin/collect-production-proof external-owner/proof-repo \
+  --regression-pr <block-pr-number> \
+  --neutral-pr <allow-pr-number> \
+  --output tmp/production-proof.json
+```
+
+The resulting secret-free artifact follows `schemas/production-proof-v1.schema.json` and records exact webhook delivery, execution, Check Run, comment, installation, and Git SHA evidence. Attach or summarize this artifact in #75.
