@@ -3,7 +3,7 @@ require "fileutils"
 require "tmpdir"
 require "uri"
 
-module Plywo
+module RunDiff
   module Executor
     class GitCloneAdapter
       Error = Class.new(StandardError)
@@ -12,13 +12,13 @@ module Plywo
       def initialize(
         root: ::Rails.root,
         workspace_root: nil,
-        command_runner: Plywo::Github::LocalPullRequestRunner::CommandRunner.new,
+        command_runner: RunDiff::Github::LocalPullRequestRunner::CommandRunner.new,
         runner_factory: nil,
         repository_capability_provider: nil,
-        git_base_url: ENV.fetch("PLYWO_GITHUB_GIT_BASE_URL", "https://github.com")
+        git_base_url: ENV.fetch("RUNDIFF_GITHUB_GIT_BASE_URL", "https://github.com")
       )
         @root = Pathname(root).expand_path
-        @workspace_root = Pathname(workspace_root || File.join(Dir.tmpdir, "plywo", "repositories")).expand_path
+        @workspace_root = Pathname(workspace_root || File.join(Dir.tmpdir, "rundiff", "repositories")).expand_path
         assert_workspace_root_isolated!
         @command_runner = command_runner
         @repository_capability_provider = repository_capability_provider
@@ -62,9 +62,9 @@ module Plywo
       private
 
       def default_runner(repository_root:)
-        execution_identity = Plywo::Subject::ExecutionIdentity.from_env
-        runtime_capabilities = Plywo::Subject::RuntimeCapabilities.from_env
-        compose_provider = Plywo::Subject::IsolatedComposeProviderClient.from_env
+        execution_identity = RunDiff::Subject::ExecutionIdentity.from_env
+        runtime_capabilities = RunDiff::Subject::RuntimeCapabilities.from_env
+        compose_provider = RunDiff::Subject::IsolatedComposeProviderClient.from_env
 
         if compose_provider
           runtime_capabilities = runtime_capabilities.with_service_provider(
@@ -76,14 +76,14 @@ module Plywo
             "Executor declares Compose capability without a reachable isolated Compose provider"
         end
 
-        Plywo::Github::LocalPullRequestRunner.new(
+        RunDiff::Github::LocalPullRequestRunner.new(
           root: repository_root,
           tool_root: @root,
           fetch_repository: false,
           command_runner: @command_runner,
           execution_identity:,
           runtime_capabilities:,
-          service_executor: Plywo::Subject::ServiceExecutor.new(
+          service_executor: RunDiff::Subject::ServiceExecutor.new(
             execution_identity:,
             compose_provider:
           )
@@ -103,8 +103,8 @@ module Plywo
           env: git_auth_environment(repository_capability:),
           command: [
             "git", "fetch", "--no-tags", "origin",
-            "+refs/heads/#{baseline_ref}:refs/remotes/origin/plywo-base",
-            "+refs/pull/#{pull_request_number}/head:refs/remotes/origin/plywo-candidate"
+            "+refs/heads/#{baseline_ref}:refs/remotes/origin/rundiff-base",
+            "+refs/pull/#{pull_request_number}/head:refs/remotes/origin/rundiff-candidate"
           ],
           chdir: repository_root
         )

@@ -1,10 +1,10 @@
-module Plywo
+module RunDiff
   module Executor
     class ServiceResolver
       Error = Class.new(StandardError)
 
       def self.from_env(root: ::Rails.root, env: ENV)
-        mode = env.fetch("PLYWO_EXECUTOR_SERVICE_ADAPTER", "local")
+        mode = env.fetch("RUNDIFF_EXECUTOR_SERVICE_ADAPTER", "local")
 
         case mode
         when "local"
@@ -12,9 +12,9 @@ module Plywo
         when "git_clone"
           GitCloneAdapter.new(root:)
         when "disabled"
-          raise Error, "Plywo executor service adapter is disabled"
+          raise Error, "RunDiff executor service adapter is disabled"
         else
-          raise Error, "Unsupported PLYWO_EXECUTOR_SERVICE_ADAPTER=#{mode.inspect}"
+          raise Error, "Unsupported RUNDIFF_EXECUTOR_SERVICE_ADAPTER=#{mode.inspect}"
         end
       end
     end

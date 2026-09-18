@@ -2,10 +2,10 @@ require "json"
 require "rack/mock"
 require "securerandom"
 
-module Plywo
+module RunDiff
   module Demo
     class DogfoodRunner
-      PATH = "/__plywo/demo/behavior"
+      PATH = "/__rundiff/demo/behavior"
       SCENARIO_ID = "dogfood.rails.behavior"
 
       def self.call
@@ -13,13 +13,13 @@ module Plywo
       end
 
       def call
-        raise "Plywo dogfood runner is only available in development and test" unless ::Rails.env.development? || ::Rails.env.test?
+        raise "RunDiff dogfood runner is only available in development and test" unless ::Rails.env.development? || ::Rails.env.test?
 
         warm_runtime
         run_id = SecureRandom.uuid
         baseline = execute(run_id:, subject: "baseline")
         candidate = execute(run_id:, subject: "candidate")
-        result = Plywo::BehavioralDiff.call(
+        result = RunDiff::BehavioralDiff.call(
           baseline: baseline.fetch("measurements"),
           candidate: candidate.fetch("measurements")
         )
@@ -46,7 +46,7 @@ module Plywo
       def execute(run_id:, subject:)
         execution_id = SecureRandom.uuid
         response = nil
-        measurements = Plywo::Rails::EvidenceCollector.capture(execution_id:) do
+        measurements = RunDiff::Rails::EvidenceCollector.capture(execution_id:) do
           response = request.post(PATH, headers(subject:, execution_id:, run_id:))
         end
 
@@ -60,7 +60,7 @@ module Plywo
           "subject" => subject,
           "status" => passed ? "passed" : "failed",
           "http_status" => response.status,
-          "correlation_confirmed" => response["X-Plywo-Execution-Id"] == execution_id,
+          "correlation_confirmed" => response["X-RunDiff-Execution-Id"] == execution_id,
           "measurements" => measurements
         }
       end
@@ -72,9 +72,9 @@ module Plywo
       def headers(subject:, execution_id:, run_id:)
         {
           "HTTP_HOST" => "localhost",
-          "HTTP_X_PLYWO_EXECUTION_ID" => execution_id,
-          "HTTP_X_PLYWO_RUN_ID" => run_id,
-          "HTTP_X_PLYWO_SUBJECT" => subject
+          "HTTP_X_RUNDIFF_EXECUTION_ID" => execution_id,
+          "HTTP_X_RUNDIFF_RUN_ID" => run_id,
+          "HTTP_X_RUNDIFF_SUBJECT" => subject
         }
       end
     end

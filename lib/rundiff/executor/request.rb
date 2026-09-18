@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Executor
     Request = Data.define(
       :schema_version,

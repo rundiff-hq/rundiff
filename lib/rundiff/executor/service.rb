@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Executor
     class Service
       Error = Class.new(StandardError)
@@ -7,11 +7,11 @@ module Plywo
       RequestCancelled = Class.new(Error)
       ClaimLost = Class.new(Error)
 
-      def initialize(adapter:, request_model: PlywoExecutorRequest, lease_seconds: nil)
+      def initialize(adapter:, request_model: RunDiffExecutorRequest, lease_seconds: nil)
         @adapter = adapter
         @request_model = request_model
         @lease_seconds = Integer(
-          lease_seconds || ENV.fetch("PLYWO_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS", PlywoExecutorRequest::DEFAULT_LEASE_SECONDS)
+          lease_seconds || ENV.fetch("RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS", RunDiffExecutorRequest::DEFAULT_LEASE_SECONDS)
         )
       end
 
@@ -54,14 +54,14 @@ module Plywo
           request_payload:,
           lease_seconds: @lease_seconds
         )
-      rescue PlywoExecutorRequest::DigestMismatch => error
+      rescue RunDiffExecutorRequest::DigestMismatch => error
         raise RequestConflict, error.message
       end
 
       def execute_and_complete(acquisition:, request:, repository_capability:)
         result = @adapter.call(request:, repository_capability:)
         unless result.is_a?(Result)
-          result = Result.failure(TypeError.new("Executor service adapter must return Plywo::Executor::Result"))
+          result = Result.failure(TypeError.new("Executor service adapter must return RunDiff::Executor::Result"))
         end
 
         return result if acquisition.record.complete_claim!(

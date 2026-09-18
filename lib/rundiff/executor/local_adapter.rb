@@ -1,8 +1,8 @@
-module Plywo
+module RunDiff
   module Executor
     class LocalAdapter
       def initialize(root: ::Rails.root, runner: nil)
-        @runner = runner || Plywo::Github::LocalPullRequestRunner.new(root:)
+        @runner = runner || RunDiff::Github::LocalPullRequestRunner.new(root:)
       end
 
       def call(request:, repository_capability: nil)

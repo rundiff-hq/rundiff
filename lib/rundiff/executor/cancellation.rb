@@ -1,7 +1,7 @@
-module Plywo
+module RunDiff
   module Executor
     class Cancellation
-      def initialize(notification_job: PlywoExecutorCancellationJob)
+      def initialize(notification_job: RunDiffExecutorCancellationJob)
         @notification_job = notification_job
       end
 
@@ -14,7 +14,7 @@ module Plywo
           @notification_job.perform_later(execution.execution_id, attempt_number, reason.to_s)
         rescue StandardError => error
           ::Rails.logger.warn(
-            "Plywo executor cancellation enqueue failed execution_id=#{execution.execution_id.inspect} " \
+            "RunDiff executor cancellation enqueue failed execution_id=#{execution.execution_id.inspect} " \
             "attempt=#{attempt_number.inspect} error=#{error.class}"
           )
         end

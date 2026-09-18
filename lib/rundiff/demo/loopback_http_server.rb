@@ -1,6 +1,6 @@
 require "socket"
 
-module Plywo
+module RunDiff
   module Demo
     class LoopbackHttpServer
       RESPONSE = "HTTP/1.1 204 No Content\r\nConnection: close\r\nContent-Length: 0\r\n\r\n".freeze

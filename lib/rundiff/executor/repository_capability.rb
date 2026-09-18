@@ -1,7 +1,7 @@
-module Plywo
+module RunDiff
   module Executor
     class RepositoryCapability
-      HEADER = "Plywo-Repository-Authorization".freeze
+      HEADER = "RunDiff-Repository-Authorization".freeze
 
       attr_reader :token
 
