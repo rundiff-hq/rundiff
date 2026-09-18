@@ -13,8 +13,46 @@ class OnboardingControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "version: 1"
     assert_includes response.body, "path: /orders/42"
     assert_includes response.body, "PostgreSQL or SQLite"
-    assert_includes response.body, "does not treat that query parameter as proof of installation ownership"
+    assert_includes response.body, "GitHub setup returned here. Continue with your repository."
+    assert_includes response.body, "never treats them as proof of installation ownership"
     refute_includes response.body, "untrusted-installation-id"
+  ensure
+    ENV["RUNDIFF_GITHUB_APP_SLUG"] = previous_slug
+  end
+
+  test "normal onboarding does not claim a GitHub setup return" do
+    previous_slug = ENV["RUNDIFF_GITHUB_APP_SLUG"]
+    ENV["RUNDIFF_GITHUB_APP_SLUG"] = "rundiff-development"
+
+    get onboarding_url
+
+    assert_response :success
+    refute_includes response.body, "GitHub setup returned here. Continue with your repository."
+  ensure
+    ENV["RUNDIFF_GITHUB_APP_SLUG"] = previous_slug
+  end
+
+  test "setup_action alone may change guidance but never exposes installation data" do
+    previous_slug = ENV["RUNDIFF_GITHUB_APP_SLUG"]
+    ENV["RUNDIFF_GITHUB_APP_SLUG"] = "rundiff-development"
+
+    get onboarding_url(setup_action: "update")
+
+    assert_response :success
+    assert_includes response.body, "GitHub setup returned here. Continue with your repository."
+    assert_includes response.body, "signed GitHub webhook and installation-scoped access"
+  ensure
+    ENV["RUNDIFF_GITHUB_APP_SLUG"] = previous_slug
+  end
+
+  test "unknown setup_action does not claim a GitHub setup return" do
+    previous_slug = ENV["RUNDIFF_GITHUB_APP_SLUG"]
+    ENV["RUNDIFF_GITHUB_APP_SLUG"] = "rundiff-development"
+
+    get onboarding_url(setup_action: "unexpected")
+
+    assert_response :success
+    refute_includes response.body, "GitHub setup returned here. Continue with your repository."
   ensure
     ENV["RUNDIFF_GITHUB_APP_SLUG"] = previous_slug
   end
