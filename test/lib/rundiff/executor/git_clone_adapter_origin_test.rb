@@ -1,7 +1,7 @@
 require "test_helper"
 require "base64"
 
-class PlywoExecutorGitCloneAdapterOriginTest < ActiveSupport::TestCase
+class RunDiffExecutorGitCloneAdapterOriginTest < ActiveSupport::TestCase
   class CommandRunner
     attr_reader :calls
 
@@ -23,7 +23,7 @@ class PlywoExecutorGitCloneAdapterOriginTest < ActiveSupport::TestCase
 
   test "uses a configured Git transport base URL and scopes the auth header to it" do
     command_runner = CommandRunner.new
-    adapter = Plywo::Executor::GitCloneAdapter.new(
+    adapter = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner:,
       runner_factory: ->(repository_root:) { Runner.new },
@@ -32,7 +32,7 @@ class PlywoExecutorGitCloneAdapterOriginTest < ActiveSupport::TestCase
 
     result = adapter.call(
       request: request,
-      repository_capability: Plywo::Executor::RepositoryCapability.new(token: "lab-installation-token")
+      repository_capability: RunDiff::Executor::RepositoryCapability.new(token: "lab-installation-token")
     )
 
     assert result.success?
@@ -46,8 +46,8 @@ class PlywoExecutorGitCloneAdapterOriginTest < ActiveSupport::TestCase
   end
 
   test "rejects a non HTTP Git base URL" do
-    error = assert_raises(Plywo::Executor::GitCloneAdapter::Error) do
-      Plywo::Executor::GitCloneAdapter.new(root: Rails.root, git_base_url: "file:///tmp/repositories")
+    error = assert_raises(RunDiff::Executor::GitCloneAdapter::Error) do
+      RunDiff::Executor::GitCloneAdapter.new(root: Rails.root, git_base_url: "file:///tmp/repositories")
     end
 
     assert_equal "Git base URL must be an absolute HTTP(S) URL", error.message
@@ -56,7 +56,7 @@ class PlywoExecutorGitCloneAdapterOriginTest < ActiveSupport::TestCase
   private
 
   def request
-    Plywo::Executor::Request.new(
+    RunDiff::Executor::Request.new(
       schema_version: "1",
       execution_id: "github-lab-1234567890abcdef",
       scenario_id: "production-lab",

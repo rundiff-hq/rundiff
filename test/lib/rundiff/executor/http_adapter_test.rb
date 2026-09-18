@@ -1,10 +1,10 @@
 require "test_helper"
 
-class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
+class RunDiffExecutorHttpAdapterTest < ActiveSupport::TestCase
   test "posts a versioned request and returns the portable result" do
     transport = recording_transport(
       status: 200,
-      body: JSON.generate(Plywo::Executor::Result.success(payload).to_h)
+      body: JSON.generate(RunDiff::Executor::Result.success(payload).to_h)
     )
     adapter = adapter(transport:)
 
@@ -27,13 +27,13 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   test "sends a repository capability only as an HTTP header" do
     transport = recording_transport(
       status: 200,
-      body: JSON.generate(Plywo::Executor::Result.success(payload).to_h)
+      body: JSON.generate(RunDiff::Executor::Result.success(payload).to_h)
     )
     provider = Object.new
     provider.define_singleton_method(:call) do |request:|
       raise "unexpected request" unless request.execution_id == "github-123"
 
-      Plywo::Executor::RepositoryCapability.new(token: "clone-token")
+      RunDiff::Executor::RepositoryCapability.new(token: "clone-token")
     end
 
     adapter(transport:, repository_capability_provider: provider).call(request: executor_request)
@@ -41,7 +41,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
     call = transport.calls.fetch(0)
     assert_equal(
       "Bearer clone-token",
-      call.fetch(:headers).fetch(Plywo::Executor::RepositoryCapability::HEADER)
+      call.fetch(:headers).fetch(RunDiff::Executor::RepositoryCapability::HEADER)
     )
     refute_includes call.fetch(:body), "clone-token"
     assert_equal executor_request.to_h, JSON.parse(call.fetch(:body))
@@ -68,7 +68,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   test "fails cancellation when the remote executor rejects it" do
     transport = recording_transport(status: 503, body: "unavailable")
 
-    error = assert_raises(Plywo::Executor::HttpAdapter::Error) do
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
       adapter(transport:).cancel(execution_id: "github-123", attempt_number: 2)
     end
 
@@ -76,7 +76,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   end
 
   test "preserves a remote worker failure result" do
-    remote_failure = Plywo::Executor::Result.new(
+    remote_failure = RunDiff::Executor::Result.new(
       schema_version: "1",
       status: "failed",
       payload: nil,
@@ -95,7 +95,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   test "fails on a non-success HTTP response" do
     transport = recording_transport(status: 503, body: "unavailable")
 
-    error = assert_raises(Plywo::Executor::HttpAdapter::Error) do
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
       adapter(transport:).call(request: executor_request)
     end
 
@@ -105,7 +105,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   test "fails on malformed result JSON" do
     transport = recording_transport(status: 200, body: "not-json")
 
-    error = assert_raises(Plywo::Executor::HttpAdapter::Error) do
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
       adapter(transport:).call(request: executor_request)
     end
 
@@ -115,7 +115,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   test "fails when the result is not a JSON object" do
     transport = recording_transport(status: 200, body: JSON.generate([]))
 
-    error = assert_raises(Plywo::Executor::HttpAdapter::Error) do
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
       adapter(transport:).call(request: executor_request)
     end
 
@@ -123,19 +123,19 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   end
 
   test "rejects insecure or incomplete configuration" do
-    assert_raises(Plywo::Executor::HttpAdapter::Error) do
-      Plywo::Executor::HttpAdapter.new(url: "file:///tmp/executor", token: "secret")
+    assert_raises(RunDiff::Executor::HttpAdapter::Error) do
+      RunDiff::Executor::HttpAdapter.new(url: "file:///tmp/executor", token: "secret")
     end
 
-    assert_raises(Plywo::Executor::HttpAdapter::Error) do
-      Plywo::Executor::HttpAdapter.new(url: "https://executor.example.test", token: "")
+    assert_raises(RunDiff::Executor::HttpAdapter::Error) do
+      RunDiff::Executor::HttpAdapter.new(url: "https://executor.example.test", token: "")
     end
   end
 
   private
 
   def adapter(transport:, repository_capability_provider: nil)
-    Plywo::Executor::HttpAdapter.new(
+    RunDiff::Executor::HttpAdapter.new(
       url: "https://executor.example.test/v1/executions",
       token: "remote-secret",
       open_timeout: 3,
@@ -146,7 +146,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
   end
 
   def executor_request
-    Plywo::Executor::Request.new(
+    RunDiff::Executor::Request.new(
       schema_version: "1",
       execution_id: "github-123",
       scenario_id: "scenario",
@@ -154,11 +154,11 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
       candidate_sha: "head",
       attempt_number: 2,
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 39,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     )
   end
@@ -174,7 +174,7 @@ class PlywoExecutorHttpAdapterTest < ActiveSupport::TestCase
         response
       end
     end.new(
-      Plywo::Executor::HttpAdapter::Response.new(status:, body:),
+      RunDiff::Executor::HttpAdapter::Response.new(status:, body:),
       []
     )
   end

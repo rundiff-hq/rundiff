@@ -1,10 +1,10 @@
 require "test_helper"
 
-class PlywoExecutorCancellationTest < ActiveSupport::TestCase
+class RunDiffExecutorCancellationTest < ActiveSupport::TestCase
   test "marks the active attempt cancelled before scheduling remote notification" do
     execution = running_execution
     notification_job = recording_notification_job
-    cancellation = Plywo::Executor::Cancellation.new(notification_job:)
+    cancellation = RunDiff::Executor::Cancellation.new(notification_job:)
 
     assert cancellation.call(execution:, reason: "superseded")
 
@@ -16,7 +16,7 @@ class PlywoExecutorCancellationTest < ActiveSupport::TestCase
   end
 
   test "cancels queued work without notifying an executor that never received an attempt" do
-    execution = PlywoExecution.create!(
+    execution = RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "scenario",
@@ -26,7 +26,7 @@ class PlywoExecutorCancellationTest < ActiveSupport::TestCase
     )
     notification_job = recording_notification_job
 
-    assert Plywo::Executor::Cancellation.new(notification_job:).call(execution:, reason: "user_cancelled")
+    assert RunDiff::Executor::Cancellation.new(notification_job:).call(execution:, reason: "user_cancelled")
 
     assert_equal "cancelled", execution.reload.status
     assert_empty notification_job.calls
@@ -39,7 +39,7 @@ class PlywoExecutorCancellationTest < ActiveSupport::TestCase
       raise RuntimeError, "queue unavailable"
     end
 
-    assert Plywo::Executor::Cancellation.new(notification_job:).call(execution:, reason: "user_cancelled")
+    assert RunDiff::Executor::Cancellation.new(notification_job:).call(execution:, reason: "user_cancelled")
 
     execution.reload
     assert_equal "cancelled", execution.status
@@ -51,7 +51,7 @@ class PlywoExecutorCancellationTest < ActiveSupport::TestCase
   private
 
   def running_execution
-    execution = PlywoExecution.create!(
+    execution = RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "scenario",

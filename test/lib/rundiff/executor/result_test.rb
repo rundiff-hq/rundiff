@@ -1,13 +1,13 @@
 require "test_helper"
 
-class PlywoExecutorResultTest < ActiveSupport::TestCase
+class RunDiffExecutorResultTest < ActiveSupport::TestCase
   test "round-trips a successful result" do
-    result = Plywo::Executor::Result.success(
+    result = RunDiff::Executor::Result.success(
       "run_id" => "run-1",
       "result" => { "decision" => "allow" }
     )
 
-    round_trip = Plywo::Executor::Result.from_h(result.to_h)
+    round_trip = RunDiff::Executor::Result.from_h(result.to_h)
 
     assert result.success?
     refute result.failure?
@@ -16,8 +16,8 @@ class PlywoExecutorResultTest < ActiveSupport::TestCase
   end
 
   test "serializes an executor failure without an exception object" do
-    result = Plywo::Executor::Result.failure(RuntimeError.new("worker unavailable"))
-    round_trip = Plywo::Executor::Result.from_h(result.to_h)
+    result = RunDiff::Executor::Result.failure(RuntimeError.new("worker unavailable"))
+    round_trip = RunDiff::Executor::Result.from_h(result.to_h)
 
     assert result.failure?
     refute result.success?
@@ -28,7 +28,7 @@ class PlywoExecutorResultTest < ActiveSupport::TestCase
 
   test "rejects unknown schemas and statuses" do
     assert_raises(ArgumentError) do
-      Plywo::Executor::Result.from_h(
+      RunDiff::Executor::Result.from_h(
         "schema_version" => "2",
         "status" => "succeeded",
         "payload" => {}
@@ -36,7 +36,7 @@ class PlywoExecutorResultTest < ActiveSupport::TestCase
     end
 
     assert_raises(ArgumentError) do
-      Plywo::Executor::Result.from_h(
+      RunDiff::Executor::Result.from_h(
         "schema_version" => "1",
         "status" => "lost",
         "payload" => {}

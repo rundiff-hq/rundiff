@@ -1,26 +1,26 @@
 require "test_helper"
 
-class PlywoExecutorRequestTest < ActiveSupport::TestCase
+class RunDiffExecutorRequestTest < ActiveSupport::TestCase
   test "serializes only executor-safe execution context" do
-    execution = PlywoExecution.new(
+    execution = RunDiffExecution.new(
       execution_id: "github-123",
       scenario_id: "dogfood.git.behavior",
       baseline_sha: "base-sha",
       candidate_sha: "head-sha",
       attempt_count: 2,
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 36,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo",
+        "candidate_repository" => "rundiff/rundiff",
         "installation_id" => 123,
         "delivery_id" => "delivery-secret-boundary"
       }
     )
 
-    request = Plywo::Executor::Request.from_execution(execution)
-    round_trip = Plywo::Executor::Request.from_h(request.to_h)
+    request = RunDiff::Executor::Request.from_execution(execution)
+    round_trip = RunDiff::Executor::Request.from_h(request.to_h)
 
     assert_equal "1", request.schema_version
     assert_equal "github-123", request.execution_id
@@ -34,7 +34,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
 
   test "rejects an unknown schema version" do
     error = assert_raises(ArgumentError) do
-      Plywo::Executor::Request.from_h(
+      RunDiff::Executor::Request.from_h(
         "schema_version" => "2",
         "execution_id" => "github-123",
         "scenario_id" => "scenario",

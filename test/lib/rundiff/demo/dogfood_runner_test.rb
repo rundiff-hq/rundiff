@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoDemoDogfoodRunnerTest < ActiveSupport::TestCase
+class RunDiffDemoDogfoodRunnerTest < ActiveSupport::TestCase
   test "compares two real Rails executions and correlates their evidence" do
-    payload = Plywo::Demo::DogfoodRunner.call
+    payload = RunDiff::Demo::DogfoodRunner.call
     baseline = payload.dig("executions", "baseline")
     candidate = payload.dig("executions", "candidate")
     result = payload.fetch("result")

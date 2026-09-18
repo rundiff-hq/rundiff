@@ -2,7 +2,7 @@ require "test_helper"
 require "base64"
 require "tmpdir"
 
-class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
+class RunDiffExecutorGitCloneAdapterTest < ActiveSupport::TestCase
   class CommandRunner
     attr_reader :calls
 
@@ -48,7 +48,7 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
     command_runner = CommandRunner.new
     runner = Runner.new(result_payload)
     repository_roots = []
-    adapter = Plywo::Executor::GitCloneAdapter.new(
+    adapter = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner:,
       runner_factory: lambda do |repository_root:|
@@ -56,7 +56,7 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
         runner
       end
     )
-    capability = Plywo::Executor::RepositoryCapability.new(token: "clone-token")
+    capability = RunDiff::Executor::RepositoryCapability.new(token: "clone-token")
 
     result = adapter.call(request: executor_request, repository_capability: capability)
 
@@ -71,16 +71,16 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
     expected_basic = Base64.strict_encode64("x-access-token:clone-token")
     assert_equal "AUTHORIZATION: basic #{expected_basic}", fetch_call.fetch(:env).fetch("GIT_CONFIG_VALUE_0")
     assert_equal "0", fetch_call.fetch(:env).fetch("GIT_TERMINAL_PROMPT")
-    assert_includes fetch_call.fetch(:command), "+refs/heads/main:refs/remotes/origin/plywo-base"
-    assert_includes fetch_call.fetch(:command), "+refs/pull/40/head:refs/remotes/origin/plywo-candidate"
+    assert_includes fetch_call.fetch(:command), "+refs/heads/main:refs/remotes/origin/rundiff-base"
+    assert_includes fetch_call.fetch(:command), "+refs/pull/40/head:refs/remotes/origin/rundiff-candidate"
     refute_predicate repository_roots.fetch(0), :exist?
   end
 
-  test "places customer repositories outside the Plywo Rails application tree" do
+  test "places customer repositories outside the RunDiff Rails application tree" do
     command_runner = CommandRunner.new
     runner = Runner.new(result_payload)
     repository_roots = []
-    adapter = Plywo::Executor::GitCloneAdapter.new(
+    adapter = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner:,
       runner_factory: lambda do |repository_root:|
@@ -91,7 +91,7 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
 
     result = adapter.call(
       request: executor_request,
-      repository_capability: Plywo::Executor::RepositoryCapability.new(token: "clone-token")
+      repository_capability: RunDiff::Executor::RepositoryCapability.new(token: "clone-token")
     )
 
     assert result.success?
@@ -102,8 +102,8 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
   end
 
   test "rejects a workspace nested under a Rails application" do
-    error = assert_raises(Plywo::Executor::GitCloneAdapter::Error) do
-      Plywo::Executor::GitCloneAdapter.new(
+    error = assert_raises(RunDiff::Executor::GitCloneAdapter::Error) do
+      RunDiff::Executor::GitCloneAdapter.new(
         root: Rails.root,
         workspace_root: Rails.root.join("tmp", "customer-workspaces"),
         command_runner: CommandRunner.new
@@ -117,9 +117,9 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
   test "resolves a repository capability through an injected provider" do
     command_runner = CommandRunner.new
     runner = Runner.new(result_payload)
-    capability = Plywo::Executor::RepositoryCapability.new(token: "provider-token")
+    capability = RunDiff::Executor::RepositoryCapability.new(token: "provider-token")
     provider = CapabilityProvider.new(capability)
-    adapter = Plywo::Executor::GitCloneAdapter.new(
+    adapter = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner:,
       runner_factory: ->(repository_root:) { runner },
@@ -138,8 +138,8 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
   test "explicit repository capability takes precedence over the provider" do
     command_runner = CommandRunner.new
     runner = Runner.new(result_payload)
-    provider = CapabilityProvider.new(Plywo::Executor::RepositoryCapability.new(token: "provider-token"))
-    adapter = Plywo::Executor::GitCloneAdapter.new(
+    provider = CapabilityProvider.new(RunDiff::Executor::RepositoryCapability.new(token: "provider-token"))
+    adapter = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner:,
       runner_factory: ->(repository_root:) { runner },
@@ -148,7 +148,7 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
 
     result = adapter.call(
       request: executor_request,
-      repository_capability: Plywo::Executor::RepositoryCapability.new(token: "explicit-token")
+      repository_capability: RunDiff::Executor::RepositoryCapability.new(token: "explicit-token")
     )
 
     assert result.success?
@@ -159,18 +159,18 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
   end
 
   test "fails closed when the repository capability is missing" do
-    result = Plywo::Executor::GitCloneAdapter.new(
+    result = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner: CommandRunner.new
     ).call(request: executor_request)
 
     assert result.failure?
-    assert_equal "Plywo::Executor::GitCloneAdapter::Error", result.error_class
+    assert_equal "RunDiff::Executor::GitCloneAdapter::Error", result.error_class
     assert_equal "Repository capability is required for git clone execution", result.error_message
   end
 
   test "fails closed for a fork until multiple repository capabilities are modeled" do
-    request = Plywo::Executor::Request.new(
+    request = RunDiff::Executor::Request.new(
       schema_version: executor_request.schema_version,
       execution_id: executor_request.execution_id,
       scenario_id: executor_request.scenario_id,
@@ -179,12 +179,12 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
       attempt_number: executor_request.attempt_number,
       context: executor_request.context.merge("candidate_repository" => "someone/fork")
     )
-    result = Plywo::Executor::GitCloneAdapter.new(
+    result = RunDiff::Executor::GitCloneAdapter.new(
       root: Rails.root,
       command_runner: CommandRunner.new
     ).call(
       request:,
-      repository_capability: Plywo::Executor::RepositoryCapability.new(token: "clone-token")
+      repository_capability: RunDiff::Executor::RepositoryCapability.new(token: "clone-token")
     )
 
     assert result.failure?
@@ -194,7 +194,7 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
   private
 
   def executor_request
-    @executor_request ||= Plywo::Executor::Request.new(
+    @executor_request ||= RunDiff::Executor::Request.new(
       schema_version: "1",
       execution_id: "github-1234567890abcdef",
       scenario_id: "scenario",
@@ -202,11 +202,11 @@ class PlywoExecutorGitCloneAdapterTest < ActiveSupport::TestCase
       candidate_sha: "head-sha",
       attempt_number: 1,
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 40,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     )
   end

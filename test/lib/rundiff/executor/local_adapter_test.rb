@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoExecutorLocalAdapterTest < ActiveSupport::TestCase
+class RunDiffExecutorLocalAdapterTest < ActiveSupport::TestCase
   test "delegates the portable request and returns a successful portable result" do
     requests = []
     runner = Object.new
@@ -10,7 +10,7 @@ class PlywoExecutorLocalAdapterTest < ActiveSupport::TestCase
     end
 
     request = executor_request
-    result = Plywo::Executor::LocalAdapter.new(runner:).call(request:)
+    result = RunDiff::Executor::LocalAdapter.new(runner:).call(request:)
 
     assert_equal [ request ], requests
     assert result.success?
@@ -25,7 +25,7 @@ class PlywoExecutorLocalAdapterTest < ActiveSupport::TestCase
       raise RuntimeError, "worker unavailable"
     end
 
-    result = Plywo::Executor::LocalAdapter.new(runner:).call(request: executor_request)
+    result = RunDiff::Executor::LocalAdapter.new(runner:).call(request: executor_request)
 
     assert result.failure?
     assert_equal "RuntimeError", result.error_class
@@ -35,7 +35,7 @@ class PlywoExecutorLocalAdapterTest < ActiveSupport::TestCase
   private
 
   def executor_request
-    Plywo::Executor::Request.new(
+    RunDiff::Executor::Request.new(
       schema_version: "1",
       execution_id: "github-123",
       scenario_id: "scenario",
