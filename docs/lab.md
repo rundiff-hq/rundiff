@@ -7,6 +7,8 @@ bin/lab list
 bin/lab run production --case topology
 bin/lab run executor --case compose-service
 bin/lab run executor --case isolated-compose-provider
+bin/lab run onboarding --case sqlite
+bin/lab run executor --case timeout
 ```
 
 The contract is:
@@ -54,3 +56,24 @@ tmp/lab/executor/isolated-compose-provider/
 ```
 
 All disposable lab workflows keep `cancel-in-progress: true`; production mutation workflows remain separate and must never inherit that cancellation policy.
+
+
+### onboarding/sqlite
+
+Runs the arbitrary Rails + SQLite customer proof through the same lab contract used by production and executor experiments. It verifies automatic SQLite persistence discovery, candidate-only RunDiff configuration, portable tool-owned Rails capture, the expected database-query regression, no customer-owned RunDiff runtime files, and an unchanged control-plane lockfile.
+
+Artifacts:
+
+```text
+tmp/lab/onboarding/sqlite/
+```
+
+### executor/timeout
+
+Runs the focused HTTP adapter timeout tests for both connection and read timeouts. The assertions require the exact execution id, stable phases `remote_executor_connect` and `remote_executor_wait`, the underlying timeout class, and no secret leakage.
+
+Artifacts:
+
+```text
+tmp/lab/executor/timeout/
+```

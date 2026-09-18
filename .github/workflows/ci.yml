@@ -28,6 +28,11 @@ jobs:
           ruby-version: "3.4.10"
           bundler-cache: true
 
+      - name: Shell syntax
+        run: |
+          bash -n bin/lab bin/production-lab
+          find lab -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
       - name: Demo portable behavioral diff
         run: |
           bin/rundiff diff \
@@ -88,6 +93,9 @@ jobs:
       - name: Test
         run: bin/rails test
 
+      - name: Prove remote executor timeout diagnostics
+        run: bin/lab run executor --case timeout
+
       - name: Dogfood durable worker evidence
         run: bundle exec ruby script/rundiff_durable_worker_evidence.rb
 
@@ -106,7 +114,18 @@ jobs:
         run: bin/rails rundiff:dogfood
 
       - name: Prove Rails SQLite customer subject
-        run: ruby script/prove_rails_sqlite_subject.rb
+        run: bin/lab run onboarding --case sqlite
+
+      - name: Upload focused lab artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focused-labs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            tmp/lab/executor/timeout
+            tmp/lab/onboarding/sqlite
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Prepare real Git subjects
         id: git_subjects
