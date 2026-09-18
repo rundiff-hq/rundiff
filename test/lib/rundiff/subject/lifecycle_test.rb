@@ -186,6 +186,27 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
     assert_equal [ [ :prepare, 2 ], [ :cleanup, 2 ] ], environment.sample_indexes
   end
 
+  test "cleans the same sample state when capture fails" do
+    events = []
+    environment = SampleAwareEnvironment.new(events:)
+    lifecycle = lifecycle_for(events:, environment:)
+
+    error = assert_raises(RuntimeError) do
+      lifecycle.open(
+        root: Pathname("/tmp/subject"),
+        execution: Object.new,
+        role: "candidate",
+        sample_index: 3,
+        configuration: Configuration.new(capture_env: {})
+      ) do
+        raise "capture failed"
+      end
+    end
+
+    assert_equal "capture failed", error.message
+    assert_equal [ [ :prepare, 3 ], [ :cleanup, 3 ] ], environment.sample_indexes
+  end
+
   test "stops services and cleans up when readiness fails" do
     events = []
     environment = RecordingEnvironment.new(events:, fail_on: :healthcheck)
