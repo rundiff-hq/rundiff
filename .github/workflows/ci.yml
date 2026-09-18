@@ -93,8 +93,8 @@ jobs:
       - name: Test
         run: bin/rails test
 
-      - name: Prove remote executor timeout diagnostics
-        run: bin/lab run executor --case timeout
+      - name: Run smoke lab group
+        run: bin/lab run-group smoke
 
       - name: Dogfood durable worker evidence
         run: bundle exec ruby script/rundiff_durable_worker_evidence.rb
@@ -122,7 +122,9 @@ jobs:
         with:
           name: focused-labs-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            tmp/lab/groups/smoke
             tmp/lab/executor/timeout
+            tmp/lab/executor/compose-service
             tmp/lab/onboarding/sqlite
           if-no-files-found: warn
           retention-days: 7

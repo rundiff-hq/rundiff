@@ -1,0 +1,3 @@
+# Fast, zero-configuration checks suitable for frequent runs.
+executor/timeout
+executor/compose-service

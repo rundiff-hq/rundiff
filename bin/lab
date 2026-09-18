@@ -2,17 +2,24 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SELF="$ROOT/bin/lab"
 LAB_ROOT="$ROOT/lab"
+GROUP_ROOT="$LAB_ROOT/groups"
 
 usage() {
   cat <<'EOF'
 Usage:
   bin/lab list
+  bin/lab groups
   bin/lab run LAB --case CASE [-- ARGS...]
+  bin/lab run-group GROUP [--keep-going]
 
 Examples:
   bin/lab list
+  bin/lab groups
   bin/lab run production --case topology
+  bin/lab run-group smoke
+  bin/lab run-group executor --keep-going
 EOF
 }
 
@@ -27,8 +34,175 @@ safe_name() {
 
 list_labs() {
   find "$LAB_ROOT" -mindepth 2 -maxdepth 2 -type f -name '*.sh' -print 2>/dev/null |
-    sed -E "s#^$LAB_ROOT/([^/]+)/([^/]+)\.sh$#\1/\2#" |
+    sed -E "s#^$LAB_ROOT/([^/]+)/([^/]+)\\.sh$#\\1/\\2#" |
     sort
+}
+
+list_groups() {
+  find "$GROUP_ROOT" -mindepth 1 -maxdepth 1 -type f -name '*.txt' -print 2>/dev/null |
+    sed -E 's#^.*/([^/]+)\.txt$#\1#' |
+    sort
+}
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+run_case() {
+  local lab_name="$1"
+  local case_name="$2"
+  shift 2
+
+  safe_name "$lab_name" || fail "invalid lab name: $lab_name"
+  safe_name "$case_name" || fail "invalid case name: $case_name"
+
+  local case_path="$LAB_ROOT/$lab_name/$case_name.sh"
+  [[ -f "$case_path" ]] || {
+    printf 'Unknown lab case: %s/%s\n\nAvailable cases:\n' "$lab_name" "$case_name" >&2
+    list_labs >&2
+    return 1
+  }
+
+  local artifact_dir="${RUNDIFF_LAB_ARTIFACT_DIR:-$ROOT/tmp/lab/$lab_name/$case_name}"
+  mkdir -p "$artifact_dir"
+
+  local started_at
+  started_at="$(date +%s)"
+
+  printf 'lab=%s\n' "$lab_name"
+  printf 'case=%s\n' "$case_name"
+  printf 'artifacts=%s\n' "$artifact_dir"
+  printf 'lab_status=running\n'
+
+  export RUNDIFF_LAB_NAME="$lab_name"
+  export RUNDIFF_LAB_CASE="$case_name"
+  export RUNDIFF_LAB_ARTIFACT_DIR="$artifact_dir"
+
+  local exit_code
+  set +e
+  bash "$case_path" "$@"
+  exit_code=$?
+  set -e
+
+  local elapsed
+  elapsed="$(( $(date +%s) - started_at ))"
+  printf 'lab_elapsed_seconds=%s\n' "$elapsed"
+
+  if [[ "$exit_code" -eq 0 ]]; then
+    printf 'lab_status=passed\n'
+  else
+    printf 'lab_status=failed\n' >&2
+  fi
+
+  return "$exit_code"
+}
+
+run_group() {
+  local group_name="$1"
+  local keep_going="$2"
+
+  safe_name "$group_name" || fail "invalid group name: $group_name"
+
+  local group_file="$GROUP_ROOT/$group_name.txt"
+  [[ -f "$group_file" ]] || {
+    printf 'Unknown lab group: %s\n\nAvailable groups:\n' "$group_name" >&2
+    list_groups >&2
+    return 1
+  }
+
+  local summary_dir="${RUNDIFF_LAB_GROUP_ARTIFACT_DIR:-$ROOT/tmp/lab/groups/$group_name}"
+  local summary_file="$summary_dir/summary.tsv"
+  local result_file="$summary_dir/result.env"
+  mkdir -p "$summary_dir"
+
+  printf 'case\tstatus\tseconds\n' > "$summary_file"
+
+  local group_started_at
+  group_started_at="$(date +%s)"
+
+  printf 'group=%s\n' "$group_name"
+  printf 'group_manifest=%s\n' "$group_file"
+  printf 'group_summary=%s\n' "$summary_file"
+  printf 'group_fail_fast=%s\n' "$([[ "$keep_going" -eq 1 ]] && printf false || printf true)"
+  printf 'group_status=running\n'
+
+  local group_exit=0
+  local case_count=0
+  local passed_count=0
+  local failed_count=0
+  local raw entry lab_name case_name extra case_started_at case_elapsed case_exit
+
+  while IFS= read -r raw || [[ -n "$raw" ]]; do
+    raw="${raw%%#*}"
+    entry="$(trim "$raw")"
+    [[ -n "$entry" ]] || continue
+
+    IFS=/ read -r lab_name case_name extra <<< "$entry"
+    [[ -n "$lab_name" && -n "$case_name" && -z "${extra:-}" ]] ||
+      fail "invalid group entry in $group_file: $entry"
+    safe_name "$lab_name" || fail "invalid lab name in $group_file: $lab_name"
+    safe_name "$case_name" || fail "invalid case name in $group_file: $case_name"
+
+    case_count=$((case_count + 1))
+    case_started_at="$(date +%s)"
+
+    printf '\n=== lab group %s: %s ===\n' "$group_name" "$entry"
+
+    set +e
+    env -u RUNDIFF_LAB_ARTIFACT_DIR "$SELF" run "$lab_name" --case "$case_name"
+    case_exit=$?
+    set -e
+
+    case_elapsed="$(( $(date +%s) - case_started_at ))"
+
+    if [[ "$case_exit" -eq 0 ]]; then
+      passed_count=$((passed_count + 1))
+      printf '%s\tpassed\t%s\n' "$entry" "$case_elapsed" >> "$summary_file"
+    else
+      failed_count=$((failed_count + 1))
+      group_exit="$case_exit"
+      printf '%s\tfailed\t%s\n' "$entry" "$case_elapsed" >> "$summary_file"
+
+      if [[ "$keep_going" -eq 0 ]]; then
+        break
+      fi
+    fi
+  done < "$group_file"
+
+  local group_elapsed
+  group_elapsed="$(( $(date +%s) - group_started_at ))"
+
+  {
+    printf 'group=%s\n' "$group_name"
+    printf 'group_cases=%s\n' "$case_count"
+    printf 'group_passed=%s\n' "$passed_count"
+    printf 'group_failed=%s\n' "$failed_count"
+    printf 'group_elapsed_seconds=%s\n' "$group_elapsed"
+    if [[ "$group_exit" -eq 0 ]]; then
+      printf 'group_status=passed\n'
+    else
+      printf 'group_status=failed\n'
+    fi
+  } > "$result_file"
+
+  printf '\n=== lab group summary: %s ===\n' "$group_name"
+  cat "$summary_file"
+  printf 'group_cases=%s\n' "$case_count"
+  printf 'group_passed=%s\n' "$passed_count"
+  printf 'group_failed=%s\n' "$failed_count"
+  printf 'group_elapsed_seconds=%s\n' "$group_elapsed"
+  printf 'group_result=%s\n' "$result_file"
+
+  if [[ "$group_exit" -eq 0 ]]; then
+    printf 'group_status=passed\n'
+  else
+    printf 'group_status=failed\n' >&2
+  fi
+
+  return "$group_exit"
 }
 
 command="${1:-}"
@@ -38,6 +212,11 @@ case "$command" in
   list)
     [[ $# -eq 0 ]] || fail "list does not accept arguments"
     list_labs
+    ;;
+
+  groups)
+    [[ $# -eq 0 ]] || fail "groups does not accept arguments"
+    list_groups
     ;;
 
   run)
@@ -67,44 +246,28 @@ case "$command" in
     done
 
     [[ -n "$case_name" ]] || fail "--case CASE is required"
-    safe_name "$lab_name" || fail "invalid lab name: $lab_name"
-    safe_name "$case_name" || fail "invalid case name: $case_name"
+    run_case "$lab_name" "$case_name" "${passthrough[@]}"
+    ;;
 
-    case_path="$LAB_ROOT/$lab_name/$case_name.sh"
-    [[ -f "$case_path" ]] || {
-      printf 'Unknown lab case: %s/%s\n\nAvailable cases:\n' "$lab_name" "$case_name" >&2
-      list_labs >&2
-      exit 1
-    }
+  run-group)
+    group_name="${1:-}"
+    [[ -n "$group_name" ]] || fail "GROUP is required"
+    shift
 
-    artifact_dir="${RUNDIFF_LAB_ARTIFACT_DIR:-$ROOT/tmp/lab/$lab_name/$case_name}"
-    mkdir -p "$artifact_dir"
+    keep_going=0
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --keep-going)
+          keep_going=1
+          shift
+          ;;
+        *)
+          fail "unknown argument: $1"
+          ;;
+      esac
+    done
 
-    started_at="$(date +%s)"
-    printf 'lab=%s\n' "$lab_name"
-    printf 'case=%s\n' "$case_name"
-    printf 'artifacts=%s\n' "$artifact_dir"
-    printf 'lab_status=running\n'
-
-    export RUNDIFF_LAB_NAME="$lab_name"
-    export RUNDIFF_LAB_CASE="$case_name"
-    export RUNDIFF_LAB_ARTIFACT_DIR="$artifact_dir"
-
-    set +e
-    bash "$case_path" "${passthrough[@]}"
-    exit_code=$?
-    set -e
-
-    elapsed="$(( $(date +%s) - started_at ))"
-    printf 'lab_elapsed_seconds=%s\n' "$elapsed"
-
-    if [[ "$exit_code" -eq 0 ]]; then
-      printf 'lab_status=passed\n'
-    else
-      printf 'lab_status=failed\n' >&2
-    fi
-
-    exit "$exit_code"
+    run_group "$group_name" "$keep_going"
     ;;
 
   -h|--help|"")
