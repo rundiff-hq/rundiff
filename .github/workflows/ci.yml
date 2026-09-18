@@ -239,131 +239,34 @@ jobs:
   remote_executor_topology:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rundiff_executor_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d rundiff_executor_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
       RUNDIFF_IMAGE: rundiff-ci:${{ github.sha }}
-      EXECUTOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_executor_ci
       RUNDIFF_EXECUTOR_SERVICE_TOKEN: ci-executor-service-token
       RUNDIFF_PROOF_EXECUTION_ID: github-topology-${{ github.run_id }}-${{ github.run_attempt }}
+      RUNDIFF_PROOF_REPOSITORY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RUNDIFF_PROOF_REPOSITORY: ${{ github.repository }}
+      RUNDIFF_PROOF_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      RUNDIFF_PROOF_BASELINE_REF: ${{ github.base_ref }}
+      RUNDIFF_PROOF_CANDIDATE_REF: ${{ github.head_ref }}
+      RUNDIFF_PROOF_BASELINE_SHA: ${{ github.event.pull_request.base.sha }}
+      RUNDIFF_PROOF_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Build deployable image
-        run: docker build -t "$RUNDIFF_IMAGE" .
+      - name: Run remote executor topology lab
+        run: bin/lab run executor --case remote-topology
 
-      - name: Prepare executor database
-        run: |
-          docker run --rm --network host \
-            -e SECRET_KEY_BASE_DUMMY=1 \
-            -e RAILS_ENV=production \
-            -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e SOLID_QUEUE_DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e RUNDIFF_RUNTIME_ROLE=executor_service \
-            -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
-            -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
-            "$RUNDIFF_IMAGE" bin/rails db:prepare
-
-      - name: Start production executor service
-        run: |
-          docker run -d --name rundiff-executor --network host \
-            -e SECRET_KEY_BASE_DUMMY=1 \
-            -e RAILS_ENV=production \
-            -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e SOLID_QUEUE_DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e RUNDIFF_RUNTIME_ROLE=executor_service \
-            -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
-            -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
-            -e RUNDIFF_LOCAL_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:5432 \
-            "$RUNDIFF_IMAGE" bin/rails server -b 0.0.0.0 -p 4010
-
-      - name: Verify executor readiness and secret isolation
-        run: |
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:4010/ready > /tmp/rundiff-executor-ready.json; then
-              break
-            fi
-            if [ "$attempt" -eq 60 ]; then
-              docker logs rundiff-executor
-              exit 1
-            fi
-            sleep 1
-          done
-          cat /tmp/rundiff-executor-ready.json
-          docker exec rundiff-executor sh -lc '
-            test -z "${RUNDIFF_GITHUB_PRIVATE_KEY_PATH:-}" &&
-            test -z "${RUNDIFF_GITHUB_WEBHOOK_SECRET:-}" &&
-            test -z "${RUNDIFF_GITHUB_APP_ID:-}" &&
-            test -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" &&
-            test -z "${RUNDIFF_REMOTE_EXECUTOR_TOKEN:-}"
-          '
-
-      - name: Dispatch Request v1 from separate control-plane client
-        env:
-          RUNDIFF_PROOF_REPOSITORY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          docker run --rm --network host \
-            -e SECRET_KEY_BASE_DUMMY=1 \
-            -e RAILS_ENV=production \
-            -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e RUNDIFF_REMOTE_EXECUTOR_URL=http://127.0.0.1:4010/v1/executions \
-            -e RUNDIFF_REMOTE_EXECUTOR_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
-            -e RUNDIFF_PROOF_REPOSITORY_TOKEN="$RUNDIFF_PROOF_REPOSITORY_TOKEN" \
-            -e RUNDIFF_PROOF_EXECUTION_ID="$RUNDIFF_PROOF_EXECUTION_ID" \
-            -e RUNDIFF_PROOF_REPOSITORY="${{ github.repository }}" \
-            -e RUNDIFF_PROOF_PULL_REQUEST_NUMBER="${{ github.event.pull_request.number }}" \
-            -e RUNDIFF_PROOF_BASELINE_REF="${{ github.base_ref }}" \
-            -e RUNDIFF_PROOF_CANDIDATE_REF="${{ github.head_ref }}" \
-            -e RUNDIFF_PROOF_BASELINE_SHA="${{ github.event.pull_request.base.sha }}" \
-            -e RUNDIFF_PROOF_CANDIDATE_SHA="${{ github.event.pull_request.head.sha }}" \
-            "$RUNDIFF_IMAGE" ruby script/prove_remote_executor_topology.rb
-
-      - name: Verify repository capability was not persisted
-        env:
-          EXPECTED_REPOSITORY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          docker run --rm --network host \
-            -e SECRET_KEY_BASE_DUMMY=1 \
-            -e RAILS_ENV=production \
-            -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e SOLID_QUEUE_DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e RUNDIFF_RUNTIME_ROLE=executor_service \
-            -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
-            -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
-            -e RUNDIFF_PROOF_EXECUTION_ID="$RUNDIFF_PROOF_EXECUTION_ID" \
-            -e EXPECTED_REPOSITORY_TOKEN="$EXPECTED_REPOSITORY_TOKEN" \
-            "$RUNDIFF_IMAGE" bin/rails runner '
-              record = RunDiffExecutorRequest.find_by!(idempotency_key: "#{ENV.fetch("RUNDIFF_PROOF_EXECUTION_ID")}:1")
-              raise "Executor request did not complete" unless record.status == "completed"
-              serialized = record.attributes.to_json
-              raise "Repository capability leaked into executor ledger" if serialized.include?(ENV.fetch("EXPECTED_REPOSITORY_TOKEN"))
-              puts "executor_ledger_status=completed"
-              puts "repository_capability_persisted=false"
-            '
-
-      - name: Executor logs
+      - name: Upload remote topology artifacts
         if: always()
-        run: docker logs rundiff-executor || true
-
-      - name: Stop executor service
-        if: always()
-        run: docker rm -f rundiff-executor || true
+        uses: actions/upload-artifact@v4
+        with:
+          name: executor-remote-topology-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/lab/executor/remote-topology
+          if-no-files-found: warn
+          retention-days: 7

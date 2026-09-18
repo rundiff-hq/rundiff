@@ -9,6 +9,7 @@ bin/lab run executor --case compose-service
 bin/lab run executor --case isolated-compose-provider
 bin/lab run onboarding --case sqlite
 bin/lab run executor --case timeout
+bin/lab run executor --case remote-topology
 ```
 
 The contract is:
@@ -76,4 +77,23 @@ Artifacts:
 
 ```text
 tmp/lab/executor/timeout/
+```
+
+
+### executor/remote-topology
+
+Runs the deployable-image remote executor proof behind the universal lab contract. The lab owns the disposable Docker network, PostgreSQL container, executor container, readiness checks, request dispatch, secret-isolation assertions, executor-ledger capability check, artifacts, and cleanup.
+
+GitHub Actions only maps pull-request context and the short-lived repository capability into generic `RUNDIFF_PROOF_*` environment variables before invoking:
+
+```bash
+bin/lab run executor --case remote-topology
+```
+
+The same case can be run outside GitHub Actions by supplying those generic proof variables. No GitHub Actions service container or host-network assumption is required.
+
+Artifacts:
+
+```text
+tmp/lab/executor/remote-topology/
 ```
