@@ -41,7 +41,3 @@ Keep work aligned with this slice until it is end-to-end.
 - High/critical behavioral regressions block merge.
 - Never accept a baseline without explicit human approval.
 - Stop on `MANUAL_REVIEW_REQUIRED`.
-
-## Rename compatibility
-
-RunDiff is the canonical product name. Do not remove legacy `RunDiff::*`, `RUNDIFF_*`, persisted table names, or protocol identifiers until their compatibility migration is complete.
