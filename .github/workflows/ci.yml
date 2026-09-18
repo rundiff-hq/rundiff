@@ -37,7 +37,12 @@ jobs:
           cat /tmp/rundiff-result.json
 
       - name: Brakeman
-        run: bundle exec brakeman --no-pager
+        run: |
+          set -Eeuo pipefail
+          if ! bundle exec brakeman --no-pager --format json --output /tmp/brakeman.json; then
+            cat /tmp/brakeman.json
+            exit 1
+          fi
 
       - name: RuboCop
         run: bundle exec rubocop
