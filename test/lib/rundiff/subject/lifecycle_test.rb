@@ -52,6 +52,19 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
     end
   end
 
+  class RecordingStageTimer
+    attr_reader :stages
+
+    def initialize
+      @stages = []
+    end
+
+    def measure(execution_id:, stage:, role: nil)
+      stages << [ execution_id, stage, role ]
+      yield
+    end
+  end
+
   class RecordingSetupPlanCompiler
     attr_reader :configuration
 
@@ -147,6 +160,40 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
       :stop_services,
       :cleanup
     ], events
+  end
+
+  test "emits deterministic stage timings for one subject role" do
+    events = []
+    environment = RecordingEnvironment.new(events:)
+    stage_timer = RecordingStageTimer.new
+    lifecycle = RunDiff::Subject::Lifecycle.new(
+      discovery: RecordingDiscovery.new(events:, environment:),
+      bootstrap: lambda { |root:, setup_plan:| { "FROM_BOOTSTRAP" => "1" } },
+      stage_timer:
+    )
+    execution = Struct.new(:execution_id).new("github-stage-test")
+
+    lifecycle.open(
+      root: Pathname("/tmp/subject"),
+      execution:,
+      role: "candidate",
+      configuration: Configuration.new(capture_env: {})
+    ) do
+      events << :capture
+    end
+
+    assert_equal(
+      [
+        [ "github-stage-test", "setup_plan", "candidate" ],
+        [ "github-stage-test", "bootstrap", "candidate" ],
+        [ "github-stage-test", "environment_resolve", "candidate" ],
+        [ "github-stage-test", "environment_prepare", "candidate" ],
+        [ "github-stage-test", "services_start", "candidate" ],
+        [ "github-stage-test", "capture", "candidate" ],
+        [ "github-stage-test", "cleanup", "candidate" ]
+      ],
+      stage_timer.stages
+    )
   end
 
   test "stops services and cleans up when readiness fails" do
