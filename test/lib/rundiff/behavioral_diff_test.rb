@@ -73,9 +73,9 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
       result.fetch("findings").map { |finding| finding.fetch("reason_code") }
     )
     assert result.fetch("findings").all? { |finding| finding.fetch("blocking") == false }
-    assert result.fetch("findings").all? do |finding|
-      finding.fetch("confidence") == "single_sample_timing"
-    end
+    assert result.fetch("findings").all? {
+      |finding| finding.fetch("confidence") == "single_sample_timing"
+    }
   end
 
   test "deterministic regression still blocks when timing is also noisy" do
