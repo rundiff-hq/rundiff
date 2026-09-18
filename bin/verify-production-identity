@@ -49,6 +49,10 @@ app_page="$(curl -fsS "https://github.com/apps/$APP_SLUG")"
 grep -q "RunDiff" <<<"$app_page" ||
   fail "GitHub App page is reachable but does not expose the RunDiff brand"
 
+if [[ "${RUNDIFF_SKIP_AUTHENTICATED_APP_CHECK:-0}" != "1" ]]; then
+  "$SCRIPT_DIR/verify-github-app-config"
+fi
+
 printf 'production_identity=verified\n'
 printf 'control_plane=%s\n' "$PUBLIC_URL"
 printf 'executor=%s\n' "$EXECUTOR_URL"
