@@ -45,7 +45,11 @@ module RemoteExecutorTopologyProof
       )
     )
 
+    dispatch_started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     result = adapter.call(request:)
+    dispatch_elapsed_ms = (
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - dispatch_started_at) * 1_000
+    ).round
     unless result.success?
       raise "Remote executor failed: #{result.error_class}: #{result.error_message}"
     end
@@ -65,6 +69,7 @@ module RemoteExecutorTopologyProof
     puts "repository_capability_transport=out_of_band_header"
     puts "customer_subprocess_env_isolated=true"
     puts "separate_executor_process=true"
+    puts "remote_executor_topology_dispatch_elapsed_ms=#{dispatch_elapsed_ms}"
   end
 
   def prove_customer_subprocess_environment_isolated!
