@@ -28,6 +28,11 @@ jobs:
           ruby-version: "3.4.10"
           bundler-cache: true
 
+      - name: Shell syntax
+        run: |
+          bash -n bin/lab bin/production-lab
+          find lab -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
       - name: Demo portable behavioral diff
         run: |
           bin/rundiff diff \
