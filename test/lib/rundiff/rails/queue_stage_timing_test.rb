@@ -1,12 +1,12 @@
 require "test_helper"
 
-class PlywoRailsQueueStageTimingTest < ActiveSupport::TestCase
+class RunDiffRailsQueueStageTimingTest < ActiveSupport::TestCase
   test "splits deliberate scheduling from dispatch wait" do
     enqueued_at = Time.utc(2026, 9, 4, 12, 0, 0)
     scheduled_at = enqueued_at + 0.25
     started_at = enqueued_at + 0.41
 
-    timing = Plywo::Rails::QueueStageTiming.call(enqueued_at:, scheduled_at:, started_at:)
+    timing = RunDiff::Rails::QueueStageTiming.call(enqueued_at:, scheduled_at:, started_at:)
 
     assert_equal 410.0, timing.fetch("queue_wait_ms")
     assert_equal 250.0, timing.fetch("scheduled_delay_ms")
@@ -14,7 +14,7 @@ class PlywoRailsQueueStageTimingTest < ActiveSupport::TestCase
   end
 
   test "accepts trusted duration inputs without wall clock subtraction" do
-    timing = Plywo::Rails::QueueStageTiming.call(
+    timing = RunDiff::Rails::QueueStageTiming.call(
       queue_wait_ms: 410.0,
       scheduled_delay_ms: 250.0
     )
@@ -28,7 +28,7 @@ class PlywoRailsQueueStageTimingTest < ActiveSupport::TestCase
     enqueued_at = Time.utc(2026, 9, 4, 12, 0, 0)
     started_at = enqueued_at + 0.13
 
-    timing = Plywo::Rails::QueueStageTiming.call(enqueued_at:, started_at:)
+    timing = RunDiff::Rails::QueueStageTiming.call(enqueued_at:, started_at:)
 
     assert_equal 130.0, timing.fetch("queue_wait_ms")
     assert_equal 0.0, timing.fetch("scheduled_delay_ms")
@@ -36,7 +36,7 @@ class PlywoRailsQueueStageTimingTest < ActiveSupport::TestCase
   end
 
   test "caps declared scheduling at observed queue wait" do
-    timing = Plywo::Rails::QueueStageTiming.call(
+    timing = RunDiff::Rails::QueueStageTiming.call(
       queue_wait_ms: 130.0,
       scheduled_delay_ms: 250.0
     )
@@ -50,7 +50,7 @@ class PlywoRailsQueueStageTimingTest < ActiveSupport::TestCase
     enqueued_at = Time.utc(2026, 9, 4, 12, 0, 0)
     started_at = enqueued_at - 0.01
 
-    timing = Plywo::Rails::QueueStageTiming.call(enqueued_at:, started_at:)
+    timing = RunDiff::Rails::QueueStageTiming.call(enqueued_at:, started_at:)
 
     assert_equal 0.0, timing.fetch("queue_wait_ms")
     assert_equal 0.0, timing.fetch("scheduled_delay_ms")

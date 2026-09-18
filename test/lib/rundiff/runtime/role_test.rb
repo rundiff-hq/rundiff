@@ -1,8 +1,8 @@
 require "test_helper"
 
-class Plywo::Runtime::RoleTest < ActiveSupport::TestCase
+class RunDiff::Runtime::RoleTest < ActiveSupport::TestCase
   test "development defaults to combined role" do
-    role = Plywo::Runtime::Role.from_env(env: {}, rails_env: "development")
+    role = RunDiff::Runtime::Role.from_env(env: {}, rails_env: "development")
 
     assert_equal "combined", role.name
     assert role.control_plane?
@@ -10,7 +10,7 @@ class Plywo::Runtime::RoleTest < ActiveSupport::TestCase
   end
 
   test "production defaults to control plane" do
-    role = Plywo::Runtime::Role.from_env(env: {}, rails_env: "production")
+    role = RunDiff::Runtime::Role.from_env(env: {}, rails_env: "production")
 
     assert_equal "control_plane", role.name
     assert role.control_plane?
@@ -18,7 +18,7 @@ class Plywo::Runtime::RoleTest < ActiveSupport::TestCase
   end
 
   test "legacy executor service flag resolves executor role" do
-    role = Plywo::Runtime::Role.from_env(env: { "PLYWO_EXECUTOR_SERVICE" => "1" }, rails_env: "production")
+    role = RunDiff::Runtime::Role.from_env(env: { "RUNDIFF_EXECUTOR_SERVICE" => "1" }, rails_env: "production")
 
     assert_equal "executor_service", role.name
     assert role.executor_service?
@@ -26,10 +26,10 @@ class Plywo::Runtime::RoleTest < ActiveSupport::TestCase
   end
 
   test "explicit role wins over compatibility flag" do
-    role = Plywo::Runtime::Role.from_env(
+    role = RunDiff::Runtime::Role.from_env(
       env: {
-        "PLYWO_RUNTIME_ROLE" => "control_plane",
-        "PLYWO_EXECUTOR_SERVICE" => "1"
+        "RUNDIFF_RUNTIME_ROLE" => "control_plane",
+        "RUNDIFF_EXECUTOR_SERVICE" => "1"
       },
       rails_env: "production"
     )
@@ -38,10 +38,10 @@ class Plywo::Runtime::RoleTest < ActiveSupport::TestCase
   end
 
   test "unknown role fails closed" do
-    error = assert_raises(Plywo::Runtime::Role::Error) do
-      Plywo::Runtime::Role.from_env(env: { "PLYWO_RUNTIME_ROLE" => "mystery" }, rails_env: "production")
+    error = assert_raises(RunDiff::Runtime::Role::Error) do
+      RunDiff::Runtime::Role.from_env(env: { "RUNDIFF_RUNTIME_ROLE" => "mystery" }, rails_env: "production")
     end
 
-    assert_includes error.message, "Unsupported PLYWO_RUNTIME_ROLE"
+    assert_includes error.message, "Unsupported RUNDIFF_RUNTIME_ROLE"
   end
 end

@@ -1,7 +1,7 @@
 require "test_helper"
 require "active_support/testing/time_helpers"
 
-class PlywoRailsQueueTimingContextTest < ActiveSupport::TestCase
+class RunDiffRailsQueueTimingContextTest < ActiveSupport::TestCase
   include ActiveSupport::Testing::TimeHelpers
 
   FakeJob = Data.define(:enqueued_at, :scheduled_at)
@@ -10,7 +10,7 @@ class PlywoRailsQueueTimingContextTest < ActiveSupport::TestCase
     enqueued_at = Time.utc(2026, 9, 5, 12, 0, 0)
     job = FakeJob.new(enqueued_at:, scheduled_at: enqueued_at + 0.25)
 
-    context = Plywo::Rails::QueueTimingContext.capture(
+    context = RunDiff::Rails::QueueTimingContext.capture(
       job,
       clock_domain_id: "boot-a",
       monotonic_now: 100.0
@@ -31,14 +31,14 @@ class PlywoRailsQueueTimingContextTest < ActiveSupport::TestCase
     }
 
     positive_skew = travel_to(Time.utc(2036, 1, 1)) do
-      Plywo::Rails::QueueTimingContext.measure(
+      RunDiff::Rails::QueueTimingContext.measure(
         context,
         clock_domain_id: "boot-a",
         monotonic_now: 100.41
       )
     end
     negative_skew = travel_to(Time.utc(2016, 1, 1)) do
-      Plywo::Rails::QueueTimingContext.measure(
+      RunDiff::Rails::QueueTimingContext.measure(
         context,
         clock_domain_id: "boot-a",
         monotonic_now: 100.41
@@ -59,7 +59,7 @@ class PlywoRailsQueueTimingContextTest < ActiveSupport::TestCase
       "scheduled_delay_ms" => 0.0
     }
 
-    measurement = Plywo::Rails::QueueTimingContext.measure(
+    measurement = RunDiff::Rails::QueueTimingContext.measure(
       context,
       clock_domain_id: "boot-b",
       monotonic_now: 100.13
@@ -76,7 +76,7 @@ class PlywoRailsQueueTimingContextTest < ActiveSupport::TestCase
       "scheduled_delay_ms" => 0.0
     }
 
-    measurement = Plywo::Rails::QueueTimingContext.measure(
+    measurement = RunDiff::Rails::QueueTimingContext.measure(
       context,
       clock_domain_id: "boot-a",
       monotonic_now: 99.0

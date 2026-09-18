@@ -1,20 +1,20 @@
 require "test_helper"
 
-class PlywoRailsExecutionQuiescenceTest < ActiveSupport::TestCase
+class RunDiffRailsExecutionQuiescenceTest < ActiveSupport::TestCase
   setup do
     Current.reset
-    PlywoExecutionWorkItem.delete_all
+    RunDiffExecutionWorkItem.delete_all
   end
 
   teardown do
     Current.reset
-    PlywoExecutionWorkItem.delete_all
+    RunDiffExecutionWorkItem.delete_all
   end
 
   test "returns a terminal snapshot once execution is quiescent" do
     create_work_item(execution_id: "quiet-execution", status: "completed")
 
-    snapshot = Plywo::Rails::ExecutionQuiescence.wait(
+    snapshot = RunDiff::Rails::ExecutionQuiescence.wait(
       execution_id: "quiet-execution",
       timeout_seconds: 0.1,
       poll_interval_seconds: 0.001,
@@ -30,8 +30,8 @@ class PlywoRailsExecutionQuiescenceTest < ActiveSupport::TestCase
   test "times out with the pending work snapshot" do
     create_work_item(execution_id: "stuck-execution", status: "enqueued", name: "StuckJob")
 
-    error = assert_raises(Plywo::Rails::ExecutionQuiescence::TimeoutError) do
-      Plywo::Rails::ExecutionQuiescence.wait(
+    error = assert_raises(RunDiff::Rails::ExecutionQuiescence::TimeoutError) do
+      RunDiff::Rails::ExecutionQuiescence.wait(
         execution_id: "stuck-execution",
         timeout_seconds: 0.01,
         poll_interval_seconds: 0.001,
@@ -45,9 +45,9 @@ class PlywoRailsExecutionQuiescenceTest < ActiveSupport::TestCase
   end
 
   test "does not count quiescence bookkeeping as product SQL" do
-    measurements = Plywo::Rails::EvidenceCollector.capture(execution_id: "observed-execution") do
-      Current.set(plywo_execution_id: "observed-execution") do
-        Plywo::Rails::ExecutionQuiescence.snapshot(execution_id: "observed-execution")
+    measurements = RunDiff::Rails::EvidenceCollector.capture(execution_id: "observed-execution") do
+      Current.set(rundiff_execution_id: "observed-execution") do
+        RunDiff::Rails::ExecutionQuiescence.snapshot(execution_id: "observed-execution")
       end
     end
 
@@ -58,7 +58,7 @@ class PlywoRailsExecutionQuiescenceTest < ActiveSupport::TestCase
 
   def create_work_item(execution_id:, status:, name: "ProbeJob")
     now = Time.current
-    PlywoExecutionWorkItem.create!(
+    RunDiffExecutionWorkItem.create!(
       execution_id:,
       kind: "active_job",
       work_id: "work-1",
@@ -67,7 +67,7 @@ class PlywoRailsExecutionQuiescenceTest < ActiveSupport::TestCase
       status:,
       enqueued_at: now,
       started_at: status == "enqueued" ? nil : now,
-      finished_at: status.in?(PlywoExecutionWorkItem::TERMINAL_STATUSES) ? now : nil
+      finished_at: status.in?(RunDiffExecutionWorkItem::TERMINAL_STATUSES) ? now : nil
     )
   end
 end
