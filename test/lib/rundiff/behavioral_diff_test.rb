@@ -107,6 +107,29 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
     assert_equal "DATABASE_QUERY_REGRESSION", result.dig("recommended_action", "reason_code")
   end
 
+  test "marks every latency and CPU timing policy non-blocking until sampling exists" do
+    timing_signals = %w[
+      duration_ms
+      thread_cpu_ms
+      queue_wait_ms
+      dispatch_wait_ms
+      worker_wall_ms
+      worker_thread_cpu_ms
+    ]
+
+    timing_signals.each do |signal|
+      policy = RunDiff::BehavioralDiff::SIGNALS.fetch(signal)
+      assert_equal false, policy.fetch(:blocking), signal
+      assert_equal "single_sample_timing", policy.fetch(:confidence), signal
+    end
+
+    assert RunDiff::BehavioralDiff::SIGNALS.fetch("sql_queries").fetch(:blocking, true)
+    assert_equal(
+      "deterministic",
+      RunDiff::BehavioralDiff::SIGNALS.fetch("sql_queries").fetch(:confidence, "deterministic")
+    )
+  end
+
   test "classifies low CPU ratio as wait bound" do
     result = RunDiff::BehavioralDiff.call(
       baseline: { duration_ms: 800, thread_cpu_ms: 70, worker_wall_ms: 400, worker_thread_cpu_ms: 50 },
