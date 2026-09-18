@@ -15,7 +15,7 @@ Do not reduce RunDiff to a test dashboard, CI wrapper, Playwright plugin, or gen
 3. Keep portable contracts and comparison logic independent of Rails when practical.
 4. Rails is the initial product shell, not the permanent boundary for every component.
 5. Prefer OpenTelemetry and W3C Trace Context over custom tracing protocols.
-6. `plywo.execution.id` is correlation context, not a metrics dimension.
+6. `rundiff.execution.id` is correlation context, not a metrics dimension.
 7. GitHub comments are for humans; stable JSON/API/MCP contracts are for agents.
 8. Adoption must not require rewriting an existing test suite.
 9. Never silently accept a regression as a new baseline.
@@ -44,4 +44,4 @@ Keep work aligned with this slice until it is end-to-end.
 
 ## Rename compatibility
 
-RunDiff is the canonical product name. Do not remove legacy `Plywo::*`, `PLYWO_*`, persisted table names, or protocol identifiers until their compatibility migration is complete.
+RunDiff is the canonical product name. Do not remove legacy `RunDiff::*`, `RUNDIFF_*`, persisted table names, or protocol identifiers until their compatibility migration is complete.

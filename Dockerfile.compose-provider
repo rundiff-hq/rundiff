@@ -9,9 +9,9 @@ RUN apk add --no-cache docker-cli docker-cli-compose && \
 
 WORKDIR /app
 
-COPY lib/plywo/subject ./lib/plywo/subject
+COPY lib/rundiff/subject ./lib/rundiff/subject
 COPY script/compose_service_provider_server.rb ./script/compose_service_provider_server.rb
 
-ENV PLYWO_COMPOSE_PROVIDER_SOCKET=/run/plywo-provider/provider.sock
+ENV RUNDIFF_COMPOSE_PROVIDER_SOCKET=/run/rundiff-provider/provider.sock
 
 CMD ["ruby", "script/compose_service_provider_server.rb"]

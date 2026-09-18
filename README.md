@@ -80,7 +80,7 @@ See `docs/onboarding.md` for the current five-minute onboarding shape and delibe
 
 - `docs/` - product thesis, architecture, decisions, RFCs, demo, roadmap
 - `schemas/` - machine-readable execution/result contracts
-- `lib/plywo/` - portable core plus Rails adapters/probes behind explicit namespaces
+- `lib/rundiff/` - portable core plus Rails adapters/probes behind explicit namespaces
 - `app/` - Rails product shell and dogfood target
 - `examples/` - deterministic demo evidence
 
@@ -96,4 +96,4 @@ The GitHub App execution path, durable executor boundary, exact Git A/B worktree
 
 ## Rename compatibility
 
-RunDiff is the canonical product and repository name. During the rename window, the implementation keeps the legacy `Plywo::*` Ruby namespace, `PLYWO_*` environment variables, and database table names for compatibility. New customer configuration should use `rundiff.yml`; legacy `plywo.yml` remains temporarily supported.
+RunDiff is the canonical product and repository name. During the rename window, the implementation keeps the legacy `RunDiff::*` Ruby namespace, `RUNDIFF_*` environment variables, and database table names for compatibility. New customer configuration should use `rundiff.yml`; legacy `rundiff.yml` remains temporarily supported.
