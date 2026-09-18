@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoExecutionReducerTest < ActiveSupport::TestCase
+class RunDiffExecutionReducerTest < ActiveSupport::TestCase
   test "folds durable worker observations into one execution" do
     execution = {
       "id" => "candidate",
@@ -28,7 +28,7 @@ class PlywoExecutionReducerTest < ActiveSupport::TestCase
       ]
     }
 
-    reduced = Plywo::ExecutionReducer.call(execution:)
+    reduced = RunDiff::ExecutionReducer.call(execution:)
 
     assert_equal 15, reduced.dig("measurements", "sql_queries")
     assert_equal 1, reduced.dig("measurements", "background_jobs")
@@ -59,7 +59,7 @@ class PlywoExecutionReducerTest < ActiveSupport::TestCase
       "durable_observations" => [ { "signal" => "errors", "payload" => { "error_class" => "RuntimeError" } } ]
     }
 
-    reduced = Plywo::ExecutionReducer.call(execution:)
+    reduced = RunDiff::ExecutionReducer.call(execution:)
 
     assert_equal 1, reduced.dig("measurements", "errors")
   end

@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoExecutionPairCandidateOnlySourceTest < ActiveSupport::TestCase
+class RunDiffExecutionPairCandidateOnlySourceTest < ActiveSupport::TestCase
   test "localizes the runtime source that appears only in the candidate" do
     baseline = execution(
       http_requests: 2,
@@ -11,7 +11,7 @@ class PlywoExecutionPairCandidateOnlySourceTest < ActiveSupport::TestCase
       attributions: [ source(5), source(6) ]
     )
 
-    payload = Plywo::ExecutionPair.call(
+    payload = RunDiff::ExecutionPair.call(
       baseline:,
       candidate:,
       changed_paths: [ "app/jobs/demo_async_evidence_job.rb" ]

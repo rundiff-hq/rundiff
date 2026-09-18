@@ -1,11 +1,11 @@
 require "test_helper"
 
-class PlywoExecutionPairTest < ActiveSupport::TestCase
+class RunDiffExecutionPairTest < ActiveSupport::TestCase
   test "composes two real executions into the GitHub-compatible payload" do
     baseline = execution(id: "main", sql_queries: 14)
     candidate = execution(id: "candidate", sql_queries: 19)
 
-    payload = Plywo::ExecutionPair.call(baseline:, candidate:)
+    payload = RunDiff::ExecutionPair.call(baseline:, candidate:)
 
     assert_equal "run-1", payload.fetch("run_id")
     assert_equal "scenario-1", payload.fetch("scenario_id")
@@ -24,12 +24,12 @@ class PlywoExecutionPairTest < ActiveSupport::TestCase
         }
       )
 
-      trusted = Plywo::ExecutionPair.call(
+      trusted = RunDiff::ExecutionPair.call(
         baseline:,
         candidate:,
         changed_paths: [ "app/controllers/demo/behavior_controller.rb" ]
       )
-      untrusted = Plywo::ExecutionPair.call(
+      untrusted = RunDiff::ExecutionPair.call(
         baseline:,
         candidate:,
         changed_paths: [ "README.md" ]
@@ -52,7 +52,7 @@ class PlywoExecutionPairTest < ActiveSupport::TestCase
       }
     )
 
-    payload = Plywo::ExecutionPair.call(
+    payload = RunDiff::ExecutionPair.call(
       baseline:,
       candidate:,
       changed_paths: [ "app/controllers/demo/behavior_controller.rb" ]
@@ -73,7 +73,7 @@ class PlywoExecutionPairTest < ActiveSupport::TestCase
       }
     )
 
-    payload = Plywo::ExecutionPair.call(
+    payload = RunDiff::ExecutionPair.call(
       baseline:,
       candidate:,
       changed_paths: [ "app/controllers/demo/behavior_controller.rb" ]
@@ -90,7 +90,7 @@ class PlywoExecutionPairTest < ActiveSupport::TestCase
       }
     )
 
-    payload = Plywo::ExecutionPair.call(
+    payload = RunDiff::ExecutionPair.call(
       baseline:,
       candidate:,
       changed_paths: [ "app/controllers/demo/behavior_controller.rb" ]
@@ -104,7 +104,7 @@ class PlywoExecutionPairTest < ActiveSupport::TestCase
     candidate = execution(id: "candidate", sql_queries: 14).merge("scenario_id" => "other")
 
     error = assert_raises(ArgumentError) do
-      Plywo::ExecutionPair.call(baseline:, candidate:)
+      RunDiff::ExecutionPair.call(baseline:, candidate:)
     end
 
     assert_equal "baseline and candidate must share run_id and scenario_id", error.message

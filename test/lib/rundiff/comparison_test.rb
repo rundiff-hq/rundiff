@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoComparisonTest < ActiveSupport::TestCase
+class RunDiffComparisonTest < ActiveSupport::TestCase
   test "compares one baseline with many candidates and ranks healthier behavior first" do
     baseline = { id: "main", measurements: measurements(sql_queries: 10, duration_ms: 100) }
     candidates = [
@@ -8,7 +8,7 @@ class PlywoComparisonTest < ActiveSupport::TestCase
       { id: "attempt-stable", measurements: measurements(sql_queries: 10, duration_ms: 105) }
     ]
 
-    comparison = Plywo::Comparison.call(baseline:, candidates:)
+    comparison = RunDiff::Comparison.call(baseline:, candidates:)
 
     assert_equal 2, comparison.fetch("candidates").size
     assert_equal [ "attempt-stable", "attempt-slow" ], comparison.fetch("ranking")

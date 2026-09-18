@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoQueueStageBehavioralDiffTest < ActiveSupport::TestCase
+class RunDiffQueueStageBehavioralDiffTest < ActiveSupport::TestCase
   test "treats deliberate scheduling as observed intent instead of queue regression" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: measurements(queue_wait_ms: 130.0, scheduled_delay_ms: 0.0, dispatch_wait_ms: 130.0),
       candidate: measurements(queue_wait_ms: 380.0, scheduled_delay_ms: 250.0, dispatch_wait_ms: 130.0)
     )
@@ -17,7 +17,7 @@ class PlywoQueueStageBehavioralDiffTest < ActiveSupport::TestCase
   end
 
   test "flags post-eligibility dispatch wait without double counting aggregate queue wait" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: measurements(queue_wait_ms: 130.0, scheduled_delay_ms: 0.0, dispatch_wait_ms: 130.0),
       candidate: measurements(queue_wait_ms: 530.0, scheduled_delay_ms: 0.0, dispatch_wait_ms: 530.0)
     )

@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
+class RunDiffAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   test "attributes queue-stage regression to enqueue-to-start delta for legacy evidence" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: 264.1, regression: true),
       worker_wall: signal(delta: 0.0)
     )
@@ -14,7 +14,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "separates deliberate scheduling from dispatch regression" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: 250.0),
       scheduled_delay: signal(delta: 250.0),
       dispatch_wait: signal(delta: 0.0),
@@ -28,7 +28,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "attributes post-eligibility growth to dispatch wait" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: 401.8),
       scheduled_delay: signal(delta: 0.0),
       dispatch_wait: signal(delta: 401.8, regression: true),
@@ -42,7 +42,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "attributes worker regression to worker runtime delta" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: 5.0),
       worker_wall: signal(delta: 145.0, regression: true)
     )
@@ -53,7 +53,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "keeps substantial positive growth in both legacy stages as mixed" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: 60.0, regression: true),
       worker_wall: signal(delta: 40.0, regression: true)
     )
@@ -64,7 +64,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "does not invent a causal regression when async signals are stable" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: 8.0),
       worker_wall: signal(delta: -20.0)
     )
@@ -74,7 +74,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "returns unknown for capability mismatch" do
-    result = Plywo::AsyncDeltaDiagnosis.call(
+    result = RunDiff::AsyncDeltaDiagnosis.call(
       queue_wait: signal(delta: nil, available: false),
       worker_wall: signal(delta: 10.0)
     )
@@ -84,7 +84,7 @@ class PlywoAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
   end
 
   test "behavioral diff exposes the dominant async regression source for legacy evidence" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: measurements(queue_wait_ms: 137.5, worker_wall_ms: 0.1),
       candidate: measurements(queue_wait_ms: 401.6, worker_wall_ms: 0.1)
     )

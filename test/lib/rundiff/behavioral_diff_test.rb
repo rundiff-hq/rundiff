@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoBehavioralDiffTest < ActiveSupport::TestCase
+class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
   test "detects regressions while functional outcome may still pass" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: { duration_ms: 820, sql_queries: 14, background_jobs: 1, emails: 1, http_requests: 11, errors: 0 },
       candidate: { duration_ms: 1460, sql_queries: 47, background_jobs: 3, emails: 2, http_requests: 11, errors: 0 }
     )
@@ -20,7 +20,7 @@ class PlywoBehavioralDiffTest < ActiveSupport::TestCase
     baseline = { duration_ms: 28.8, sql_queries: 14, background_jobs: 1, emails: 1, http_requests: 1, errors: 0 }
     candidate = { duration_ms: 35.1, sql_queries: 14, background_jobs: 1, emails: 1, http_requests: 1, errors: 0 }
 
-    result = Plywo::BehavioralDiff.call(baseline:, candidate:)
+    result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
     duration = result.fetch("signals").fetch("duration_ms")
 
     assert_equal 21.9, duration.fetch("delta_percent")
@@ -34,7 +34,7 @@ class PlywoBehavioralDiffTest < ActiveSupport::TestCase
     baseline = { duration_ms: 100, sql_queries: 0, background_jobs: 0, emails: 0, http_requests: 0, errors: 0 }
     candidate = { duration_ms: 125, sql_queries: 0, background_jobs: 0, emails: 0, http_requests: 0, errors: 0 }
 
-    result = Plywo::BehavioralDiff.call(baseline:, candidate:)
+    result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
 
     assert result.fetch("signals").fetch("duration_ms").fetch("regression")
     assert_equal "PERFORMANCE_REGRESSION", result.fetch("findings").first.fetch("reason_code")
@@ -42,7 +42,7 @@ class PlywoBehavioralDiffTest < ActiveSupport::TestCase
   end
 
   test "classifies low CPU ratio as wait bound" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: { duration_ms: 800, thread_cpu_ms: 70, worker_wall_ms: 400, worker_thread_cpu_ms: 50 },
       candidate: { duration_ms: 1_000, thread_cpu_ms: 80, worker_wall_ms: 600, worker_thread_cpu_ms: 60 }
     )
@@ -54,7 +54,7 @@ class PlywoBehavioralDiffTest < ActiveSupport::TestCase
   end
 
   test "detects worker thread CPU regression above the noise floor" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: { worker_wall_ms: 100, worker_process_cpu_ms: 24, worker_thread_cpu_ms: 20 },
       candidate: { worker_wall_ms: 110, worker_process_cpu_ms: 48, worker_thread_cpu_ms: 45 }
     )
@@ -70,7 +70,7 @@ class PlywoBehavioralDiffTest < ActiveSupport::TestCase
   end
 
   test "treats a newly introduced optional CPU probe as unavailable instead of zero" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: { duration_ms: 100, sql_queries: 1, background_jobs: 0, emails: 0, http_requests: 0, errors: 0 },
       candidate: {
         duration_ms: 100,
@@ -103,7 +103,7 @@ class PlywoBehavioralDiffTest < ActiveSupport::TestCase
 
   test "allows equivalent behavior" do
     measurements = { duration_ms: 820, sql_queries: 14, background_jobs: 1, emails: 1, http_requests: 11, errors: 0 }
-    result = Plywo::BehavioralDiff.call(baseline: measurements, candidate: measurements)
+    result = RunDiff::BehavioralDiff.call(baseline: measurements, candidate: measurements)
 
     assert_equal "no_regression", result.fetch("decision")
     assert_equal "allow", result.fetch("merge_recommendation")

@@ -1,30 +1,30 @@
 require "test_helper"
 
-class PlywoQueueWaitProbeJob < ApplicationJob
+class RunDiffQueueWaitProbeJob < ApplicationJob
   def perform
   end
 end
 
-class PlywoQueueWaitSignalTest < ActiveSupport::TestCase
+class RunDiffQueueWaitSignalTest < ActiveSupport::TestCase
   teardown do
     Current.reset
   end
 
   test "captures enqueue-to-start delay as durable per-job evidence without using work-item wall clocks" do
     execution_id = "queue-wait-execution"
-    job = PlywoQueueWaitProbeJob.new
+    job = RunDiffQueueWaitProbeJob.new
 
     with_clock_domain("queue-wait-domain") do
       serialized = Current.set(
-        plywo_execution_id: execution_id,
-        plywo_run_id: "queue-wait-run",
-        plywo_subject: "candidate"
+        rundiff_execution_id: execution_id,
+        rundiff_run_id: "queue-wait-run",
+        rundiff_subject: "candidate"
       ) do
         job.serialize
       end
-      serialized.fetch(Plywo::Rails::ActiveJobExecutionContext::QUEUE_TIMING_KEY)["enqueued_monotonic_seconds"] -= 0.2
+      serialized.fetch(RunDiff::Rails::ActiveJobExecutionContext::QUEUE_TIMING_KEY)["enqueued_monotonic_seconds"] -= 0.2
 
-      PlywoExecutionWorkItem.create!(
+      RunDiffExecutionWorkItem.create!(
         execution_id:,
         kind: "active_job",
         work_id: job.job_id,
@@ -36,12 +36,12 @@ class PlywoQueueWaitSignalTest < ActiveSupport::TestCase
       ActiveJob::Base.deserialize(serialized).perform_now
     end
 
-    event = PlywoEvidenceEvent.find_by!(execution_id:, signal: "queue_wait_ms")
+    event = RunDiffEvidenceEvent.find_by!(execution_id:, signal: "queue_wait_ms")
     assert_operator event.payload.fetch("value"), :>=, 150.0
     assert_equal "enqueue_to_start", event.payload.fetch("semantics")
     assert_equal "host_monotonic_same_boot", event.payload.fetch("timing_authority")
     assert_equal "queue-wait-domain", event.payload.fetch("clock_domain_id")
-    assert_equal "PlywoQueueWaitProbeJob", event.producer_name
+    assert_equal "RunDiffQueueWaitProbeJob", event.producer_name
   end
 
   test "reduces multiple queue waits to the worst observed job instead of summing them" do
@@ -56,7 +56,7 @@ class PlywoQueueWaitSignalTest < ActiveSupport::TestCase
       ]
     }
 
-    reduced = Plywo::ExecutionReducer.call(execution:)
+    reduced = RunDiff::ExecutionReducer.call(execution:)
 
     assert_equal 85.0, reduced.dig("measurements", "queue_wait_ms")
     assert_equal "queue_bound", reduced.dig("runtime_profile", "async", "classification")
@@ -64,7 +64,7 @@ class PlywoQueueWaitSignalTest < ActiveSupport::TestCase
   end
 
   test "reports queue wait regression separately from worker runtime" do
-    result = Plywo::BehavioralDiff.call(
+    result = RunDiff::BehavioralDiff.call(
       baseline: {
         queue_wait_ms: 8,
         worker_wall_ms: 30,
@@ -100,7 +100,7 @@ class PlywoQueueWaitSignalTest < ActiveSupport::TestCase
   private
 
   def with_clock_domain(value)
-    key = Plywo::Rails::HostClockDomain::EXPLICIT_DOMAIN_ENV
+    key = RunDiff::Rails::HostClockDomain::EXPLICIT_DOMAIN_ENV
     previous = ENV[key]
     ENV[key] = value
     yield

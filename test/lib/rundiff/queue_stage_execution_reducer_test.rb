@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoQueueStageExecutionReducerTest < ActiveSupport::TestCase
+class RunDiffQueueStageExecutionReducerTest < ActiveSupport::TestCase
   test "folds max queue stage timings from durable worker observations" do
     execution = {
       "measurements" => {
@@ -21,7 +21,7 @@ class PlywoQueueStageExecutionReducerTest < ActiveSupport::TestCase
       ]
     }
 
-    reduced = Plywo::ExecutionReducer.call(execution:)
+    reduced = RunDiff::ExecutionReducer.call(execution:)
 
     assert_equal 410.0, reduced.dig("measurements", "queue_wait_ms")
     assert_equal 250.0, reduced.dig("measurements", "scheduled_delay_ms")
