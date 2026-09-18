@@ -97,3 +97,14 @@ repository hard rename
   -> proof evidence bundle (#123)
   -> broader public onboarding
 ```
+
+
+## One-command cutover
+
+For the final operator sequence, use `docs/production-cutover-runbook.md` and:
+
+```bash
+bin/verify-production-cutover --infra-repo ../infra
+```
+
+When the two cross-account proof PRs exist, add the proof arguments from that runbook so the same command also produces the final evidence bundle.
