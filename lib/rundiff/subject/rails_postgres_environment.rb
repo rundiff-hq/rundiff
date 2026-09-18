@@ -1,3 +1,4 @@
+require_relative "state_identity"
 module RunDiff
   module Subject
     class RailsPostgresEnvironment < Environment
@@ -56,8 +57,8 @@ module RunDiff
       private
 
       def database_url(execution:, role:)
-        suffix = execution.execution_id.delete_prefix("github-")[0, 12]
-        "#{@postgres_url}/rundiff_app_#{suffix}_#{role}"
+        state = StateIdentity.for(execution:, role:)
+        "#{@postgres_url}/rundiff_app_#{state.suffix}"
       end
     end
   end
