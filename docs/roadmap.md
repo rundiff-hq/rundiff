@@ -1,5 +1,60 @@
 # Roadmap
 
+## Current product vertical slice - External repository -> first review
+
+The current product goal is to make the already-working behavioral engine visible as a complete customer workflow:
+
+```text
+open /onboarding
+  -> install public RunDiff GitHub App
+  -> grant access to one Rails repository
+  -> add candidate-only rundiff.yml
+  -> open or update a pull request
+  -> RunDiff executes exact baseline + candidate in isolated state
+  -> GitHub receives a Behavioral Review
+```
+
+Repository-side target configuration:
+
+```yaml
+version: 1
+scenario:
+  path: /orders/42
+subject:
+  persistence: auto
+```
+
+The customer should not need a RunDiff gem, GitHub Action, middleware, initializer, Docker setup, executor configuration, or operator assistance.
+
+### Already proven
+
+- exact baseline/candidate Git worktrees
+- isolated Rails + PostgreSQL and Rails + SQLite subject environments
+- runtime evidence collection and deterministic Behavioral Diff
+- remote executor boundary
+- GitHub Check + durable PR feedback
+- customer-like sandbox BLOCK and ALLOW proofs
+- hosted onboarding surface
+- production-role deployment tooling
+- immutable production image publishing
+- hermetic full production topology lab
+- production identity and proof verification tooling
+- fail-fast Production Lab budgets and timeout diagnostics
+
+### Remaining production gate
+
+1. Complete the first real infrastructure apply from #92.
+2. Complete the live external identity cutover from #121.
+3. Run #75 from a GitHub account or organization outside `rundiff-hq`.
+4. Produce one deliberate regression review and one neutral review.
+5. Record exact execution/check/comment IDs and install-to-first-review elapsed time.
+
+Definition of done: a new external Rails repository can go from **Install RunDiff** to its first Behavioral Review without RunDiff operator intervention.
+
+Timing sampling hardening from #103/#137 remains important, but it is not allowed to hide or delay this end-to-end product proof.
+
+## Capability roadmap
+
 ## Slice 0 - Bootstrap
 Rails shell, docs, portable behavioral diff, result/execution schemas.
 
