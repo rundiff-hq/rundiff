@@ -3,16 +3,79 @@
   "$id": "https://rundiff.com/schemas/rundiff-result-v1.schema.json",
   "title": "RunDiff Result v1",
   "type": "object",
-  "required": ["schema_version", "status", "decision", "merge_recommendation", "findings"],
+  "required": [
+    "schema_version",
+    "status",
+    "decision",
+    "merge_recommendation",
+    "findings"
+  ],
   "properties": {
-    "schema_version": {"const": "1"},
-    "status": {"enum": ["queued", "in_progress", "completed"]},
-    "decision": {"enum": ["no_regression", "regression", "review_required", "infra_failure"]},
-    "merge_recommendation": {"enum": ["allow", "review", "block"]},
-    "execution_id": {"type": "string"},
-    "run_id": {"type": "string"},
-    "findings": {"type": "array", "items": {"type": "object"}},
-    "recommended_action": {"type": "object"}
+    "schema_version": {
+      "const": "1"
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "in_progress",
+        "completed"
+      ]
+    },
+    "decision": {
+      "enum": [
+        "no_regression",
+        "regression",
+        "review_required",
+        "infra_failure"
+      ]
+    },
+    "merge_recommendation": {
+      "enum": [
+        "allow",
+        "review",
+        "block"
+      ]
+    },
+    "execution_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "reason_code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "enum": [
+              "deterministic",
+              "single_sample_timing"
+            ]
+          },
+          "signal": {
+            "type": "string"
+          },
+          "baseline": {},
+          "candidate": {},
+          "delta": {},
+          "delta_percent": {}
+        },
+        "additionalProperties": true
+      }
+    },
+    "recommended_action": {
+      "type": "object"
+    }
   },
   "additionalProperties": true
 }
