@@ -17,7 +17,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "loads candidate scenario, persistence, and setup mode" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
         version: 1
         scenario:
           path: /orders/42
@@ -34,7 +34,34 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
       assert_empty configuration.services
       assert_equal "/orders/42", configuration.scenario_path
       assert_equal({ "PLYWO_SCENARIO_PATH" => "/orders/42" }, configuration.capture_env)
+      assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
+    end
+  end
+
+  test "falls back to legacy plywo.yml when rundiff.yml is absent" do
+    Dir.mktmpdir do |directory|
+      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+        version: 1
+        scenario:
+          path: /legacy
+      YAML
+
+      configuration = Plywo::Subject::Configuration.load(root: directory)
+
+      assert_equal "/legacy", configuration.scenario_path
       assert_equal Pathname(directory).join("plywo.yml"), configuration.source_path
+    end
+  end
+
+  test "prefers rundiff.yml over legacy plywo.yml" do
+    Dir.mktmpdir do |directory|
+      File.write(File.join(directory, "plywo.yml"), "version: 1\nscenario:\n  path: /legacy\n")
+      File.write(File.join(directory, "rundiff.yml"), "version: 1\nscenario:\n  path: /canonical\n")
+
+      configuration = Plywo::Subject::Configuration.load(root: directory)
+
+      assert_equal "/canonical", configuration.scenario_path
+      assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
     end
   end
 
