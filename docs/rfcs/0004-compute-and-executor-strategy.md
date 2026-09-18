@@ -8,7 +8,7 @@ Draft.
 
 Plywo compares software behavior between a baseline and one or more candidates. The product therefore needs real execution compute, not only static repository analysis.
 
-The current Plywo repository uses GitHub Actions heavily for its own CI and dogfood proofs. That must not be confused with the desired hosted customer architecture. The production runtime already separates the GitHub-facing control plane from an isolated executor service through portable Request v1 / Result v1 contracts.
+The current RunDiff repository uses GitHub Actions heavily for its own CI and dogfood proofs. That must not be confused with the desired hosted customer architecture. The production runtime already separates the GitHub-facing control plane from an isolated executor service through portable Request v1 / Result v1 contracts.
 
 This RFC records the product and infrastructure implications of that split.
 
@@ -29,7 +29,7 @@ This RFC records the product and infrastructure implications of that split.
 
 ### Plywo repository CI
 
-Today `plywo/plywo` runs tests, linting, security checks, dogfood flows and remote-executor topology proofs on GitHub Actions. This validates Plywo itself.
+Today `rundiff-hq/rundiff` runs tests, linting, security checks, dogfood flows and remote-executor topology proofs on GitHub Actions. This validates Plywo itself.
 
 That does not define the customer product contract.
 
