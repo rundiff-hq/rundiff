@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class DurableEvidenceBuffer
       RUNTIME_SIGNALS = {
@@ -54,8 +54,8 @@ module Plywo
           persist([
             event_row(
               execution_id:,
-              run_id: Current.plywo_run_id,
-              subject: Current.plywo_subject,
+              run_id: Current.rundiff_run_id,
+              subject: Current.rundiff_subject,
               signal:,
               path: nil,
               start_line: nil,
@@ -104,8 +104,8 @@ module Plywo
 
           event_row(
             execution_id:,
-            run_id: Current.plywo_run_id,
-            subject: Current.plywo_subject,
+            run_id: Current.rundiff_run_id,
+            subject: Current.rundiff_subject,
             signal: "errors",
             path: nil,
             start_line: nil,
@@ -133,8 +133,8 @@ module Plywo
 
             event_row(
               execution_id:,
-              run_id: Current.plywo_run_id,
-              subject: Current.plywo_subject,
+              run_id: Current.rundiff_run_id,
+              subject: Current.rundiff_subject,
               signal:,
               path: nil,
               start_line: nil,
@@ -173,7 +173,7 @@ module Plywo
 
         def persist(events)
           InternalOperation.call do
-            PlywoEvidenceEvent.insert_all!(events)
+            RunDiffEvidenceEvent.insert_all!(events)
           end
         end
       end

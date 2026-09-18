@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class ExecutionQuiescence
       DEFAULT_TIMEOUT_SECONDS = 5.0
@@ -74,14 +74,14 @@ module Plywo
 
       def snapshot
         InternalOperation.call do
-          work_items = PlywoExecutionWorkItem.where(execution_id:).order(:id).map do |item|
+          work_items = RunDiffExecutionWorkItem.where(execution_id:).order(:id).map do |item|
             {
               "kind" => item.kind,
               "work_id" => item.work_id,
               "name" => item.name,
               "queue_name" => item.queue_name,
               "status" => item.status,
-              "active" => item.status.in?(PlywoExecutionWorkItem::ACTIVE_STATUSES),
+              "active" => item.status.in?(RunDiffExecutionWorkItem::ACTIVE_STATUSES),
               "error_class" => item.error_class
             }
           end

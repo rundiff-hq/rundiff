@@ -2,10 +2,10 @@ require "digest"
 require "open3"
 require "socket"
 
-module Plywo
+module RunDiff
   module Rails
     class HostClockDomain
-      EXPLICIT_DOMAIN_ENV = "PLYWO_MONOTONIC_CLOCK_DOMAIN_ID".freeze
+      EXPLICIT_DOMAIN_ENV = "RUNDIFF_MONOTONIC_CLOCK_DOMAIN_ID".freeze
 
       class << self
         def id

@@ -1,22 +1,22 @@
-module Plywo
+module RunDiff
   module Rails
     module InternalOperation
-      DEPTH_KEY = :plywo_internal_operation_depth
+      DEPTH_KEY = :rundiff_internal_operation_depth
       METRICS = {
         wall: {
           clock: :CLOCK_MONOTONIC,
-          started_key: :plywo_internal_operation_wall_started_at,
-          elapsed_key: :plywo_internal_operation_wall_elapsed_seconds
+          started_key: :rundiff_internal_operation_wall_started_at,
+          elapsed_key: :rundiff_internal_operation_wall_elapsed_seconds
         },
         process_cpu: {
           clock: :CLOCK_PROCESS_CPUTIME_ID,
-          started_key: :plywo_internal_operation_process_cpu_started_at,
-          elapsed_key: :plywo_internal_operation_process_cpu_elapsed_seconds
+          started_key: :rundiff_internal_operation_process_cpu_started_at,
+          elapsed_key: :rundiff_internal_operation_process_cpu_elapsed_seconds
         },
         thread_cpu: {
           clock: :CLOCK_THREAD_CPUTIME_ID,
-          started_key: :plywo_internal_operation_thread_cpu_started_at,
-          elapsed_key: :plywo_internal_operation_thread_cpu_elapsed_seconds
+          started_key: :rundiff_internal_operation_thread_cpu_started_at,
+          elapsed_key: :rundiff_internal_operation_thread_cpu_elapsed_seconds
         }
       }.freeze
 

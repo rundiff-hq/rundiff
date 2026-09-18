@@ -1,11 +1,11 @@
-module Plywo
+module RunDiff
   module Rails
     class ExecutionWorkLifecycle
       KIND = "active_job".freeze
 
       class << self
         def enqueued(job, context:)
-          execution_id = context["plywo_execution_id"]
+          execution_id = context["rundiff_execution_id"]
           return if execution_id.blank?
 
           mutate(execution_id:, job:) do |item, now|
@@ -50,26 +50,26 @@ module Plywo
 
         def quiescent?(execution_id:)
           InternalOperation.call do
-            !PlywoExecutionWorkItem.where(execution_id:).active.exists?
+            !RunDiffExecutionWorkItem.where(execution_id:).active.exists?
           end
         end
 
         def pending_count(execution_id:)
           InternalOperation.call do
-            PlywoExecutionWorkItem.where(execution_id:).active.count
+            RunDiffExecutionWorkItem.where(execution_id:).active.count
           end
         end
 
         private
 
         def mutate_from_current(job:)
-          execution_id = Current.plywo_execution_id
+          execution_id = Current.rundiff_execution_id
           return if execution_id.blank?
 
           context = {
-            "plywo_execution_id" => execution_id,
-            "plywo_run_id" => Current.plywo_run_id,
-            "plywo_subject" => Current.plywo_subject
+            "rundiff_execution_id" => execution_id,
+            "rundiff_run_id" => Current.rundiff_run_id,
+            "rundiff_subject" => Current.rundiff_subject
           }
 
           mutate(execution_id:, job:) do |item, now|
@@ -80,7 +80,7 @@ module Plywo
 
         def mutate(execution_id:, job:)
           InternalOperation.call do
-            item = PlywoExecutionWorkItem.find_or_initialize_by(
+            item = RunDiffExecutionWorkItem.find_or_initialize_by(
               execution_id: execution_id.to_s,
               kind: KIND,
               work_id: job.job_id.to_s
@@ -93,8 +93,8 @@ module Plywo
         end
 
         def assign_context(item, context:, job:)
-          item.run_id = context["plywo_run_id"]&.to_s
-          item.subject = context["plywo_subject"]&.to_s
+          item.run_id = context["rundiff_run_id"]&.to_s
+          item.subject = context["rundiff_subject"]&.to_s
           item.name = job.class.name
           item.queue_name = job.queue_name
         end

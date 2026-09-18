@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class EvidenceCollector
       MEASUREMENT_SIGNALS = %w[sql_queries background_jobs emails http_requests errors].freeze

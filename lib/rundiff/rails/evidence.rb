@@ -1,9 +1,9 @@
-module Plywo
+module RunDiff
   module Rails
     module Evidence
-      OBSERVATION_EVENT_NAME = "plywo.observation.v1"
+      OBSERVATION_EVENT_NAME = "rundiff.observation.v1"
       EVENT_NAME = OBSERVATION_EVENT_NAME
-      ATTRIBUTION_EVENT_NAME = "plywo.attribution"
+      ATTRIBUTION_EVENT_NAME = "rundiff.attribution"
       SIDE_EFFECT_SIGNALS = {
         "email" => "emails",
         "background_job" => "background_jobs",
@@ -11,8 +11,8 @@ module Plywo
         "error" => "errors"
       }.freeze
 
-      def self.observe(signal, execution_id: Current.plywo_execution_id, run_id: Current.plywo_run_id,
-                       subject: Current.plywo_subject, source: nil, attributes: {})
+      def self.observe(signal, execution_id: Current.rundiff_execution_id, run_id: Current.rundiff_run_id,
+                       subject: Current.rundiff_subject, source: nil, attributes: {})
         return if execution_id.nil?
 
         ActiveSupport::Notifications.instrument(
@@ -50,7 +50,7 @@ module Plywo
           start_line: Integer(line),
           end_line: Integer(line),
           confidence: confidence.to_s,
-          execution_id: Current.plywo_execution_id
+          execution_id: Current.rundiff_execution_id
         )
       end
     end

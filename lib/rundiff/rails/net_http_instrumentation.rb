@@ -1,7 +1,7 @@
-module Plywo
+module RunDiff
   module Rails
     module NetHttpInstrumentation
-      EVENT_NAME = "request.net_http.plywo"
+      EVENT_NAME = "request.net_http.rundiff"
 
       def request(request, body = nil, &block)
         ActiveSupport::Notifications.instrument(
