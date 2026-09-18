@@ -1,3 +1,3 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: "plywo@example.test"
+  default from: "rundiff@example.test"
 end

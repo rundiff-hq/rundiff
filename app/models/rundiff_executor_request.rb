@@ -2,7 +2,7 @@ require "digest"
 require "json"
 require "securerandom"
 
-class PlywoExecutorRequest < ApplicationRecord
+class RunDiffExecutorRequest < ApplicationRecord
   Acquisition = Data.define(:state, :record, :claim_token)
   Cancellation = Data.define(:state, :record)
   DigestMismatch = Class.new(StandardError)
@@ -135,7 +135,7 @@ class PlywoExecutorRequest < ApplicationRecord
   end
 
   def self.authoritative_now(explicit_now)
-    explicit_now || Plywo::ClockAuthority.database_now(connection: connection)
+    explicit_now || RunDiff::ClockAuthority.database_now(connection: connection)
   end
 
   def self.canonicalize(value)

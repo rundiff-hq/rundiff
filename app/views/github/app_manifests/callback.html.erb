@@ -12,10 +12,10 @@
   <% end %>
 
   <h2>App identity</h2>
-  <pre style="white-space: pre-wrap; background: #f6f8fa; padding: 16px; border-radius: 8px;">PLYWO_GITHUB_APP_ID=<%= @credentials.fetch("id") %>
-PLYWO_GITHUB_CLIENT_ID=<%= @credentials.fetch("client_id") %>
-PLYWO_GITHUB_WEBHOOK_SECRET=<%= @credentials.fetch("webhook_secret") %>
-PLYWO_GITHUB_PRIVATE_KEY_PATH=<%= @private_key_path %></pre>
+  <pre style="white-space: pre-wrap; background: #f6f8fa; padding: 16px; border-radius: 8px;">RUNDIFF_GITHUB_APP_ID=<%= @credentials.fetch("id") %>
+RUNDIFF_GITHUB_CLIENT_ID=<%= @credentials.fetch("client_id") %>
+RUNDIFF_GITHUB_WEBHOOK_SECRET=<%= @credentials.fetch("webhook_secret") %>
+RUNDIFF_GITHUB_PRIVATE_KEY_PATH=<%= @private_key_path %></pre>
 
   <h2>Private key</h2>
   <% if @credential_env_path %>

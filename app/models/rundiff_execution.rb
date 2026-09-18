@@ -1,4 +1,4 @@
-class PlywoExecution < ApplicationRecord
+class RunDiffExecution < ApplicationRecord
   ACTIVE_STATUSES = %w[queued running finalizing].freeze
   CANCELLABLE_STATUSES = %w[queued running].freeze
   LEASED_STATUSES = %w[running finalizing].freeze
@@ -14,7 +14,7 @@ class PlywoExecution < ApplicationRecord
   validates :outcome, inclusion: { in: OUTCOMES }, allow_nil: true
 
   def self.lease_seconds
-    Integer(ENV.fetch("PLYWO_EXECUTION_LEASE_SECONDS", DEFAULT_LEASE_SECONDS))
+    Integer(ENV.fetch("RUNDIFF_EXECUTION_LEASE_SECONDS", DEFAULT_LEASE_SECONDS))
   end
 
   def claim!(now: nil, lease_seconds: self.class.lease_seconds)
@@ -65,7 +65,7 @@ class PlywoExecution < ApplicationRecord
       .update_all(
         status: "failed",
         outcome: "infra_failure",
-        failure: "Plywo::Executor::LeaseExpired: executor did not finalize before its lease expired",
+        failure: "RunDiff::Executor::LeaseExpired: executor did not finalize before its lease expired",
         lease_expires_at: nil,
         finished_at: now,
         updated_at: now
@@ -192,7 +192,7 @@ class PlywoExecution < ApplicationRecord
   private
 
   def authoritative_now(explicit_now)
-    explicit_now || Plywo::ClockAuthority.database_now(connection: self.class.connection)
+    explicit_now || RunDiff::ClockAuthority.database_now(connection: self.class.connection)
   end
 
   def behavioral_outcome(payload)
