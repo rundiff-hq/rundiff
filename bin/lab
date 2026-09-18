@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LAB_ROOT="$ROOT/lab"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  bin/lab list
+  bin/lab run LAB --case CASE [-- ARGS...]
+
+Examples:
+  bin/lab list
+  bin/lab run production --case topology
+EOF
+}
+
+fail() {
+  printf 'lab: %s\n' "$*" >&2
+  exit 1
+}
+
+safe_name() {
+  [[ "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+}
+
+list_labs() {
+  find "$LAB_ROOT" -mindepth 2 -maxdepth 2 -type f -name '*.sh' -print 2>/dev/null |
+    sed -E "s#^$LAB_ROOT/([^/]+)/([^/]+)\.sh$#\1/\2#" |
+    sort
+}
+
+command="${1:-}"
+shift || true
+
+case "$command" in
+  list)
+    [[ $# -eq 0 ]] || fail "list does not accept arguments"
+    list_labs
+    ;;
+
+  run)
+    lab_name="${1:-}"
+    [[ -n "$lab_name" ]] || fail "LAB is required"
+    shift
+
+    case_name=""
+    passthrough=()
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --case)
+          [[ $# -ge 2 ]] || fail "--case requires a value"
+          case_name="$2"
+          shift 2
+          ;;
+        --)
+          shift
+          passthrough=("$@")
+          break
+          ;;
+        *)
+          fail "unknown argument: $1"
+          ;;
+      esac
+    done
+
+    [[ -n "$case_name" ]] || fail "--case CASE is required"
+    safe_name "$lab_name" || fail "invalid lab name: $lab_name"
+    safe_name "$case_name" || fail "invalid case name: $case_name"
+
+    case_path="$LAB_ROOT/$lab_name/$case_name.sh"
+    [[ -f "$case_path" ]] || {
+      printf 'Unknown lab case: %s/%s\n\nAvailable cases:\n' "$lab_name" "$case_name" >&2
+      list_labs >&2
+      exit 1
+    }
+
+    artifact_dir="${RUNDIFF_LAB_ARTIFACT_DIR:-$ROOT/tmp/lab/$lab_name/$case_name}"
+    mkdir -p "$artifact_dir"
+
+    started_at="$(date +%s)"
+    printf 'lab=%s\n' "$lab_name"
+    printf 'case=%s\n' "$case_name"
+    printf 'artifacts=%s\n' "$artifact_dir"
+    printf 'lab_status=running\n'
+
+    export RUNDIFF_LAB_NAME="$lab_name"
+    export RUNDIFF_LAB_CASE="$case_name"
+    export RUNDIFF_LAB_ARTIFACT_DIR="$artifact_dir"
+
+    set +e
+    bash "$case_path" "${passthrough[@]}"
+    exit_code=$?
+    set -e
+
+    elapsed="$(( $(date +%s) - started_at ))"
+    printf 'lab_elapsed_seconds=%s\n' "$elapsed"
+
+    if [[ "$exit_code" -eq 0 ]]; then
+      printf 'lab_status=passed\n'
+    else
+      printf 'lab_status=failed\n' >&2
+    fi
+
+    exit "$exit_code"
+    ;;
+
+  -h|--help|"")
+    usage
+    ;;
+
+  *)
+    usage >&2
+    fail "unknown command: $command"
+    ;;
+esac
