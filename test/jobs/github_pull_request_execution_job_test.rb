@@ -40,7 +40,7 @@ class GithubPullRequestExecutionJobTest < ActiveJob::TestCase
     )
 
     execution.reload
-    request = Plywo::Executor::Request.from_h(dispatcher.payloads.first)
+    request = RunDiff::Executor::Request.from_h(dispatcher.payloads.first)
     assert_equal "running", execution.status
     assert_equal 1, execution.attempt_count
     assert_equal 1, dispatcher.payloads.length
@@ -103,20 +103,20 @@ class GithubPullRequestExecutionJobTest < ActiveJob::TestCase
   end
 
   def create_execution
-    PlywoExecution.create!(
+    RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(32)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",
       baseline_sha: "base-sha",
       candidate_sha: "head-sha",
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 31,
         "installation_id" => 123,
         "delivery_id" => "control-plane-only",
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     )
   end
@@ -129,7 +129,7 @@ class GithubPullRequestExecutionJobTest < ActiveJob::TestCase
   end
 
   def fake_authentication
-    token = Plywo::Github::AppAuthentication::Token.new(
+    token = RunDiff::Github::AppAuthentication::Token.new(
       value: "installation-token",
       expires_at: Time.utc(2026, 9, 4, 19, 30, 0)
     )
@@ -147,7 +147,7 @@ class GithubPullRequestExecutionJobTest < ActiveJob::TestCase
     queue = responses.dup
     Object.new.tap do |client|
       client.define_singleton_method(:fetch) do |repository:, number:|
-        raise "unexpected repository" unless repository == "plywo/plywo"
+        raise "unexpected repository" unless repository == "rundiff/rundiff"
         raise "unexpected pull request" unless number == 31
 
         queue.shift || raise("unexpected extra fetch")

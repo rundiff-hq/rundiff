@@ -89,14 +89,14 @@ class GithubCheckRunRerequestJobTest < ActiveJob::TestCase
   end
 
   def create_execution
-    PlywoExecution.create!(
+    RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",
       baseline_sha: "base-sha",
       candidate_sha: "head-sha",
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 34,
         "installation_id" => 123
       }
@@ -114,7 +114,7 @@ class GithubCheckRunRerequestJobTest < ActiveJob::TestCase
       event: "check_run",
       action: "rerequested",
       installation_id: 123,
-      repository: "plywo/plywo",
+      repository: "rundiff/rundiff",
       head_sha: execution.candidate_sha,
       external_id: execution.execution_id
     )
@@ -128,7 +128,7 @@ class GithubCheckRunRerequestJobTest < ActiveJob::TestCase
   end
 
   def fake_authentication
-    token = Plywo::Github::AppAuthentication::Token.new(
+    token = RunDiff::Github::AppAuthentication::Token.new(
       value: "installation-token",
       expires_at: Time.utc(2026, 9, 4, 21, 0, 0)
     )
@@ -145,7 +145,7 @@ class GithubCheckRunRerequestJobTest < ActiveJob::TestCase
   def fake_client(pull_request)
     Object.new.tap do |client|
       client.define_singleton_method(:fetch) do |repository:, number:|
-        raise "unexpected repository" unless repository == "plywo/plywo"
+        raise "unexpected repository" unless repository == "rundiff/rundiff"
         raise "unexpected pull request" unless number == 34
 
         pull_request
