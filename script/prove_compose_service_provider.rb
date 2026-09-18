@@ -8,26 +8,26 @@ require "uri"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 
-require TOOL_ROOT.join("lib", "plywo", "subject", "environment").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "configuration").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "runtime_capabilities").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan_compiler").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "compose_service_provider").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "service_executor").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "lifecycle").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "environment").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "configuration").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "runtime_capabilities").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan_compiler").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "compose_service_provider").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "service_executor").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "lifecycle").to_s
 
 module ComposeServiceProviderProof
   class Detector
     def call(root:, configuration:)
-      Plywo::Subject::SetupPlan.new(
+      RunDiff::Subject::SetupPlan.new(
         framework: "compose-proof",
         steps: []
       )
     end
   end
 
-  class ProofEnvironment < Plywo::Subject::Environment
+  class ProofEnvironment < RunDiff::Subject::Environment
     attr_reader :cleaned
 
     def prepare(root:, execution:, role:)
@@ -43,7 +43,7 @@ module ComposeServiceProviderProof
     end
   end
 
-  class RecordingProvider < Plywo::Subject::ComposeServiceProvider
+  class RecordingProvider < RunDiff::Subject::ComposeServiceProvider
     attr_reader :last_started
 
     def start(**arguments)
@@ -57,29 +57,29 @@ module ComposeServiceProviderProof
     compose_version = command!("docker", "compose", "version", "--short").strip
     raise "Docker Compose version was empty" if compose_version.empty?
 
-    Dir.mktmpdir("plywo-compose-proof-") do |directory|
+    Dir.mktmpdir("rundiff-compose-proof-") do |directory|
       root = Pathname(directory)
       write_subject(root)
-      configuration = Plywo::Subject::Configuration.load(root:)
+      configuration = RunDiff::Subject::Configuration.load(root:)
 
       prove_missing_capability_fails_closed(root:, configuration:)
 
-      capabilities = Plywo::Subject::RuntimeCapabilities.new(
+      capabilities = RunDiff::Subject::RuntimeCapabilities.new(
         runtimes: { "ruby" => RUBY_VERSION },
         package_managers: {},
         service_providers: { "compose" => compose_version }
       )
-      compiler = Plywo::Subject::SetupPlanCompiler.new(
+      compiler = RunDiff::Subject::SetupPlanCompiler.new(
         detectors: [ Detector.new ],
         runtime_capabilities: capabilities
       )
       provider = RecordingProvider.new
       environment = ProofEnvironment.new
-      lifecycle = Plywo::Subject::Lifecycle.new(
+      lifecycle = RunDiff::Subject::Lifecycle.new(
         discovery: Object.new,
         environment:,
         setup_plan_compiler: compiler,
-        service_executor: Plywo::Subject::ServiceExecutor.new(compose_provider: provider)
+        service_executor: RunDiff::Subject::ServiceExecutor.new(compose_provider: provider)
       )
 
       redis_url = nil
@@ -117,9 +117,9 @@ module ComposeServiceProviderProof
   end
 
   def prove_missing_capability_fails_closed(root:, configuration:)
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new ],
-      runtime_capabilities: Plywo::Subject::RuntimeCapabilities.new(
+      runtime_capabilities: RunDiff::Subject::RuntimeCapabilities.new(
         runtimes: { "ruby" => RUBY_VERSION },
         package_managers: {},
         service_providers: {}
@@ -128,7 +128,7 @@ module ComposeServiceProviderProof
 
     compiler.call(root:, configuration:)
     raise "Compose setup unexpectedly compiled without executor service-provider capability"
-  rescue Plywo::Subject::SetupPlanCompiler::Error => error
+  rescue RunDiff::Subject::SetupPlanCompiler::Error => error
     unless error.message.include?('requires executor service provider "compose"')
       raise "Unexpected missing-capability error: #{error.message}"
     end
@@ -141,7 +141,7 @@ module ComposeServiceProviderProof
           image: redis:7-alpine
     YAML
 
-    root.join("plywo.yml").write(<<~YAML)
+    root.join("rundiff.yml").write(<<~YAML)
       version: 1
       subject:
         services:

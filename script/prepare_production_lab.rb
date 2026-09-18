@@ -9,12 +9,12 @@ require "pathname"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 FIXTURE_ROOT = TOOL_ROOT.join("test", "fixtures", "rails_sqlite_subject").freeze
-GIT_ROOT = Pathname(ENV.fetch("PLYWO_LAB_GIT_ROOT", "/lab-git")).expand_path.freeze
-STATE_ROOT = Pathname(ENV.fetch("PLYWO_LAB_STATE_ROOT", "/lab-state")).expand_path.freeze
-TLS_ROOT = Pathname(ENV.fetch("PLYWO_LAB_TLS_ROOT", "/lab-tls")).expand_path.freeze
-WORK_ROOT = Pathname(ENV.fetch("PLYWO_LAB_WORK_ROOT", "/tmp/plywo-production-lab")).expand_path.freeze
+GIT_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_GIT_ROOT", "/lab-git")).expand_path.freeze
+STATE_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_STATE_ROOT", "/lab-state")).expand_path.freeze
+TLS_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_TLS_ROOT", "/lab-tls")).expand_path.freeze
+WORK_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_WORK_ROOT", "/tmp/rundiff-production-lab")).expand_path.freeze
 
-module PlywoProductionLabPrepare
+module RunDiffProductionLabPrepare
   module_function
 
   def call
@@ -37,7 +37,7 @@ module PlywoProductionLabPrepare
     FileUtils.mkdir_p(work)
     FileUtils.cp_r("#{FIXTURE_ROOT}/.", work)
 
-    strip_plywo_runtime(work)
+    strip_rundiff_runtime(work)
     write_clean_application(work)
     write_clean_application_job(work)
     write_clean_behavior_controller(work)
@@ -47,8 +47,8 @@ module PlywoProductionLabPrepare
     create_lockfile(work)
 
     run!(%w[git init -q -b main], chdir: work)
-    run!([ "git", "config", "user.email", "production-lab@plywo.local" ], chdir: work)
-    run!([ "git", "config", "user.name", "Plywo Production Lab" ], chdir: work)
+    run!([ "git", "config", "user.email", "production-lab@rundiff.local" ], chdir: work)
+    run!([ "git", "config", "user.name", "RunDiff Production Lab" ], chdir: work)
     baseline_sha = commit!(work, "Baseline customer behavior")
 
     run!(%w[git checkout -q -b regression], chdir: work)
@@ -59,7 +59,7 @@ module PlywoProductionLabPrepare
     run!(%w[git checkout -q main], chdir: work)
     run!(%w[git checkout -q -b neutral], chdir: work)
     write_configuration(work)
-    neutral_sha = commit!(work, "Configure Plywo without behavior change")
+    neutral_sha = commit!(work, "Configure RunDiff without behavior change")
 
     bare = GIT_ROOT.join("admin", "customer-rails.git")
     FileUtils.mkdir_p(bare.dirname)
@@ -85,11 +85,11 @@ module PlywoProductionLabPrepare
     puts "production_lab_neutral_sha=#{neutral_sha}"
   end
 
-  def strip_plywo_runtime(root)
-    FileUtils.rm_rf(root.join("lib", "plywo"))
+  def strip_rundiff_runtime(root)
+    FileUtils.rm_rf(root.join("lib", "rundiff"))
     FileUtils.rm_f(root.join("app", "models", "current.rb"))
-    FileUtils.rm_f(root.join("app", "models", "plywo_evidence_event.rb"))
-    FileUtils.rm_f(root.join("app", "models", "plywo_execution_work_item.rb"))
+    FileUtils.rm_f(root.join("app", "models", "rundiff_evidence_event.rb"))
+    FileUtils.rm_f(root.join("app", "models", "rundiff_execution_work_item.rb"))
     FileUtils.rm_f(root.join("config", "initializers", "runtime_evidence_bridge.rb"))
   end
 
@@ -108,7 +108,7 @@ module PlywoProductionLabPrepare
         class Application < Rails::Application
           config.load_defaults 8.1
           config.active_job.queue_adapter = :test
-          config.secret_key_base = "plywo-production-lab-subject"
+          config.secret_key_base = "rundiff-production-lab-subject"
         end
       end
     RUBY
@@ -165,10 +165,10 @@ module PlywoProductionLabPrepare
   end
 
   def write_configuration(root)
-    root.join("plywo.yml").write(<<~YAML)
+    root.join("rundiff.yml").write(<<~YAML)
       version: 1
       scenario:
-        path: /__plywo/demo/behavior
+        path: /__rundiff/demo/behavior
       subject:
         persistence: auto
     YAML
@@ -191,7 +191,7 @@ module PlywoProductionLabPrepare
     ca_cert = OpenSSL::X509::Certificate.new
     ca_cert.version = 2
     ca_cert.serial = 1
-    ca_cert.subject = OpenSSL::X509::Name.parse("/CN=Plywo Production Lab CA")
+    ca_cert.subject = OpenSSL::X509::Name.parse("/CN=RunDiff Production Lab CA")
     ca_cert.issuer = ca_cert.subject
     ca_cert.public_key = ca_key.public_key
     ca_cert.not_before = Time.now - 60
@@ -247,4 +247,4 @@ module PlywoProductionLabPrepare
   end
 end
 
-PlywoProductionLabPrepare.call
+RunDiffProductionLabPrepare.call

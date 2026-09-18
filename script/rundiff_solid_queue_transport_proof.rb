@@ -8,41 +8,41 @@ require "tmpdir"
 
 require File.join(Dir.pwd, "config/environment")
 
-PATH = "/__plywo/demo/process-proof".freeze
+PATH = "/__rundiff/demo/process-proof".freeze
 START_TIMEOUT_SECONDS = 10.0
 
 unless ActiveJob::Base.queue_adapter.class.name.include?("SolidQueue")
-  raise "Solid Queue proof requires PLYWO_SOLID_QUEUE=1"
+  raise "Solid Queue proof requires RUNDIFF_SOLID_QUEUE=1"
 end
 
 begin
   Current.reset
-  PlywoEvidenceEvent.delete_all
-  PlywoExecutionWorkItem.delete_all
+  RunDiffEvidenceEvent.delete_all
+  RunDiffExecutionWorkItem.delete_all
 
   execution_id = SecureRandom.uuid
   run_id = "solid-queue-proof-#{SecureRandom.hex(4)}"
   headers = {
     "HTTP_HOST" => "localhost",
-    "HTTP_X_PLYWO_EXECUTION_ID" => execution_id,
-    "HTTP_X_PLYWO_RUN_ID" => run_id,
-    "HTTP_X_PLYWO_SUBJECT" => "solid-queue-proof"
+    "HTTP_X_RUNDIFF_EXECUTION_ID" => execution_id,
+    "HTTP_X_RUNDIFF_RUN_ID" => run_id,
+    "HTTP_X_RUNDIFF_SUBJECT" => "solid-queue-proof"
   }
 
   response = Rack::MockRequest.new(Rails.application).post(PATH, headers)
   raise "Solid Queue proof request failed with HTTP #{response.status}" unless response.status.between?(200, 299)
-  raise "Request process leaked Plywo Current state" if Current.plywo_execution_id
+  raise "Request process leaked RunDiff Current state" if Current.rundiff_execution_id
 
   response_payload = JSON.parse(response.body)
   job_id = response_payload.fetch("job_id")
   queue_job = SolidQueue::Job.find_by!(active_job_id: job_id)
-  serialized_context = queue_job.arguments.fetch(Plywo::Rails::ActiveJobExecutionContext::CONTEXT_KEY)
+  serialized_context = queue_job.arguments.fetch(RunDiff::Rails::ActiveJobExecutionContext::CONTEXT_KEY)
 
-  raise "Solid Queue payload lost execution id" unless serialized_context.fetch("plywo_execution_id") == execution_id
-  raise "Solid Queue payload lost run id" unless serialized_context.fetch("plywo_run_id") == run_id
-  raise "Solid Queue payload lost subject" unless serialized_context.fetch("plywo_subject") == "solid-queue-proof"
+  raise "Solid Queue payload lost execution id" unless serialized_context.fetch("rundiff_execution_id") == execution_id
+  raise "Solid Queue payload lost run id" unless serialized_context.fetch("rundiff_run_id") == run_id
+  raise "Solid Queue payload lost subject" unless serialized_context.fetch("rundiff_subject") == "solid-queue-proof"
 
-  work_item = PlywoExecutionWorkItem.find_by!(execution_id:, kind: "active_job", work_id: job_id)
+  work_item = RunDiffExecutionWorkItem.find_by!(execution_id:, kind: "active_job", work_id: job_id)
   raise "Work item must be enqueued before Solid Queue worker starts" unless work_item.status == "enqueued"
 
   supervisor_pid = nil
@@ -51,10 +51,10 @@ begin
   quiescence = nil
   worker_log = nil
 
-  Dir.mktmpdir("plywo-solid-queue-proof") do |directory|
+  Dir.mktmpdir("rundiff-solid-queue-proof") do |directory|
     log_path = File.join(directory, "solid-queue.log")
     worker_env = {
-      "PLYWO_SOLID_QUEUE" => "1",
+      "RUNDIFF_SOLID_QUEUE" => "1",
       "SOLID_QUEUE_SKIP_RECURRING" => "true",
       "JOB_CONCURRENCY" => "1"
     }
@@ -86,7 +86,7 @@ begin
     raise "Solid Queue worker shares the request process PID" if worker_pids.include?(Process.pid)
     raise "Solid Queue worker shares the supervisor PID" if worker_pids.include?(supervisor_pid)
 
-    quiescence = Plywo::Rails::ExecutionQuiescence.wait(
+    quiescence = RunDiff::Rails::ExecutionQuiescence.wait(
       execution_id:,
       timeout_seconds: 10.0,
       quiet_period_seconds: 0.05
@@ -110,12 +110,12 @@ begin
   raise "Solid Queue supervisor exited unsuccessfully:\n#{worker_log}" unless supervisor_status&.success?
   raise "Execution did not reach durable quiescence" unless quiescence.fetch("quiescent")
   raise "Execution still has pending work" unless quiescence.fetch("pending_count").zero?
-  raise "Request process gained Plywo Current state from worker" if Current.plywo_execution_id
+  raise "Request process gained RunDiff Current state from worker" if Current.rundiff_execution_id
 
-  completed_work = PlywoExecutionWorkItem.find_by!(execution_id:, kind: "active_job", work_id: job_id)
+  completed_work = RunDiffExecutionWorkItem.find_by!(execution_id:, kind: "active_job", work_id: job_id)
   raise "Solid Queue work item did not complete" unless completed_work.status == "completed"
 
-  evidence = PlywoEvidenceEvent.where(execution_id:, producer_id: job_id).order(:id)
+  evidence = RunDiffEvidenceEvent.where(execution_id:, producer_id: job_id).order(:id)
   signals = evidence.map(&:signal)
   %w[queue_wait_ms scheduled_delay_ms dispatch_wait_ms sql_queries emails http_requests].each do |signal|
     raise "Solid Queue worker did not persist #{signal} evidence" unless signals.include?(signal)
@@ -145,9 +145,9 @@ begin
     "queue_stages" => queue_stage_values,
     "quiescence" => quiescence,
     "request_current_after_worker" => {
-      "execution_id" => Current.plywo_execution_id,
-      "run_id" => Current.plywo_run_id,
-      "subject" => Current.plywo_subject
+      "execution_id" => Current.rundiff_execution_id,
+      "run_id" => Current.rundiff_run_id,
+      "subject" => Current.rundiff_subject
     },
     "transport" => "solid_queue",
     "queue_job_finished" => true,

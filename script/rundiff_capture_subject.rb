@@ -10,12 +10,12 @@ require "json"
 require "securerandom"
 require "rack/mock_request"
 
-unless defined?(Plywo::Rails::ExecutionQuiescence)
-  require File.join(SUBJECT_ROOT, "lib/plywo/rails/execution_quiescence")
+unless defined?(RunDiff::Rails::ExecutionQuiescence)
+  require File.join(SUBJECT_ROOT, "lib/rundiff/rails/execution_quiescence")
 end
 
-class PlywoSubjectCapture
-  DEFAULT_PATH = "/__plywo/demo/behavior".freeze
+class RunDiffSubjectCapture
+  DEFAULT_PATH = "/__rundiff/demo/behavior".freeze
   DEFAULT_SCENARIO_ID = "dogfood.git.behavior".freeze
   DEFAULT_START_TIMEOUT_SECONDS = 10.0
   DEFAULT_QUIESCENCE_TIMEOUT_SECONDS = 5.0
@@ -30,7 +30,7 @@ class PlywoSubjectCapture
     async_execution&.start
 
     response = nil
-    collector = Plywo::Rails::EvidenceCollector.new(execution_id:)
+    collector = RunDiff::Rails::EvidenceCollector.new(execution_id:)
     measurements = collector.capture do
       response = request.post(path, headers(execution_id:, subject:))
     end
@@ -50,7 +50,7 @@ class PlywoSubjectCapture
         job.fetch("subject") == subject &&
         job.fetch("source") == "application_enqueue"
     end
-    raise "Application-enqueued job lost Plywo execution context" unless async_correlation_confirmed
+    raise "Application-enqueued job lost RunDiff execution context" unless async_correlation_confirmed
 
     payload = {
       "id" => label,
@@ -62,7 +62,7 @@ class PlywoSubjectCapture
       "sha" => sha,
       "status" => passed ? "passed" : "failed",
       "http_status" => response.status,
-      "correlation_confirmed" => response["X-Plywo-Execution-Id"] == execution_id,
+      "correlation_confirmed" => response["X-RunDiff-Execution-Id"] == execution_id,
       "async_correlation_confirmed" => async_correlation_confirmed,
       "measurements" => measurements,
       "attributions" => collector.respond_to?(:attributions) ? collector.attributions : {},
@@ -78,7 +78,7 @@ class PlywoSubjectCapture
       }
     }
 
-    File.write(ENV.fetch("PLYWO_OUTPUT"), JSON.pretty_generate(payload))
+    File.write(ENV.fetch("RUNDIFF_OUTPUT"), JSON.pretty_generate(payload))
     puts JSON.pretty_generate(payload)
   ensure
     Current.reset
@@ -97,17 +97,17 @@ class PlywoSubjectCapture
     return unless async_transport == "solid_queue"
 
     require_solid_queue_execution
-    assert_subject_owned!(Plywo::Rails::SolidQueueExecution.instance_method(:start), "SolidQueueExecution")
+    assert_subject_owned!(RunDiff::Rails::SolidQueueExecution.instance_method(:start), "SolidQueueExecution")
 
-    execution = Plywo::Rails::SolidQueueExecution.new(
+    execution = RunDiff::Rails::SolidQueueExecution.new(
       execution_id:,
       start_timeout_seconds: Float(
-        ENV.fetch("PLYWO_SOLID_QUEUE_START_TIMEOUT_SECONDS", DEFAULT_START_TIMEOUT_SECONDS)
+        ENV.fetch("RUNDIFF_SOLID_QUEUE_START_TIMEOUT_SECONDS", DEFAULT_START_TIMEOUT_SECONDS)
       ),
       quiescence_timeout_seconds: Float(
-        ENV.fetch("PLYWO_QUIESCENCE_TIMEOUT_SECONDS", DEFAULT_QUIESCENCE_TIMEOUT_SECONDS)
+        ENV.fetch("RUNDIFF_QUIESCENCE_TIMEOUT_SECONDS", DEFAULT_QUIESCENCE_TIMEOUT_SECONDS)
       ),
-      quiet_period_seconds: Float(ENV.fetch("PLYWO_QUIET_PERIOD_SECONDS", DEFAULT_QUIET_PERIOD_SECONDS))
+      quiet_period_seconds: Float(ENV.fetch("RUNDIFF_QUIET_PERIOD_SECONDS", DEFAULT_QUIET_PERIOD_SECONDS))
     )
 
     install_solid_queue_diagnostics(execution)
@@ -115,7 +115,7 @@ class PlywoSubjectCapture
   end
 
   def install_solid_queue_diagnostics(execution)
-    return unless ENV["PLYWO_SOLID_QUEUE_DIAGNOSTICS"] == "1"
+    return unless ENV["RUNDIFF_SOLID_QUEUE_DIAGNOSTICS"] == "1"
     return unless execution.respond_to?(:worker_log, true)
 
     diagnostics = Module.new do
@@ -123,7 +123,7 @@ class PlywoSubjectCapture
         log = send(:worker_log)
         super()
       ensure
-        warn "Plywo Solid Queue worker log:\n#{log}" if log && !log.empty?
+        warn "RunDiff Solid Queue worker log:\n#{log}" if log && !log.empty?
       end
     end
 
@@ -135,9 +135,9 @@ class PlywoSubjectCapture
       async_execution.finish
     else
       require_test_queue_execution
-      assert_subject_owned!(Plywo::Rails::TestQueueExecution.method(:drain), "TestQueueExecution")
+      assert_subject_owned!(RunDiff::Rails::TestQueueExecution.method(:drain), "TestQueueExecution")
 
-      executions = Plywo::Rails::TestQueueExecution.drain(execution_id:)
+      executions = RunDiff::Rails::TestQueueExecution.drain(execution_id:)
       {
         "executions" => executions,
         "quiescence" => wait_for_quiescence(execution_id:),
@@ -147,15 +147,15 @@ class PlywoSubjectCapture
   end
 
   def require_test_queue_execution
-    return if defined?(Plywo::Rails::TestQueueExecution::DEFAULT_MAX_JOBS)
+    return if defined?(RunDiff::Rails::TestQueueExecution::DEFAULT_MAX_JOBS)
 
-    require File.join(SUBJECT_ROOT, "lib/plywo/rails/test_queue_execution")
+    require File.join(SUBJECT_ROOT, "lib/rundiff/rails/test_queue_execution")
   end
 
   def require_solid_queue_execution
-    return if defined?(Plywo::Rails::SolidQueueExecution)
+    return if defined?(RunDiff::Rails::SolidQueueExecution)
 
-    require File.join(SUBJECT_ROOT, "lib/plywo/rails/solid_queue_execution")
+    require File.join(SUBJECT_ROOT, "lib/rundiff/rails/solid_queue_execution")
   end
 
   def assert_subject_owned!(method, component)
@@ -174,15 +174,15 @@ class PlywoSubjectCapture
   end
 
   def wait_for_quiescence(execution_id:)
-    Plywo::Rails::ExecutionQuiescence.wait(
+    RunDiff::Rails::ExecutionQuiescence.wait(
       execution_id:,
-      timeout_seconds: Float(ENV.fetch("PLYWO_QUIESCENCE_TIMEOUT_SECONDS", DEFAULT_QUIESCENCE_TIMEOUT_SECONDS)),
-      quiet_period_seconds: Float(ENV.fetch("PLYWO_QUIET_PERIOD_SECONDS", DEFAULT_QUIET_PERIOD_SECONDS))
+      timeout_seconds: Float(ENV.fetch("RUNDIFF_QUIESCENCE_TIMEOUT_SECONDS", DEFAULT_QUIESCENCE_TIMEOUT_SECONDS)),
+      quiet_period_seconds: Float(ENV.fetch("RUNDIFF_QUIET_PERIOD_SECONDS", DEFAULT_QUIET_PERIOD_SECONDS))
     )
   end
 
   def durable_observations(execution_id:)
-    PlywoEvidenceEvent.where(execution_id:).order(:id).map do |record|
+    RunDiffEvidenceEvent.where(execution_id:).order(:id).map do |record|
       {
         "signal" => record.signal,
         "path" => record.path,
@@ -205,39 +205,39 @@ class PlywoSubjectCapture
   def headers(execution_id:, subject:)
     {
       "HTTP_HOST" => "localhost",
-      "HTTP_X_PLYWO_EXECUTION_ID" => execution_id,
-      "HTTP_X_PLYWO_RUN_ID" => run_id,
-      "HTTP_X_PLYWO_SUBJECT" => subject
+      "HTTP_X_RUNDIFF_EXECUTION_ID" => execution_id,
+      "HTTP_X_RUNDIFF_RUN_ID" => run_id,
+      "HTTP_X_RUNDIFF_SUBJECT" => subject
     }
   end
 
   def path
-    ENV.fetch("PLYWO_SCENARIO_PATH", DEFAULT_PATH)
+    ENV.fetch("RUNDIFF_SCENARIO_PATH", DEFAULT_PATH)
   end
 
   def async_transport
-    ENV.fetch("PLYWO_ASYNC_TRANSPORT", "test_adapter")
+    ENV.fetch("RUNDIFF_ASYNC_TRANSPORT", "test_adapter")
   end
 
   def run_id
-    ENV.fetch("PLYWO_RUN_ID")
+    ENV.fetch("RUNDIFF_RUN_ID")
   end
 
   def scenario_id
-    ENV.fetch("PLYWO_SCENARIO_ID", DEFAULT_SCENARIO_ID)
+    ENV.fetch("RUNDIFF_SCENARIO_ID", DEFAULT_SCENARIO_ID)
   end
 
   def subject
-    ENV.fetch("PLYWO_SUBJECT")
+    ENV.fetch("RUNDIFF_SUBJECT")
   end
 
   def label
-    ENV.fetch("PLYWO_EXECUTION_LABEL")
+    ENV.fetch("RUNDIFF_EXECUTION_LABEL")
   end
 
   def sha
-    ENV.fetch("PLYWO_EXECUTION_SHA")
+    ENV.fetch("RUNDIFF_EXECUTION_SHA")
   end
 end
 
-PlywoSubjectCapture.new.call
+RunDiffSubjectCapture.new.call

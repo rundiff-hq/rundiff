@@ -7,25 +7,25 @@ require File.join(Dir.pwd, "config/environment")
 subscriber = nil
 
 begin
-  payload = JSON.parse(File.read(ENV.fetch("PLYWO_JOB_PAYLOAD")))
-  output_path = ENV.fetch("PLYWO_WORKER_OUTPUT")
-  expected_execution_id = payload.dig(Plywo::Rails::ActiveJobExecutionContext::CONTEXT_KEY, "plywo_execution_id").to_s
+  payload = JSON.parse(File.read(ENV.fetch("RUNDIFF_JOB_PAYLOAD")))
+  output_path = ENV.fetch("RUNDIFF_WORKER_OUTPUT")
+  expected_execution_id = payload.dig(RunDiff::Rails::ActiveJobExecutionContext::CONTEXT_KEY, "rundiff_execution_id").to_s
   expected_job_id = payload.fetch("job_id").to_s
 
   current_snapshot = lambda do
     {
-      "execution_id" => Current.plywo_execution_id,
-      "run_id" => Current.plywo_run_id,
-      "subject" => Current.plywo_subject
+      "execution_id" => Current.rundiff_execution_id,
+      "run_id" => Current.rundiff_run_id,
+      "subject" => Current.rundiff_subject
     }
   end
 
   before = current_snapshot.call
-  raise "Worker process inherited Plywo Current state" if before.values.any?
-  raise "Worker process started inside a Plywo internal operation" if Plywo::Rails::InternalOperation.active?
+  raise "Worker process inherited RunDiff Current state" if before.values.any?
+  raise "Worker process started inside a RunDiff internal operation" if RunDiff::Rails::InternalOperation.active?
 
   observed_execution_ids = []
-  subscriber = ActiveSupport::Notifications.subscribe(Plywo::Rails::Evidence::OBSERVATION_EVENT_NAME) do |event|
+  subscriber = ActiveSupport::Notifications.subscribe(RunDiff::Rails::Evidence::OBSERVATION_EVENT_NAME) do |event|
     execution_id = event.payload[:execution_id]
     observed_execution_ids << execution_id.to_s if execution_id
   end
@@ -35,17 +35,17 @@ begin
   elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round(1)
 
   after = current_snapshot.call
-  work_item = PlywoExecutionWorkItem.find_by!(
+  work_item = RunDiffExecutionWorkItem.find_by!(
     execution_id: expected_execution_id,
     kind: "active_job",
     work_id: expected_job_id
   )
-  evidence = PlywoEvidenceEvent.where(execution_id: expected_execution_id, producer_id: expected_job_id).order(:id)
+  evidence = RunDiffEvidenceEvent.where(execution_id: expected_execution_id, producer_id: expected_job_id).order(:id)
 
-  raise "Worker did not restore the serialized Plywo execution context" unless observed_execution_ids.include?(expected_execution_id)
+  raise "Worker did not restore the serialized RunDiff execution context" unless observed_execution_ids.include?(expected_execution_id)
   raise "Worker did not complete its durable work item" unless work_item.status == "completed"
   raise "Worker did not persist correlated evidence" if evidence.empty?
-  raise "Worker leaked Plywo Current state after execution" if after.values.any?
+  raise "Worker leaked RunDiff Current state after execution" if after.values.any?
 
   report = {
     "worker_pid" => Process.pid,

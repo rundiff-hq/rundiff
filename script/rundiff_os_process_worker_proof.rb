@@ -8,12 +8,12 @@ require "tmpdir"
 
 require File.join(Dir.pwd, "config/environment")
 
-PATH = "/__plywo/demo/process-proof".freeze
+PATH = "/__rundiff/demo/process-proof".freeze
 
 begin
   Current.reset
-  PlywoEvidenceEvent.delete_all
-  PlywoExecutionWorkItem.delete_all
+  RunDiffEvidenceEvent.delete_all
+  RunDiffExecutionWorkItem.delete_all
   adapter = ActiveJob::Base.queue_adapter
   adapter.enqueued_jobs.clear
   adapter.performed_jobs.clear if adapter.respond_to?(:performed_jobs)
@@ -22,14 +22,14 @@ begin
   run_id = "os-process-proof-#{SecureRandom.hex(4)}"
   headers = {
     "HTTP_HOST" => "localhost",
-    "HTTP_X_PLYWO_EXECUTION_ID" => execution_id,
-    "HTTP_X_PLYWO_RUN_ID" => run_id,
-    "HTTP_X_PLYWO_SUBJECT" => "os-process-proof"
+    "HTTP_X_RUNDIFF_EXECUTION_ID" => execution_id,
+    "HTTP_X_RUNDIFF_RUN_ID" => run_id,
+    "HTTP_X_RUNDIFF_SUBJECT" => "os-process-proof"
   }
 
   response = Rack::MockRequest.new(Rails.application).post(PATH, headers)
   raise "Process proof request failed with HTTP #{response.status}" unless response.status.between?(200, 299)
-  raise "Request process leaked Plywo Current state" if Current.plywo_execution_id
+  raise "Request process leaked RunDiff Current state" if Current.rundiff_execution_id
 
   response_payload = JSON.parse(response.body)
   job_id = response_payload.fetch("job_id")
@@ -46,13 +46,13 @@ begin
   raise "Request did not enqueue the expected ActiveJob payload" unless job_data
 
   payload = serialized_job.call(job_data)
-  context = payload.fetch(Plywo::Rails::ActiveJobExecutionContext::CONTEXT_KEY)
-  raise "Serialized job lost execution id" unless context.fetch("plywo_execution_id") == execution_id
-  raise "Serialized job lost run id" unless context.fetch("plywo_run_id") == run_id
-  raise "Serialized job lost subject" unless context.fetch("plywo_subject") == "os-process-proof"
+  context = payload.fetch(RunDiff::Rails::ActiveJobExecutionContext::CONTEXT_KEY)
+  raise "Serialized job lost execution id" unless context.fetch("rundiff_execution_id") == execution_id
+  raise "Serialized job lost run id" unless context.fetch("rundiff_run_id") == run_id
+  raise "Serialized job lost subject" unless context.fetch("rundiff_subject") == "os-process-proof"
 
   adapter.enqueued_jobs.delete(job_data)
-  work_item = PlywoExecutionWorkItem.find_by!(execution_id:, kind: "active_job", work_id: job_id)
+  work_item = RunDiffExecutionWorkItem.find_by!(execution_id:, kind: "active_job", work_id: job_id)
   raise "Work item must be enqueued before worker process starts" unless work_item.status == "enqueued"
 
   worker_pid = nil
@@ -61,16 +61,16 @@ begin
   quiescence = nil
   worker_log = nil
 
-  Dir.mktmpdir("plywo-os-process-proof") do |directory|
+  Dir.mktmpdir("rundiff-os-process-proof") do |directory|
     payload_path = File.join(directory, "job.json")
     output_path = File.join(directory, "worker.json")
     log_path = File.join(directory, "worker.log")
     File.write(payload_path, JSON.pretty_generate(payload))
 
-    worker_script = File.expand_path("plywo_worker_process.rb", __dir__)
+    worker_script = File.expand_path("rundiff_worker_process.rb", __dir__)
     worker_env = {
-      "PLYWO_JOB_PAYLOAD" => payload_path,
-      "PLYWO_WORKER_OUTPUT" => output_path
+      "RUNDIFF_JOB_PAYLOAD" => payload_path,
+      "RUNDIFF_WORKER_OUTPUT" => output_path
     }
 
     File.open(log_path, "w") do |log|
@@ -78,7 +78,7 @@ begin
     end
 
     begin
-      quiescence = Plywo::Rails::ExecutionQuiescence.wait(
+      quiescence = RunDiff::Rails::ExecutionQuiescence.wait(
         execution_id:,
         timeout_seconds: 10.0,
         quiet_period_seconds: 0.05
@@ -110,7 +110,7 @@ begin
   raise "Worker did not observe the request execution id" unless worker_report.fetch("observed_execution_ids").include?(execution_id)
   raise "Execution did not reach durable quiescence" unless quiescence.fetch("quiescent")
   raise "Execution still has pending work" unless quiescence.fetch("pending_count").zero?
-  raise "Request process gained Plywo Current state from worker" if Current.plywo_execution_id
+  raise "Request process gained RunDiff Current state from worker" if Current.rundiff_execution_id
 
   signals = worker_report.fetch("evidence_signals")
   %w[queue_wait_ms scheduled_delay_ms dispatch_wait_ms sql_queries emails http_requests].each do |signal|
@@ -126,9 +126,9 @@ begin
     "worker" => worker_report,
     "quiescence" => quiescence,
     "request_current_after_worker" => {
-      "execution_id" => Current.plywo_execution_id,
-      "run_id" => Current.plywo_run_id,
-      "subject" => Current.plywo_subject
+      "execution_id" => Current.rundiff_execution_id,
+      "run_id" => Current.rundiff_run_id,
+      "subject" => Current.rundiff_subject
     },
     "worker_log" => worker_log.lines.last(8).join
   }

@@ -13,8 +13,8 @@ rescue LoadError
   require "rack/mock"
 end
 
-module PlywoPortableNetHttpInstrumentation
-  THREAD_KEY = :plywo_portable_http_requests
+module RunDiffPortableNetHttpInstrumentation
+  THREAD_KEY = :rundiff_portable_http_requests
 
   def request(*arguments, &block)
     counter = Thread.current[THREAD_KEY]
@@ -23,9 +23,9 @@ module PlywoPortableNetHttpInstrumentation
   end
 end
 
-Net::HTTP.prepend(PlywoPortableNetHttpInstrumentation) unless Net::HTTP < PlywoPortableNetHttpInstrumentation
+Net::HTTP.prepend(RunDiffPortableNetHttpInstrumentation) unless Net::HTTP < RunDiffPortableNetHttpInstrumentation
 
-class PlywoPortableRailsCapture
+class RunDiffPortableRailsCapture
   IGNORED_SQL_NAMES = %w[SCHEMA TRANSACTION CACHE].freeze
   COUNT_SIGNALS = %w[sql_queries background_jobs emails http_requests errors].freeze
 
@@ -36,10 +36,10 @@ class PlywoPortableRailsCapture
     measurements = COUNT_SIGNALS.index_with(0)
     subscribers = subscribe(measurements)
     started = runtime_snapshot
-    Thread.current[PlywoPortableNetHttpInstrumentation::THREAD_KEY] = 0
+    Thread.current[RunDiffPortableNetHttpInstrumentation::THREAD_KEY] = 0
 
     response = request.post(path, headers)
-    measurements["http_requests"] += Thread.current[PlywoPortableNetHttpInstrumentation::THREAD_KEY].to_i
+    measurements["http_requests"] += Thread.current[RunDiffPortableNetHttpInstrumentation::THREAD_KEY].to_i
     measurements.merge!(runtime_elapsed(started))
 
     passed = response.status.between?(200, 299)
@@ -68,13 +68,13 @@ class PlywoPortableRailsCapture
       }
     }
 
-    File.write(ENV.fetch("PLYWO_OUTPUT"), JSON.pretty_generate(payload))
+    File.write(ENV.fetch("RUNDIFF_OUTPUT"), JSON.pretty_generate(payload))
     puts JSON.pretty_generate(payload)
   rescue StandardError => error
     write_failure(error)
     raise
   ensure
-    Thread.current[PlywoPortableNetHttpInstrumentation::THREAD_KEY] = nil
+    Thread.current[RunDiffPortableNetHttpInstrumentation::THREAD_KEY] = nil
     subscribers&.each { |subscriber| ActiveSupport::Notifications.unsubscribe(subscriber) }
     reset_test_queue
   end
@@ -154,7 +154,7 @@ class PlywoPortableRailsCapture
   end
 
   def write_failure(error)
-    output = ENV["PLYWO_OUTPUT"]
+    output = ENV["RUNDIFF_OUTPUT"]
     return if output.to_s.empty?
 
     payload = {
@@ -183,35 +183,35 @@ class PlywoPortableRailsCapture
   def headers(warmup: false)
     {
       "HTTP_HOST" => "localhost",
-      "HTTP_X_PLYWO_EXECUTION_ID" => warmup ? "warmup" : SecureRandom.uuid,
-      "HTTP_X_PLYWO_RUN_ID" => run_id,
-      "HTTP_X_PLYWO_SUBJECT" => subject
+      "HTTP_X_RUNDIFF_EXECUTION_ID" => warmup ? "warmup" : SecureRandom.uuid,
+      "HTTP_X_RUNDIFF_RUN_ID" => run_id,
+      "HTTP_X_RUNDIFF_SUBJECT" => subject
     }
   end
 
   def path
-    ENV.fetch("PLYWO_SCENARIO_PATH")
+    ENV.fetch("RUNDIFF_SCENARIO_PATH")
   end
 
   def run_id
-    ENV.fetch("PLYWO_RUN_ID")
+    ENV.fetch("RUNDIFF_RUN_ID")
   end
 
   def scenario_id
-    ENV.fetch("PLYWO_SCENARIO_ID")
+    ENV.fetch("RUNDIFF_SCENARIO_ID")
   end
 
   def subject
-    ENV.fetch("PLYWO_SUBJECT")
+    ENV.fetch("RUNDIFF_SUBJECT")
   end
 
   def label
-    ENV.fetch("PLYWO_EXECUTION_LABEL")
+    ENV.fetch("RUNDIFF_EXECUTION_LABEL")
   end
 
   def sha
-    ENV.fetch("PLYWO_EXECUTION_SHA")
+    ENV.fetch("RUNDIFF_EXECUTION_SHA")
   end
 end
 
-PlywoPortableRailsCapture.new.call
+RunDiffPortableRailsCapture.new.call

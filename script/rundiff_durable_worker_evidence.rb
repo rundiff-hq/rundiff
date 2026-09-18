@@ -5,35 +5,35 @@ require "securerandom"
 
 require File.join(Dir.pwd, "config/environment")
 
-class PlywoDurableWorkerProbeJob < ApplicationJob
+class RunDiffDurableWorkerProbeJob < ApplicationJob
   def perform
     ApplicationRecord.connection.select_value("SELECT 1")
-    DemoMailer.notification(Current.plywo_execution_id).deliver_now
-    Net::HTTP.get(URI.parse(Plywo::Demo::LoopbackHttpServer.url))
+    DemoMailer.notification(Current.rundiff_execution_id).deliver_now
+    Net::HTTP.get(URI.parse(RunDiff::Demo::LoopbackHttpServer.url))
   end
 end
 
 execution_id = SecureRandom.uuid
 run_id = "durable-worker-#{SecureRandom.hex(4)}"
 serialized_job = nil
-origin_collector = Plywo::Rails::EvidenceCollector.new(execution_id:)
+origin_collector = RunDiff::Rails::EvidenceCollector.new(execution_id:)
 
 origin_measurements = origin_collector.capture do
   Current.set(
-    plywo_execution_id: execution_id,
-    plywo_run_id: run_id,
-    plywo_subject: "durable-worker-proof"
+    rundiff_execution_id: execution_id,
+    rundiff_run_id: run_id,
+    rundiff_subject: "durable-worker-proof"
   ) do
-    serialized_job = PlywoDurableWorkerProbeJob.new.serialize
+    serialized_job = RunDiffDurableWorkerProbeJob.new.serialize
   end
 end
 
 Current.reset
-raise "Plywo execution context leaked after origin lifecycle" if Current.plywo_execution_id
+raise "RunDiff execution context leaked after origin lifecycle" if Current.rundiff_execution_id
 
 ActiveJob::Base.deserialize(serialized_job).perform_now
 
-records = PlywoEvidenceEvent.where(execution_id:).order(:id).to_a
+records = RunDiffEvidenceEvent.where(execution_id:).order(:id).to_a
 runtime_signals = %w[
   queue_wait_ms
   scheduled_delay_ms
@@ -51,10 +51,10 @@ unless product_records.map(&:signal) == expected_product_signals
 end
 raise "Expected worker runtime probes #{runtime_signals.inspect}" unless runtime_records.map(&:signal) == runtime_signals
 raise "Expected one producer kind" unless records.all? { |record| record.producer_kind == "active_job" }
-raise "Expected probe job producer" unless records.all? { |record| record.producer_name == "PlywoDurableWorkerProbeJob" }
+raise "Expected probe job producer" unless records.all? { |record| record.producer_name == "RunDiffDurableWorkerProbeJob" }
 raise "Expected propagated run id" unless records.all? { |record| record.run_id == run_id }
 raise "Expected propagated subject" unless records.all? { |record| record.subject == "durable-worker-proof" }
-raise "Expected application source attribution" unless product_records.all? { |record| record.path == "script/plywo_durable_worker_evidence.rb" }
+raise "Expected application source attribution" unless product_records.all? { |record| record.path == "script/rundiff_durable_worker_evidence.rb" }
 raise "Expected numeric worker runtime values" unless runtime_records.all? { |record| record.payload.fetch("value").is_a?(Numeric) }
 
 queue_records = runtime_records.first(3)

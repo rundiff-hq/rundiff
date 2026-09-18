@@ -9,17 +9,17 @@ require "uri"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 
-require TOOL_ROOT.join("lib", "plywo", "subject", "environment").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "configuration").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "javascript_package_manager_detector").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "rails_setup_plan_detector").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan_compiler").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "service_executor").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "lifecycle").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "environment").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "configuration").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "javascript_package_manager_detector").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "rails_setup_plan_detector").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan_compiler").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "service_executor").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "lifecycle").to_s
 
 module HttpServiceLifecycleProof
-  class ProofEnvironment < Plywo::Subject::Environment
+  class ProofEnvironment < RunDiff::Subject::Environment
     attr_reader :cleanup_count, :state_dir
 
     def initialize
@@ -27,8 +27,8 @@ module HttpServiceLifecycleProof
     end
 
     def prepare(root:, execution:, role:)
-      @state_dir = Pathname(Dir.mktmpdir("plywo-subject-state-#{role}-"))
-      { "PLYWO_SUBJECT_STATE_DIR" => @state_dir.to_s }
+      @state_dir = Pathname(Dir.mktmpdir("rundiff-subject-state-#{role}-"))
+      { "RUNDIFF_SUBJECT_STATE_DIR" => @state_dir.to_s }
     end
 
     def env_for(root:, execution:, role:)
@@ -41,7 +41,7 @@ module HttpServiceLifecycleProof
     end
   end
 
-  class RecordingServiceExecutor < Plywo::Subject::ServiceExecutor
+  class RecordingServiceExecutor < RunDiff::Subject::ServiceExecutor
     attr_reader :last_pid, :last_state_dir, :last_url
 
     def start(**arguments)
@@ -74,7 +74,7 @@ module HttpServiceLifecycleProof
     failure = prove_readiness_failure_path
 
     puts "Configured HTTP subject service lifecycle proof"
-    puts "configuration_contract=plywo_yml"
+    puts "configuration_contract=rundiff_yml"
     puts "setup_plan_start_operation=#{success.fetch(:start_operation)}"
     puts "setup_plan_healthcheck_operation=#{success.fetch(:healthcheck_operation)}"
     puts "setup_plan_stop_operation=#{success.fetch(:stop_operation)}"
@@ -95,10 +95,10 @@ module HttpServiceLifecycleProof
   end
 
   def prove_success_path
-    Dir.mktmpdir("plywo-configured-service-success-") do |directory|
+    Dir.mktmpdir("rundiff-configured-service-success-") do |directory|
       root = Pathname(directory)
       write_subject(root, status: 200, timeout_seconds: 2)
-      configuration = Plywo::Subject::Configuration.load(root:)
+      configuration = RunDiff::Subject::Configuration.load(root:)
       environment = ProofEnvironment.new
       service_executor = RecordingServiceExecutor.new
       lifecycle = lifecycle_for(environment:, service_executor:)
@@ -118,7 +118,7 @@ module HttpServiceLifecycleProof
       ) do |session|
         capture_ran = true
         url = session.env.fetch("MOCK_API_URL")
-        subject_state_dir = Pathname(session.env.fetch("PLYWO_SUBJECT_STATE_DIR"))
+        subject_state_dir = Pathname(session.env.fetch("RUNDIFF_SUBJECT_STATE_DIR"))
         raise "Subject state must exist during capture" unless subject_state_dir.directory?
         raise "Service state must exist during capture" unless service_executor.last_state_dir.directory?
 
@@ -160,10 +160,10 @@ module HttpServiceLifecycleProof
   end
 
   def prove_readiness_failure_path
-    Dir.mktmpdir("plywo-configured-service-failure-") do |directory|
+    Dir.mktmpdir("rundiff-configured-service-failure-") do |directory|
       root = Pathname(directory)
       write_subject(root, status: 503, timeout_seconds: 1)
-      configuration = Plywo::Subject::Configuration.load(root:)
+      configuration = RunDiff::Subject::Configuration.load(root:)
       environment = ProofEnvironment.new
       service_executor = RecordingServiceExecutor.new
       lifecycle = lifecycle_for(environment:, service_executor:)
@@ -180,7 +180,7 @@ module HttpServiceLifecycleProof
         ) do
           capture_ran = true
         end
-      rescue Plywo::Subject::ServiceExecutor::Error => exception
+      rescue RunDiff::Subject::ServiceExecutor::Error => exception
         error = exception
       end
 
@@ -202,10 +202,10 @@ module HttpServiceLifecycleProof
   end
 
   def lifecycle_for(environment:, service_executor:)
-    Plywo::Subject::Lifecycle.new(
+    RunDiff::Subject::Lifecycle.new(
       discovery: nil,
       environment:,
-      setup_plan_compiler: Plywo::Subject::SetupPlanCompiler.new,
+      setup_plan_compiler: RunDiff::Subject::SetupPlanCompiler.new,
       service_executor:
     )
   end
@@ -248,7 +248,7 @@ module HttpServiceLifecycleProof
       end
     RUBY
 
-    root.join("plywo.yml").write(<<~YAML)
+    root.join("rundiff.yml").write(<<~YAML)
       version: 1
       subject:
         services:
