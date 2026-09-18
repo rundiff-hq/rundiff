@@ -12,6 +12,15 @@ x-github-image: &github-image
     context: ../..
     dockerfile: lab/production/github/Dockerfile
 
+# Keep failure deadlines ordered so a remote timeout can be persisted/published
+# before the lab driver or durable execution lease gives up.
+x-lab-time-budget:
+  remote_executor_read_seconds: &lab-remote-executor-read-seconds "90"
+  executor_request_lease_seconds: &lab-executor-request-lease-seconds "120"
+  driver_wait_seconds: &lab-driver-wait-seconds "150"
+  execution_lease_seconds: &lab-execution-lease-seconds "180"
+  heartbeat_seconds: &lab-heartbeat-seconds "30"
+
 x-control-plane-environment: &control-plane-environment
   RAILS_ENV: production
   SECRET_KEY_BASE: production-lab-control-plane-secret-key-base
@@ -31,9 +40,9 @@ x-control-plane-environment: &control-plane-environment
   RUNDIFF_REMOTE_EXECUTOR_URL: https://executor-tls:4443/v1/executions
   RUNDIFF_REMOTE_EXECUTOR_TOKEN: production-lab-executor-token
   RUNDIFF_REMOTE_EXECUTOR_OPEN_TIMEOUT_SECONDS: "5"
-  RUNDIFF_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS: "300"
-  RUNDIFF_EXECUTION_LEASE_SECONDS: "240"
-  RUNDIFF_EXECUTION_HEARTBEAT_INTERVAL_SECONDS: "60"
+  RUNDIFF_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS: *lab-remote-executor-read-seconds
+  RUNDIFF_EXECUTION_LEASE_SECONDS: *lab-execution-lease-seconds
+  RUNDIFF_EXECUTION_HEARTBEAT_INTERVAL_SECONDS: *lab-heartbeat-seconds
   SOLID_QUEUE_SKIP_RECURRING: "true"
   SSL_CERT_FILE: /lab-tls/ca.pem
 
@@ -45,7 +54,7 @@ x-executor-environment: &executor-environment
   SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@executor-postgres:5432/rundiff_executor
   RUNDIFF_EXECUTOR_SERVICE_TOKEN: production-lab-executor-token
   RUNDIFF_EXECUTOR_SERVICE_ADAPTER: git_clone
-  RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS: "360"
+  RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS: *lab-executor-request-lease-seconds
   RUNDIFF_GITHUB_GIT_BASE_URL: http://git-origin
   RUNDIFF_SUBJECT_BUNDLE_SEED_ROOT: /lab-bundle-seed
   SSL_CERT_FILE: /lab-tls/ca.pem
@@ -241,7 +250,7 @@ services:
       RUNDIFF_LAB_EXECUTOR_URL: https://executor-tls:4443
       RUNDIFF_LAB_GITHUB_ADMIN_TOKEN: lab-admin-token
       RUNDIFF_GITHUB_APP_CHECK_NAME: RunDiff Lab / Behavioral Diff
-      RUNDIFF_LAB_TIMEOUT_SECONDS: "300"
+      RUNDIFF_LAB_TIMEOUT_SECONDS: *lab-driver-wait-seconds
       SSL_CERT_FILE: /lab-tls/ca.pem
     command: ruby script/run_production_lab.rb
     volumes:
