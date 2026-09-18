@@ -1,7 +1,7 @@
 {
-  "name": "Plywo Staging",
-  "description": "Staging GitHub App for Plywo behavioral change validation.",
-  "url": "https://github.com/plywo/plywo",
+  "name": "RunDiff Staging",
+  "description": "Staging GitHub App for RunDiff behavioral change validation.",
+  "url": "https://github.com/rundiff-hq/rundiff",
   "hook_attributes": {
     "url": "{{PLYWO_PUBLIC_URL}}/github/webhooks",
     "active": true
