@@ -1,7 +1,7 @@
 module RunDiff
   class ExecutionStageTimer
     def initialize(
-      logger: Rails.logger,
+      logger: ::Rails.logger,
       clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
     )
       @logger = logger
