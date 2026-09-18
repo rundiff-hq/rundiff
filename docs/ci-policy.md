@@ -47,6 +47,19 @@ Timeouts are deliberately tighter than GitHub's platform maximum. A timeout is a
 
 Release-image work is deduplicated by the exact release SHA/ref. Re-triggering the same release cancels the older duplicate, while different release SHAs do not cancel each other.
 
+## Specialized PR proofs
+
+Compose, isolated-provider, and production-lab proofs remain direct pull-request workflows rather than privileged `workflow_run` consumers. This avoids turning an upstream PR workflow into a trigger that could execute untrusted pull-request code with a more privileged downstream context.
+
+They still follow the cost policy by combining:
+
+- narrow path filters;
+- PR/ref concurrency groups;
+- `cancel-in-progress: true`;
+- explicit job timeouts.
+
+Within the main CI workflow, expensive jobs use normal `needs` dependencies so they do not start until the cheap quality gate succeeds.
+
 ## Future optimization
 
 As RunDiff gains reusable execution artifacts, candidate evidence and immutable image layers should be reused across checks instead of recomputed. The long-term goal is not merely faster CI; it is **one execution, many consumers**.
