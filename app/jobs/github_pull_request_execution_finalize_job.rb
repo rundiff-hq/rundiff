@@ -2,6 +2,17 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
   queue_as :control
 
   def perform(execution_id, result_payload)
+    RunDiff::ExecutionStageTimer.new.measure(
+      execution_id:,
+      stage: "finalization"
+    ) do
+      finalize(execution_id, result_payload)
+    end
+  end
+
+  private
+
+  def finalize(execution_id, result_payload)
     execution = RunDiffExecution.find_by!(execution_id:)
     unless execution.renew_lease!
       Rails.logger.info(
@@ -39,8 +50,6 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
     end
     raise
   end
-
-  private
 
   def finalize_success(execution:, payload:, token:)
     publication = execution_publisher(token: token.value).call(execution:, payload:)
