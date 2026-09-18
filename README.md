@@ -1,8 +1,8 @@
-# Plywo
+# RunDiff
 
 **Tests passed. Behavior changed.**
 
-Plywo is a behavioral change validation platform. It runs the same scenario against two software subjects, captures execution evidence, and explains what changed.
+RunDiff is a behavioral change validation platform. It runs the same scenario against two software subjects, captures execution evidence, and explains what changed.
 
 The product starts as a Rails 8.1 monolith on purpose. Portable contracts and comparison logic stay outside Rails-specific code so the CLI, protocol, recorders, drivers, and ingestion components can be extracted later without redesigning the model.
 
@@ -14,15 +14,15 @@ main + scenario ─┐
 PR   + scenario ─┘
 ```
 
-Both functional executions may pass. Plywo can still detect changes in latency, SQL queries, background jobs, external side effects, memory, network behavior, or other runtime evidence.
+Both functional executions may pass. RunDiff can still detect changes in latency, SQL queries, background jobs, external side effects, memory, network behavior, or other runtime evidence.
 
-## Dogfood Plywo with Plywo
+## Dogfood RunDiff with RunDiff
 
-The Rails app now has a real local-only execution probe. It runs two HTTP executions through the Rails middleware stack, propagates Plywo correlation headers, observes Rails notifications, and feeds captured evidence into the same portable behavioral diff engine.
+The Rails app now has a real local-only execution probe. It runs two HTTP executions through the Rails middleware stack, propagates RunDiff correlation headers, observes Rails notifications, and feeds captured evidence into the same portable behavioral diff engine.
 
 ```bash
 bin/rails db:prepare
-bin/rails plywo:dogfood
+bin/rails rundiff:dogfood
 ```
 
 The demo intentionally keeps both executions functionally green while the candidate performs more SQL, enqueues more jobs, emits a duplicate email side effect, and takes longer.
@@ -31,12 +31,12 @@ The capture path is real:
 
 ```text
 Rack request
-  -> X-Plywo-Run-Id / X-Plywo-Execution-Id / X-Plywo-Subject
+  -> X-RunDiff-Run-Id / X-RunDiff-Execution-Id / X-RunDiff-Subject
   -> Rails middleware + controller
   -> ActiveSupport::Notifications
        SQL / ActiveJob / request / side effects
-  -> Plywo::Rails::EvidenceCollector
-  -> Plywo::BehavioralDiff
+  -> RunDiff::Rails::EvidenceCollector
+  -> RunDiff::BehavioralDiff
 ```
 
 ## Portable diff
@@ -44,7 +44,7 @@ Rack request
 The core comparison command remains Rails-independent:
 
 ```bash
-bin/plywo diff \
+bin/rundiff diff \
   --baseline examples/behavioral-diff/main.json \
   --candidate examples/behavioral-diff/candidate.json
 ```
@@ -52,7 +52,7 @@ bin/plywo diff \
 Machine-readable output:
 
 ```bash
-bin/plywo diff \
+bin/rundiff diff \
   --baseline examples/behavioral-diff/main.json \
   --candidate examples/behavioral-diff/candidate.json \
   --format json
@@ -70,7 +70,7 @@ subject:
   persistence: auto
 ```
 
-Plywo uses the candidate-head `plywo.yml` as the shared A/B scenario contract and discovers supported persistence independently in each exact Git worktree. Rails + PostgreSQL and Rails + SQLite are currently recognized. Unsupported or ambiguous persistence fails explicitly instead of silently defaulting to PostgreSQL.
+RunDiff uses the candidate-head `rundiff.yml` as the shared A/B scenario contract and discovers supported persistence independently in each exact Git worktree. Rails + PostgreSQL and Rails + SQLite are currently recognized. Unsupported or ambiguous persistence fails explicitly instead of silently defaulting to PostgreSQL.
 
 The control plane exposes `/onboarding` as the customer-facing entry point: install the GitHub App, copy the minimal configuration, then open or update a pull request. The local `bin/setup-github-app` flow is developer/operator bootstrap and is not part of customer onboarding.
 
@@ -93,3 +93,7 @@ See `docs/onboarding.md` for the current five-minute onboarding shape and delibe
 ## Current status
 
 The GitHub App execution path, durable executor boundary, exact Git A/B worktrees, Rails runtime evidence, PostgreSQL and SQLite customer subject environments, and GitHub Check/PR feedback loop are real and exercised in CI and in a separate live customer-like sandbox. The current productization target is a public hosted GitHub App that turns `/onboarding` into a cross-account install-to-first-review path without operator intervention.
+
+## Rename compatibility
+
+RunDiff is the canonical product and repository name. During the rename window, the implementation keeps the legacy `Plywo::*` Ruby namespace, `PLYWO_*` environment variables, and database table names for compatibility. New customer configuration should use `rundiff.yml`; legacy `plywo.yml` remains temporarily supported.
