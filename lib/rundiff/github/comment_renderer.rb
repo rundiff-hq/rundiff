@@ -43,7 +43,8 @@ module RunDiff
       end
 
       def markdown
-        lines = [ MARKER, "## 🟣 RunDiff · Behavioral Review", "", summary_callout, "" ]
+        lines = [ MARKER, "## 🟣 RunDiff Behavioral Review", "", summary_callout, "" ]
+        lines.concat(what_changed_section)
         lines.concat(signal_table)
         lines.concat(runtime_diagnosis_section)
         lines.concat(findings_section)
@@ -68,19 +69,61 @@ module RunDiff
       end
 
       def summary_callout
+        recommendation = result.fetch("merge_recommendation").upcase
         if findings.empty?
-          "> [!TIP]\n> **No behavioral regression detected.** Merge recommendation: **ALLOW**."
+          "> [!TIP]\n> **ALLOW** - No behavioral regression detected."
         else
           counts = findings.group_by { |finding| finding.fetch("severity") }.transform_values(&:size)
           severity_summary = %w[critical high medium low].filter_map do |severity|
             "#{counts.fetch(severity)} #{severity}" if counts.key?(severity)
           end.join(" · ")
           regression_label = findings.one? ? "regression" : "regressions"
+          admonition = recommendation == "BLOCK" ? "CAUTION" : "WARNING"
+          behavior_message = if functional_scenario_passed?
+            "Tests passed, but runtime behavior changed."
+          else
+            "Runtime behavior changed."
+          end
 
-          "> [!WARNING]\n> **Behavior changed while the functional scenario still passes.** " \
-            "Merge recommendation: **#{result.fetch("merge_recommendation").upcase}** · " \
+          "> [!#{admonition}]\n> **#{recommendation}** - #{behavior_message} " \
             "#{findings.size} #{regression_label} · #{severity_summary}."
         end
+      end
+
+      def what_changed_section
+        return [] if findings.empty?
+
+        finding = findings.first
+        signal = finding.fetch("signal")
+        lines = [
+          "### What changed",
+          "",
+          "**#{SIGNAL_LABELS.fetch(signal, signal)}:** #{format_value(signal, finding.fetch("baseline"))} → " \
+            "#{format_value(signal, finding.fetch("candidate"))} (**#{display_percent(finding.fetch("delta_percent"))}**)",
+          "",
+          "`#{finding.fetch("reason_code")}`"
+        ]
+        explanation = finding_explanation(finding)
+        lines << explanation if explanation
+        lines << ""
+        lines
+      end
+
+      def finding_explanation(finding)
+        case finding.fetch("reason_code")
+        when "DATABASE_QUERY_REGRESSION"
+          delta = finding.fetch("candidate").to_f - finding.fetch("baseline").to_f
+          count = delta == delta.to_i ? delta.to_i : delta.round(1)
+          noun = delta.abs == 1 ? "query" : "queries"
+          suffix = functional_scenario_passed? ? " while the functional scenario still passed" : ""
+          "Candidate executed **#{count} additional SQL #{noun}**#{suffix}."
+        when "NEW_RUNTIME_ERROR"
+          "Candidate introduced additional runtime errors."
+        end
+      end
+
+      def functional_scenario_passed?
+        executions.values_at("baseline", "candidate").compact.all? { |execution| execution["status"] == "passed" }
       end
 
       def signal_table
