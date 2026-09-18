@@ -55,6 +55,70 @@ class RunDiffSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
     end
   end
 
+  test "hydrates independent bundle caches from one trusted seed" do
+    Dir.mktmpdir do |directory|
+      baseline = Pathname(directory).join("baseline")
+      candidate = Pathname(directory).join("candidate")
+      seed_root = Pathname(directory).join("seed")
+      FileUtils.mkdir_p([ baseline, candidate, seed_root ])
+      write_bundle_files(baseline, ruby_version: "3.4.10")
+      write_bundle_files(candidate, ruby_version: "3.4.10")
+
+      cache_key = RunDiff::Subject::RailsBundleBootstrap.cache_key_for(
+        lockfile: baseline.join("Gemfile.lock"),
+        ruby_version: "3.4.10"
+      )
+      seed = seed_root.join(cache_key)
+      FileUtils.mkdir_p(seed.join("gems"))
+      seed.join("gems", "sentinel.txt").write("trusted-seed")
+
+      runner = RecordingRunner.new
+      bootstrap = RunDiff::Subject::RailsBundleBootstrap.new(
+        command_runner: runner,
+        cache_root: nil,
+        ruby_version: "3.4.10",
+        seed_root:
+      )
+
+      baseline_env = bootstrap.call(root: baseline)
+      candidate_env = bootstrap.call(root: candidate)
+
+      baseline_sentinel = Pathname(baseline_env.fetch("BUNDLE_PATH")).join("sentinel.txt")
+      candidate_sentinel = Pathname(candidate_env.fetch("BUNDLE_PATH")).join("sentinel.txt")
+
+      assert_equal "hit", baseline_env.fetch("RUNDIFF_SUBJECT_BUNDLE_SEED")
+      assert_equal "hit", candidate_env.fetch("RUNDIFF_SUBJECT_BUNDLE_SEED")
+      assert_equal "trusted-seed", baseline_sentinel.read
+      assert_equal "trusted-seed", candidate_sentinel.read
+      refute_equal baseline_env.fetch("BUNDLE_PATH"), candidate_env.fetch("BUNDLE_PATH")
+
+      baseline_sentinel.write("baseline-mutated")
+
+      assert_equal "baseline-mutated", baseline_sentinel.read
+      assert_equal "trusted-seed", candidate_sentinel.read
+      assert_equal "trusted-seed", seed.join("gems", "sentinel.txt").read
+      refute runner.calls.any? { |call| call.fetch(:command).include?("install") }
+    end
+  end
+
+  test "falls back to normal bundle install when no matching seed exists" do
+    Dir.mktmpdir do |directory|
+      write_bundle_files(directory, ruby_version: "3.4.10")
+      runner = RecordingRunner.new(fail_bundle_check: true)
+      bootstrap = RunDiff::Subject::RailsBundleBootstrap.new(
+        command_runner: runner,
+        cache_root: File.join(directory, "cache"),
+        ruby_version: "3.4.10",
+        seed_root: File.join(directory, "missing-seed")
+      )
+
+      env = bootstrap.call(root: directory)
+
+      assert_equal "miss", env.fetch("RUNDIFF_SUBJECT_BUNDLE_SEED")
+      assert runner.calls.any? { |call| call.fetch(:command).include?("install") }
+    end
+  end
+
   test "uses an executor-owned bundle cache and installs after a failed check" do
     Dir.mktmpdir do |directory|
       write_bundle_files(directory, ruby_version: "3.4.10")
