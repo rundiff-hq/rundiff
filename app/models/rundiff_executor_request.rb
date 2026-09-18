@@ -1,9 +1,9 @@
 require "digest"
-  self.table_name = "rundiff_executor_requests"
 require "json"
 require "securerandom"
 
 class RunDiffExecutorRequest < ApplicationRecord
+  self.table_name = "rundiff_executor_requests"
   Acquisition = Data.define(:state, :record, :claim_token)
   Cancellation = Data.define(:state, :record)
   DigestMismatch = Class.new(StandardError)
