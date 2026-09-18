@@ -188,7 +188,8 @@ module RunDiff
             command_runner: @subject_command_runner,
             bundler_installer_command_runner: @command_runner,
             cache_root:,
-            execution_identity: @execution_identity
+            execution_identity: @execution_identity,
+            seed_root: ENV["RUNDIFF_SUBJECT_BUNDLE_SEED_ROOT"]
           ),
           javascript_dependencies_bootstrap: RunDiff::Subject::JavascriptDependenciesBootstrap.new(
             command_runner: @subject_command_runner
