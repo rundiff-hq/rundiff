@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoExecutorRequestTest < ActiveSupport::TestCase
+class RunDiffExecutorRequestTest < ActiveSupport::TestCase
   test "acquires a new idempotent request and completes only the active claim" do
     now = Time.utc(2026, 9, 4, 21, 40, 0)
     acquisition = acquire(now:)
@@ -10,7 +10,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
     assert acquisition.claim_token
     assert_equal now + 60, acquisition.record.lease_expires_at
 
-    result = Plywo::Executor::Result.success("result" => { "decision" => "allow" }).to_h
+    result = RunDiff::Executor::Result.success("result" => { "decision" => "allow" }).to_h
     assert acquisition.record.complete_claim!(
       claim_token: acquisition.claim_token,
       result_payload: result,
@@ -29,7 +29,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
 
     first = with_database_clock(database_now) do
       travel_to(database_now + 12.hours) do
-        PlywoExecutorRequest.acquire!(
+        RunDiffExecutorRequest.acquire!(
           idempotency_key: "execution:clock",
           request_payload:,
           lease_seconds: 60
@@ -43,7 +43,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
 
     duplicate = with_database_clock(database_now + 30) do
       travel_to(database_now + 1.day) do
-        PlywoExecutorRequest.acquire!(
+        RunDiffExecutorRequest.acquire!(
           idempotency_key: "execution:clock",
           request_payload:,
           lease_seconds: 60
@@ -54,7 +54,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
 
     reclaimed = with_database_clock(database_now + 61) do
       travel_to(database_now - 1.day) do
-        PlywoExecutorRequest.acquire!(
+        RunDiffExecutorRequest.acquire!(
           idempotency_key: "execution:clock",
           request_payload:,
           lease_seconds: 60
@@ -72,7 +72,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
     first = acquire(now:)
     first.record.complete_claim!(
       claim_token: first.claim_token,
-      result_payload: Plywo::Executor::Result.success({}).to_h,
+      result_payload: RunDiff::Executor::Result.success({}).to_h,
       now: now + 1
     )
 
@@ -103,7 +103,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
 
     refute first.record.complete_claim!(
       claim_token: first.claim_token,
-      result_payload: Plywo::Executor::Result.success({}).to_h,
+      result_payload: RunDiff::Executor::Result.success({}).to_h,
       now: now + 62
     )
   end
@@ -112,7 +112,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
     now = Time.utc(2026, 9, 5, 0, 50, 0)
     first = acquire(now:)
 
-    cancellation = PlywoExecutorRequest.cancel!(
+    cancellation = RunDiffExecutorRequest.cancel!(
       idempotency_key: "execution:1",
       reason: "control_plane_cancelled",
       now: now + 10
@@ -126,7 +126,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
     assert_nil cancellation.record.lease_expires_at
     refute first.record.complete_claim!(
       claim_token: first.claim_token,
-      result_payload: Plywo::Executor::Result.success({}).to_h,
+      result_payload: RunDiff::Executor::Result.success({}).to_h,
       now: now + 11
     )
 
@@ -138,7 +138,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
   test "records cancellation before work arrives so later acquisition cannot start" do
     now = Time.utc(2026, 9, 5, 0, 50, 0)
 
-    cancellation = PlywoExecutorRequest.cancel!(
+    cancellation = RunDiffExecutorRequest.cancel!(
       idempotency_key: "execution:1",
       reason: "superseded",
       now:
@@ -147,7 +147,7 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
 
     assert_equal :cancelled, cancellation.state
     assert_equal :cancelled, acquisition.state
-    assert_equal PlywoExecutorRequest::CANCELLED_BEFORE_REQUEST_DIGEST, acquisition.record.request_digest
+    assert_equal RunDiffExecutorRequest::CANCELLED_BEFORE_REQUEST_DIGEST, acquisition.record.request_digest
     assert_equal({}, acquisition.record.request_payload)
     assert_equal "superseded", acquisition.record.cancellation_reason
   end
@@ -157,11 +157,11 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
     first = acquire(now:)
     first.record.complete_claim!(
       claim_token: first.claim_token,
-      result_payload: Plywo::Executor::Result.success({}).to_h,
+      result_payload: RunDiff::Executor::Result.success({}).to_h,
       now: now + 1
     )
 
-    cancellation = PlywoExecutorRequest.cancel!(
+    cancellation = RunDiffExecutorRequest.cancel!(
       idempotency_key: "execution:1",
       now: now + 2
     )
@@ -175,8 +175,8 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
     acquire(now:)
     changed = request_payload.merge("candidate_sha" => "different-head")
 
-    assert_raises(PlywoExecutorRequest::DigestMismatch) do
-      PlywoExecutorRequest.acquire!(
+    assert_raises(RunDiffExecutorRequest::DigestMismatch) do
+      RunDiffExecutorRequest.acquire!(
         idempotency_key: "execution:1",
         request_payload: changed,
         now: now + 1,
@@ -195,13 +195,13 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
       "b" => { "x" => 1, "y" => 2 }
     }
 
-    assert_equal PlywoExecutorRequest.digest_for(first), PlywoExecutorRequest.digest_for(second)
+    assert_equal RunDiffExecutorRequest.digest_for(first), RunDiffExecutorRequest.digest_for(second)
   end
 
   private
 
   def acquire(now:)
-    PlywoExecutorRequest.acquire!(
+    RunDiffExecutorRequest.acquire!(
       idempotency_key: "execution:1",
       request_payload:,
       now:,
@@ -218,11 +218,11 @@ class PlywoExecutorRequestTest < ActiveSupport::TestCase
       "candidate_sha" => "head",
       "attempt_number" => 1,
       "context" => {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 40,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     }
   end

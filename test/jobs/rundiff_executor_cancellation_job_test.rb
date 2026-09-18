@@ -1,7 +1,7 @@
 require "test_helper"
 
-class PlywoExecutorCancellationJobTest < ActiveJob::TestCase
-  class TestJob < PlywoExecutorCancellationJob
+class RunDiffExecutorCancellationJobTest < ActiveJob::TestCase
+  class TestJob < RunDiffExecutorCancellationJob
     attr_accessor :executor_override
 
     private
@@ -59,7 +59,7 @@ class PlywoExecutorCancellationJobTest < ActiveJob::TestCase
   private
 
   def cancelled_execution
-    execution = PlywoExecution.create!(
+    execution = RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "scenario",

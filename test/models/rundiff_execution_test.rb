@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoExecutionTest < ActiveSupport::TestCase
+class RunDiffExecutionTest < ActiveSupport::TestCase
   test "claims a queued execution once, increments attempts, and creates a lease" do
     execution = create_execution
     now = Time.utc(2026, 9, 4, 20, 0, 0)
@@ -62,7 +62,7 @@ class PlywoExecutionTest < ActiveSupport::TestCase
 
     assert_equal "failed", execution.status
     assert_equal "infra_failure", execution.outcome
-    assert_match(/Plywo::Executor::LeaseExpired/, execution.failure)
+    assert_match(/RunDiff::Executor::LeaseExpired/, execution.failure)
     assert_nil execution.lease_expires_at
     assert execution.rerunnable?
     refute execution.expire_lease!(now: now + 121)
@@ -169,7 +169,7 @@ class PlywoExecutionTest < ActiveSupport::TestCase
   private
 
   def create_execution
-    PlywoExecution.create!(
+    RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",
