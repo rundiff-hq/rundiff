@@ -16,7 +16,9 @@ The intended customer path is:
 4. Open or update a pull request.
 5. RunDiff checks out the exact baseline and candidate revisions, bootstraps the supported Rails runtime, discovers PostgreSQL or SQLite, runs the same scenario on both sides, and publishes the Behavioral Review as a GitHub Check plus durable PR feedback.
 
-GitHub App manifests use `/onboarding` as their post-install setup URL and redirect there again when repository access is updated. The page is intentionally informational: GitHub may attach an `installation_id` query parameter, but RunDiff does not treat that value as proof of installation ownership. A future authenticated installation dashboard must verify installation ownership through GitHub user authorization before exposing or mutating account-specific installation state.
+GitHub App manifests use `/onboarding` as their post-install setup URL and redirect there again when repository access is updated. When GitHub setup parameters are present, the page may switch to a generic "continue setup" state and point the user directly to `rundiff.yml` plus the next pull request. The raw installation id is never rendered and no installation-specific data is loaded from those query parameters.
+
+Those parameters are navigation hints only. RunDiff authorization continues to come from signed webhooks, the repository admission policy, and installation-scoped GitHub App access. A future authenticated installation dashboard must verify installation ownership through GitHub user authorization before exposing or mutating account-specific installation state.
 
 The local `bin/setup-github-app` / manifest-registration flow remains a **RunDiff developer/operator bootstrap**, not a customer onboarding step. Customers should never need the launcher, manifest registration URL, webhook secret, private key, executor token, or local tunnel setup.
 

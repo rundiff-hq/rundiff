@@ -6,6 +6,15 @@
     RunDiff runs the same Rails request against the exact baseline and candidate revisions and publishes the behavioral diff back to GitHub.
   </p>
 
+  <% if @post_install_return %>
+    <aside style="margin: 28px 0 36px; padding: 18px 20px; border: 1px solid #d0d7de; border-radius: 12px; background: #f6f8fa;">
+      <strong>GitHub setup returned here. Continue with your repository.</strong>
+      <p style="margin: 8px 0 0;">
+        Add <code>rundiff.yml</code> in a candidate branch, then open or update a pull request. RunDiff will use the signed GitHub webhook and installation-scoped access to decide what it is authorized to execute.
+      </p>
+    </aside>
+  <% end %>
+
   <p style="margin: 32px 0 48px;">
     <a href="<%= @install_url %>" style="display: inline-block; background: #161616; color: white; text-decoration: none; font-weight: 700; padding: 14px 20px; border-radius: 10px;">
       Install RunDiff on GitHub
@@ -38,6 +47,6 @@
   </aside>
 
   <p style="margin-top: 36px; opacity: .65; font-size: 14px;">
-    GitHub may redirect back here with an <code>installation_id</code>. RunDiff does not treat that query parameter as proof of installation ownership; this page is informational only.
+    GitHub may redirect back here with setup query parameters. They only change this page's navigation guidance. RunDiff never treats them as proof of installation ownership and never exposes installation-specific data from them.
   </p>
 </main>
