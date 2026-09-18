@@ -1,7 +1,7 @@
 require "test_helper"
 
-class PlywoSubjectEnvironmentTest < ActiveSupport::TestCase
-  class ExampleEnvironment < Plywo::Subject::Environment
+class RunDiffSubjectEnvironmentTest < ActiveSupport::TestCase
+  class ExampleEnvironment < RunDiff::Subject::Environment
     CAPABILITIES = %w[
       framework.rails
       persistence.sqlite
@@ -15,7 +15,7 @@ class PlywoSubjectEnvironmentTest < ActiveSupport::TestCase
   end
 
   test "base environment declares no capabilities" do
-    environment = Plywo::Subject::Environment.new
+    environment = RunDiff::Subject::Environment.new
 
     assert_empty environment.capabilities
     assert_not environment.capability?("persistence.postgresql")

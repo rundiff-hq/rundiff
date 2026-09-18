@@ -4,7 +4,7 @@ require "tmpdir"
 
 class ExecutionIdentityOutputTest < ActiveSupport::TestCase
   test "disabled identity leaves local output behavior unchanged" do
-    identity = Plywo::Subject::ExecutionIdentity.new
+    identity = RunDiff::Subject::ExecutionIdentity.new
 
     Dir.mktmpdir do |directory|
       path = Pathname(directory).join("capture.json")

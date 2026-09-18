@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
+class RunDiffSubjectComposeServiceProviderTest < ActiveSupport::TestCase
   class FakeRunner
     Call = Data.define(:env, :argv, :chdir)
 
@@ -26,7 +26,7 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
         [ "", "", true ]
       end
 
-      Plywo::Subject::ComposeServiceProvider::CommandResult.new(
+      RunDiff::Subject::ComposeServiceProvider::CommandResult.new(
         stdout: result.fetch(0),
         stderr: result.fetch(1),
         success: result.fetch(2)
@@ -35,7 +35,7 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
   end
 
   test "runs one explicit image service on an ephemeral loopback port and tears it down" do
-    Dir.mktmpdir("plywo-compose-provider-") do |directory|
+    Dir.mktmpdir("rundiff-compose-provider-") do |directory|
       root = Pathname(directory)
       root.join("compose.yml").write(<<~YAML)
         services:
@@ -43,7 +43,7 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
             image: redis:7-alpine
       YAML
       runner = FakeRunner.new
-      provider = Plywo::Subject::ComposeServiceProvider.new(
+      provider = RunDiff::Subject::ComposeServiceProvider.new(
         command_runner: runner,
         host_env: {
           "PATH" => "/usr/bin",
@@ -57,7 +57,7 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
       assert_equal "127.0.0.1", started.host
       assert_equal 49_152, started.port
       assert_equal "container-123", started.handle.container_id
-      assert_match(/\Aplywo-candidate-[a-f0-9]{12}\z/, started.handle.project_name)
+      assert_match(/\Arundiff-candidate-[a-f0-9]{12}\z/, started.handle.project_name)
 
       config_call = runner.calls.find { |call| call.argv.include?("config") }
       run_call = runner.calls.find { |call| call.argv.include?("run") }
@@ -81,7 +81,7 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
   end
 
   test "rejects privileged Compose features before executing the service" do
-    Dir.mktmpdir("plywo-compose-provider-") do |directory|
+    Dir.mktmpdir("rundiff-compose-provider-") do |directory|
       root = Pathname(directory)
       root.join("compose.yml").write(<<~YAML)
         services:
@@ -91,9 +91,9 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
               - /var/run/docker.sock:/var/run/docker.sock
       YAML
       runner = FakeRunner.new
-      provider = Plywo::Subject::ComposeServiceProvider.new(command_runner: runner)
+      provider = RunDiff::Subject::ComposeServiceProvider.new(command_runner: runner)
 
-      error = assert_raises(Plywo::Subject::ComposeServiceProvider::Error) do
+      error = assert_raises(RunDiff::Subject::ComposeServiceProvider::Error) do
         provider.start(root:, role: "candidate", step: compose_start_step)
       end
 
@@ -103,15 +103,15 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
   end
 
   test "rejects manifests that resolve outside the repository" do
-    Dir.mktmpdir("plywo-compose-provider-") do |directory|
-      Dir.mktmpdir("plywo-compose-outside-") do |outside|
+    Dir.mktmpdir("rundiff-compose-provider-") do |directory|
+      Dir.mktmpdir("rundiff-compose-outside-") do |outside|
         root = Pathname(directory)
         outside_manifest = Pathname(outside).join("compose.yml")
         outside_manifest.write("services:\n  redis:\n    image: redis:7-alpine\n")
         root.join("compose.yml").make_symlink(outside_manifest)
-        provider = Plywo::Subject::ComposeServiceProvider.new(command_runner: FakeRunner.new)
+        provider = RunDiff::Subject::ComposeServiceProvider.new(command_runner: FakeRunner.new)
 
-        error = assert_raises(Plywo::Subject::ComposeServiceProvider::Error) do
+        error = assert_raises(RunDiff::Subject::ComposeServiceProvider::Error) do
           provider.start(root:, role: "candidate", step: compose_start_step)
         end
 
@@ -123,7 +123,7 @@ class PlywoSubjectComposeServiceProviderTest < ActiveSupport::TestCase
   private
 
   def compose_start_step
-    Plywo::Subject::SetupPlan::Step.new(
+    RunDiff::Subject::SetupPlan::Step.new(
       phase: "start_services",
       operation: "compose.run",
       provenance: "explicit",

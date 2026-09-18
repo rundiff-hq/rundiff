@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
+class RunDiffSubjectBootstrapExecutorTest < ActiveSupport::TestCase
   class RecordingRubyBootstrap
     attr_reader :roots
 
@@ -69,7 +69,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
       }
     )
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -91,7 +91,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
       }
     )
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -103,7 +103,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
     executor = bootstrap_executor(javascript_bootstrap:)
     plan = javascript_plan(manager: "pnpm", lockfile: "pnpm-lock.yaml")
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -122,7 +122,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
     )
     plan = javascript_plan(manager: "pnpm", lockfile: "pnpm-lock.yaml")
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -148,7 +148,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
       package_manager_version: "10.15.0"
     )
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -212,7 +212,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
     )
     plan = javascript_plan(manager: "bun", lockfile: "bun.lock")
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -234,7 +234,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
       }
     )
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: plan)
     end
 
@@ -245,7 +245,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
   test "requires a compiled setup plan" do
     executor = bootstrap_executor
 
-    error = assert_raises(Plywo::Subject::BootstrapExecutor::Error) do
+    error = assert_raises(RunDiff::Subject::BootstrapExecutor::Error) do
       executor.call(root: Pathname("/tmp/customer"), setup_plan: nil)
     end
 
@@ -259,7 +259,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
     javascript_bootstrap: RecordingJavascriptBootstrap.new,
     runtime_capabilities: capabilities
   )
-    Plywo::Subject::BootstrapExecutor.new(
+    RunDiff::Subject::BootstrapExecutor.new(
       ruby_bundle_bootstrap: ruby_bootstrap,
       javascript_dependencies_bootstrap: javascript_bootstrap,
       runtime_capabilities:
@@ -267,7 +267,7 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
   end
 
   def capabilities(runtimes: { "ruby" => "3.4.10" }, package_managers: {})
-    Plywo::Subject::RuntimeCapabilities.new(runtimes:, package_managers:)
+    RunDiff::Subject::RuntimeCapabilities.new(runtimes:, package_managers:)
   end
 
   def javascript_plan(manager:, lockfile:, package_manager_version: nil)
@@ -290,6 +290,6 @@ class PlywoSubjectBootstrapExecutorTest < ActiveSupport::TestCase
   end
 
   def setup_plan(*steps)
-    Plywo::Subject::SetupPlan.new(framework: "rails", steps:)
+    RunDiff::Subject::SetupPlan.new(framework: "rails", steps:)
   end
 end

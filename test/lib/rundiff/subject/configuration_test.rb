@@ -1,10 +1,10 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
+class RunDiffSubjectConfigurationTest < ActiveSupport::TestCase
   test "missing config keeps automatic persistence and setup defaults" do
     Dir.mktmpdir do |directory|
-      configuration = Plywo::Subject::Configuration.load(root: directory)
+      configuration = RunDiff::Subject::Configuration.load(root: directory)
 
       assert_equal "auto", configuration.persistence
       assert_equal "auto", configuration.setup_mode
@@ -27,38 +27,38 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
             mode: auto
       YAML
 
-      configuration = Plywo::Subject::Configuration.load(root: directory)
+      configuration = RunDiff::Subject::Configuration.load(root: directory)
 
       assert_equal "sqlite", configuration.persistence
       assert_equal "auto", configuration.setup_mode
       assert_empty configuration.services
       assert_equal "/orders/42", configuration.scenario_path
-      assert_equal({ "PLYWO_SCENARIO_PATH" => "/orders/42" }, configuration.capture_env)
+      assert_equal({ "RUNDIFF_SCENARIO_PATH" => "/orders/42" }, configuration.capture_env)
       assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
     end
   end
 
-  test "falls back to legacy plywo.yml when rundiff.yml is absent" do
+  test "falls back to legacy rundiff.yml when rundiff.yml is absent" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
         version: 1
         scenario:
           path: /legacy
       YAML
 
-      configuration = Plywo::Subject::Configuration.load(root: directory)
+      configuration = RunDiff::Subject::Configuration.load(root: directory)
 
       assert_equal "/legacy", configuration.scenario_path
-      assert_equal Pathname(directory).join("plywo.yml"), configuration.source_path
+      assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
     end
   end
 
-  test "prefers rundiff.yml over legacy plywo.yml" do
+  test "prefers rundiff.yml over legacy rundiff.yml" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), "version: 1\nscenario:\n  path: /legacy\n")
+      File.write(File.join(directory, "rundiff.yml"), "version: 1\nscenario:\n  path: /legacy\n")
       File.write(File.join(directory, "rundiff.yml"), "version: 1\nscenario:\n  path: /canonical\n")
 
-      configuration = Plywo::Subject::Configuration.load(root: directory)
+      configuration = RunDiff::Subject::Configuration.load(root: directory)
 
       assert_equal "/canonical", configuration.scenario_path
       assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
@@ -67,7 +67,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "loads explicit Ruby process service with bounded HTTP readiness" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
         version: 1
         subject:
           services:
@@ -84,10 +84,10 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 timeout_seconds: 3
       YAML
 
-      configuration = Plywo::Subject::Configuration.load(root: directory)
+      configuration = RunDiff::Subject::Configuration.load(root: directory)
       service = configuration.services.fetch(0)
 
-      assert_instance_of Plywo::Subject::Configuration::ProcessService, service
+      assert_instance_of RunDiff::Subject::Configuration::ProcessService, service
       assert_equal "mock-api", service.name
       assert_equal "process", service.type
       assert_equal "ruby", service.runtime
@@ -103,7 +103,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "loads explicit Compose service with TCP readiness" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
         version: 1
         subject:
           services:
@@ -119,10 +119,10 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 timeout_seconds: 8
       YAML
 
-      configuration = Plywo::Subject::Configuration.load(root: directory)
+      configuration = RunDiff::Subject::Configuration.load(root: directory)
       service = configuration.services.fetch(0)
 
-      assert_instance_of Plywo::Subject::Configuration::ComposeService, service
+      assert_instance_of RunDiff::Subject::Configuration::ComposeService, service
       assert_equal "cache", service.name
       assert_equal "compose", service.type
       assert_equal "docker/compose.yml", service.manifest
@@ -138,17 +138,17 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects unknown versions and persistence values" do
     Dir.mktmpdir do |directory|
-      path = File.join(directory, "plywo.yml")
+      path = File.join(directory, "rundiff.yml")
       File.write(path, "version: 2\n")
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
-      assert_match(/Unsupported plywo.yml version/, error.message)
+      assert_match(/Unsupported rundiff.yml version/, error.message)
 
       File.write(path, "version: 1\nsubject:\n  persistence: mysql\n")
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/Unsupported subject.persistence/, error.message)
     end
@@ -156,15 +156,15 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects unsupported setup modes" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
         version: 1
         subject:
           setup:
             mode: shell
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
 
       assert_match(/Unsupported subject.setup.mode/, error.message)
@@ -173,7 +173,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects arbitrary command fields and unsupported service runtimes" do
     Dir.mktmpdir do |directory|
-      path = File.join(directory, "plywo.yml")
+      path = File.join(directory, "rundiff.yml")
       File.write(path, <<~YAML)
         version: 1
         subject:
@@ -189,8 +189,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/Unknown subject.services\[0\] keys: command/, error.message)
 
@@ -208,8 +208,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/Unsupported subject.services\[0\].runtime/, error.message)
     end
@@ -217,7 +217,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects entrypoint traversal and malformed args" do
     Dir.mktmpdir do |directory|
-      path = File.join(directory, "plywo.yml")
+      path = File.join(directory, "rundiff.yml")
       File.write(path, <<~YAML)
         version: 1
         subject:
@@ -232,8 +232,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/entrypoint must be a repository-relative path without/, error.message)
 
@@ -252,8 +252,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/args must be a sequence of strings/, error.message)
     end
@@ -261,7 +261,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects unsafe Compose paths and malformed endpoint fields" do
     Dir.mktmpdir do |directory|
-      path = File.join(directory, "plywo.yml")
+      path = File.join(directory, "rundiff.yml")
       File.write(path, <<~YAML)
         version: 1
         subject:
@@ -277,8 +277,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 type: tcp
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/manifest must be a repository-relative path without/, error.message)
 
@@ -297,8 +297,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 type: tcp
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/target_port must be an integer between 1 and 65535/, error.message)
     end
@@ -306,7 +306,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects readiness path for TCP services" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), <<~YAML)
+      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
         version: 1
         subject:
           services:
@@ -322,8 +322,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
 
       assert_match(/path is only valid for HTTP readiness/, error.message)
@@ -332,7 +332,7 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects duplicate service names and URL exports" do
     Dir.mktmpdir do |directory|
-      path = File.join(directory, "plywo.yml")
+      path = File.join(directory, "rundiff.yml")
       File.write(path, <<~YAML)
         version: 1
         subject:
@@ -355,8 +355,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/Duplicate subject.services names: mock-api/, error.message)
 
@@ -382,8 +382,8 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
                 path: /health
       YAML
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
       assert_match(/Duplicate subject.services url_env values: SHARED_API_URL/, error.message)
     end
@@ -391,10 +391,10 @@ class PlywoSubjectConfigurationTest < ActiveSupport::TestCase
 
   test "rejects unsafe or malformed scenario paths" do
     Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "plywo.yml"), "version: 1\nscenario:\n  path: orders/42\n")
+      File.write(File.join(directory, "rundiff.yml"), "version: 1\nscenario:\n  path: orders/42\n")
 
-      error = assert_raises(Plywo::Subject::Configuration::Error) do
-        Plywo::Subject::Configuration.load(root: directory)
+      error = assert_raises(RunDiff::Subject::Configuration::Error) do
+        RunDiff::Subject::Configuration.load(root: directory)
       end
 
       assert_match(/scenario.path must be an absolute HTTP path/, error.message)

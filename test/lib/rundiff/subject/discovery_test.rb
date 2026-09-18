@@ -1,14 +1,14 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
+class RunDiffSubjectDiscoveryTest < ActiveSupport::TestCase
   CommandRunner = ->(**) { "" }
 
   test "discovers Rails PostgreSQL from database configuration" do
     with_rails_subject(database_yml: "default:\n  adapter: postgresql\n") do |root|
       environment = discovery.resolve(root:, configuration: automatic_configuration)
 
-      assert_instance_of Plywo::Subject::RailsPostgresEnvironment, environment
+      assert_instance_of RunDiff::Subject::RailsPostgresEnvironment, environment
       assert environment.capability?("persistence.postgresql")
     end
   end
@@ -17,14 +17,14 @@ class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
     with_rails_subject(database_yml: "default:\n  adapter: sqlite3\n") do |root|
       environment = discovery.resolve(root:, configuration: automatic_configuration)
 
-      assert_instance_of Plywo::Subject::RailsSqliteEnvironment, environment
+      assert_instance_of RunDiff::Subject::RailsSqliteEnvironment, environment
       assert environment.capability?("persistence.sqlite")
     end
   end
 
   test "uses an explicit supported persistence override" do
     with_rails_subject(database_yml: "") do |root|
-      configuration = Plywo::Subject::Configuration.new(
+      configuration = RunDiff::Subject::Configuration.new(
         scenario_path: nil,
         persistence: "sqlite",
         source_path: nil
@@ -32,7 +32,7 @@ class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
 
       environment = discovery.resolve(root:, configuration:)
 
-      assert_instance_of Plywo::Subject::RailsSqliteEnvironment, environment
+      assert_instance_of RunDiff::Subject::RailsSqliteEnvironment, environment
     end
   end
 
@@ -45,7 +45,7 @@ class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
     YAML
 
     with_rails_subject(database_yml:) do |root|
-      error = assert_raises(Plywo::Subject::Discovery::Error) do
+      error = assert_raises(RunDiff::Subject::Discovery::Error) do
         discovery.resolve(root:, configuration: automatic_configuration)
       end
 
@@ -55,7 +55,7 @@ class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
 
   test "rejects unsupported Rails database adapters" do
     with_rails_subject(database_yml: "default:\n  adapter: mysql2\n") do |root|
-      error = assert_raises(Plywo::Subject::Discovery::Error) do
+      error = assert_raises(RunDiff::Subject::Discovery::Error) do
         discovery.resolve(root:, configuration: automatic_configuration)
       end
 
@@ -65,7 +65,7 @@ class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
 
   test "rejects non Rails subjects explicitly" do
     Dir.mktmpdir do |directory|
-      error = assert_raises(Plywo::Subject::Discovery::Error) do
+      error = assert_raises(RunDiff::Subject::Discovery::Error) do
         discovery.resolve(root: directory, configuration: automatic_configuration)
       end
 
@@ -76,11 +76,11 @@ class PlywoSubjectDiscoveryTest < ActiveSupport::TestCase
   private
 
   def discovery
-    @discovery ||= Plywo::Subject::Discovery.new(command_runner: CommandRunner)
+    @discovery ||= RunDiff::Subject::Discovery.new(command_runner: CommandRunner)
   end
 
   def automatic_configuration
-    Plywo::Subject::Configuration.new(
+    RunDiff::Subject::Configuration.new(
       scenario_path: nil,
       persistence: "auto",
       source_path: nil

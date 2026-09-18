@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
+class RunDiffSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
   test "detects the package manager from exactly one supported lockfile" do
     {
       "package-lock.json" => "npm",
@@ -52,7 +52,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
       write(root, "package.json", "{}\n")
       write(root, "yarn.lock", "unrecognized\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(root:)
       end
 
@@ -72,7 +72,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
     with_subject do |root|
       write(root, "package.json", "{}\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(root:)
       end
 
@@ -86,7 +86,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
       write(root, "package-lock.json", "{}\n")
       write(root, "yarn.lock", "# yarn lockfile v1\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(root:)
       end
 
@@ -140,7 +140,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
         write(root, "package.json", JSON.generate("packageManager" => declaration))
         write(root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
 
-        error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+        error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
           detector.call(root:)
         end
 
@@ -154,7 +154,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
       write(root, "package.json", JSON.generate("packageManager" => "pnpm@10.15.0+sha512.not-hex"))
       write(root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(root:)
       end
 
@@ -171,7 +171,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
       JSON
       write(root, "package-lock.json", "{}\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(root:)
       end
 
@@ -187,7 +187,7 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
       write(root, "package.json", "{\n")
       write(root, "package-lock.json", "{}\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(root:)
       end
 
@@ -198,11 +198,11 @@ class PlywoSubjectJavascriptPackageManagerDetectorTest < ActiveSupport::TestCase
   private
 
   def detector
-    @detector ||= Plywo::Subject::JavascriptPackageManagerDetector.new
+    @detector ||= RunDiff::Subject::JavascriptPackageManagerDetector.new
   end
 
   def with_subject
-    Dir.mktmpdir("plywo-js-package-manager-") do |directory|
+    Dir.mktmpdir("rundiff-js-package-manager-") do |directory|
       yield Pathname(directory)
     end
   end

@@ -1,9 +1,9 @@
 require "test_helper"
 require "tmpdir"
-require_relative "../../../../lib/plywo/subject/isolated_compose_provider_client"
-require_relative "../../../../lib/plywo/subject/isolated_compose_provider_server"
+require_relative "../../../../lib/rundiff/subject/isolated_compose_provider_client"
+require_relative "../../../../lib/rundiff/subject/isolated_compose_provider_server"
 
-class PlywoSubjectIsolatedComposeProviderTest < ActiveSupport::TestCase
+class RunDiffSubjectIsolatedComposeProviderTest < ActiveSupport::TestCase
   FakeHandle = Data.define(:project_name)
   FakeStarted = Data.define(:handle, :host, :port)
 
@@ -24,7 +24,7 @@ class PlywoSubjectIsolatedComposeProviderTest < ActiveSupport::TestCase
         step:
       }
       FakeStarted.new(
-        handle: FakeHandle.new(project_name: "plywo-test-project"),
+        handle: FakeHandle.new(project_name: "rundiff-test-project"),
         host: "127.0.0.1",
         port: 49_152
       )
@@ -40,21 +40,21 @@ class PlywoSubjectIsolatedComposeProviderTest < ActiveSupport::TestCase
   end
 
   test "handshakes, transfers manifest bytes, and keeps provider workspace separate from customer root" do
-    Dir.mktmpdir("plywo-isolated-provider-") do |directory|
+    Dir.mktmpdir("rundiff-isolated-provider-") do |directory|
       root = Pathname(directory).join("customer")
       control = Pathname(directory).join("control")
       root.mkpath
       root.join("compose.yml").write("services:\n  redis:\n    image: redis:7-alpine\n")
       socket_path = control.join("provider.sock")
       provider = FakeProvider.new
-      server = Plywo::Subject::IsolatedComposeProviderServer.new(socket_path:, provider:)
+      server = RunDiff::Subject::IsolatedComposeProviderServer.new(socket_path:, provider:)
       thread = Thread.new { 4.times { server.serve_once } }
       wait_for_socket(socket_path)
 
       assert_equal 0o600, socket_path.stat.mode & 0o777
       assert_equal 0o700, control.stat.mode & 0o777
 
-      client = Plywo::Subject::IsolatedComposeProviderClient.new(socket_path:).handshake!
+      client = RunDiff::Subject::IsolatedComposeProviderClient.new(socket_path:).handshake!
       assert_equal "1", client.provider_version
 
       started = client.start(root:, role: "candidate", step: compose_start_step)
@@ -79,12 +79,12 @@ class PlywoSubjectIsolatedComposeProviderTest < ActiveSupport::TestCase
   end
 
   test "fails closed when the provider socket is absent" do
-    Dir.mktmpdir("plywo-isolated-provider-") do |directory|
-      client = Plywo::Subject::IsolatedComposeProviderClient.new(
+    Dir.mktmpdir("rundiff-isolated-provider-") do |directory|
+      client = RunDiff::Subject::IsolatedComposeProviderClient.new(
         socket_path: Pathname(directory).join("missing.sock")
       )
 
-      error = assert_raises(Plywo::Subject::IsolatedComposeProviderClient::Error) do
+      error = assert_raises(RunDiff::Subject::IsolatedComposeProviderClient::Error) do
         client.handshake!
       end
 
@@ -95,7 +95,7 @@ class PlywoSubjectIsolatedComposeProviderTest < ActiveSupport::TestCase
   private
 
   def compose_start_step
-    Plywo::Subject::SetupPlan::Step.new(
+    RunDiff::Subject::SetupPlan::Step.new(
       phase: "start_services",
       operation: "compose.run",
       provenance: "explicit",

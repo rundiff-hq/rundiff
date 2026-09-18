@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
+class RunDiffSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
   class RecordingRunner
     attr_reader :calls
 
@@ -32,7 +32,7 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
     cases.each do |manager, lockfile, yarn_generation, expected_command|
       with_subject(lockfile:) do |root|
         runner = RecordingRunner.new
-        bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
+        bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
 
         environment = bootstrap.call(
           root:,
@@ -52,9 +52,9 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
       runner = RecordingRunner.new(
         after_call: ->(path) { path.join("pnpm-lock.yaml").write("mutated\n") }
       )
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
 
-      error = assert_raises(Plywo::Subject::JavascriptDependenciesBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptDependenciesBootstrap::Error) do
         bootstrap.call(root:, step: dependency_step(manager: "pnpm", lockfile: "pnpm-lock.yaml"))
       end
 
@@ -68,9 +68,9 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
         after_call: ->(path) { path.join("pnpm-lock.yaml").write("mutated-before-failure\n") },
         error: RuntimeError.new("install failed")
       )
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
 
-      error = assert_raises(Plywo::Subject::JavascriptDependenciesBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptDependenciesBootstrap::Error) do
         bootstrap.call(root:, step: dependency_step(manager: "pnpm", lockfile: "pnpm-lock.yaml"))
       end
 
@@ -83,9 +83,9 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
       runner = RecordingRunner.new(
         after_call: ->(path) { path.join("package.json").write("{\"mutated\":true}\n") }
       )
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
 
-      error = assert_raises(Plywo::Subject::JavascriptDependenciesBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptDependenciesBootstrap::Error) do
         bootstrap.call(root:, step: dependency_step(manager: "npm", lockfile: "package-lock.json"))
       end
 
@@ -96,9 +96,9 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
   test "rejects a lockfile that does not belong to the selected manager" do
     with_subject(lockfile: "pnpm-lock.yaml") do |root|
       runner = RecordingRunner.new
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
 
-      error = assert_raises(Plywo::Subject::JavascriptDependenciesBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptDependenciesBootstrap::Error) do
         bootstrap.call(root:, step: dependency_step(manager: "npm", lockfile: "pnpm-lock.yaml"))
       end
 
@@ -112,9 +112,9 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
 
   test "requires deterministic Yarn generation evidence" do
     with_subject(lockfile: "yarn.lock") do |root|
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: RecordingRunner.new)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: RecordingRunner.new)
 
-      error = assert_raises(Plywo::Subject::JavascriptDependenciesBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptDependenciesBootstrap::Error) do
         bootstrap.call(root:, step: dependency_step(manager: "yarn", lockfile: "yarn.lock"))
       end
 
@@ -123,12 +123,12 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
   end
 
   test "requires package.json and the committed lockfile before running" do
-    Dir.mktmpdir("plywo-js-bootstrap-") do |directory|
+    Dir.mktmpdir("rundiff-js-bootstrap-") do |directory|
       root = Pathname(directory)
       runner = RecordingRunner.new
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner: runner)
 
-      error = assert_raises(Plywo::Subject::JavascriptDependenciesBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptDependenciesBootstrap::Error) do
         bootstrap.call(root:, step: dependency_step(manager: "npm", lockfile: "package-lock.json"))
       end
 
@@ -140,7 +140,7 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
   private
 
   def with_subject(lockfile:)
-    Dir.mktmpdir("plywo-js-bootstrap-") do |directory|
+    Dir.mktmpdir("rundiff-js-bootstrap-") do |directory|
       root = Pathname(directory)
       root.join("package.json").write("{}\n")
       root.join(lockfile).write("lock\n")
@@ -149,7 +149,7 @@ class PlywoSubjectJavascriptDependenciesBootstrapTest < ActiveSupport::TestCase
   end
 
   def dependency_step(manager:, lockfile:, yarn_generation: nil)
-    Plywo::Subject::SetupPlan::Step.new(
+    RunDiff::Subject::SetupPlan::Step.new(
       phase: "bootstrap",
       operation: "javascript.dependencies",
       provenance: "detected",
