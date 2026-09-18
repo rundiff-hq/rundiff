@@ -22,7 +22,7 @@ select_environment() {
     if [[ ! -t 0 ]]; then
       requested="development"
     else
-      printf '\nPlywo GitHub App setup\n\n'
+      printf '\nRunDiff GitHub App setup\n\n'
       printf '  1) Development\n'
       printf '  2) Staging\n'
       printf '  3) Production\n\n'
@@ -40,24 +40,24 @@ select_environment() {
 
   case "$ENVIRONMENT" in
     development)
-      APP_NAME="Plywo Development"
+      APP_NAME="RunDiff Development"
       APP_SLUG="plywo-development"
       MANIFEST_PATH=".github/app-manifest.development.json"
       ;;
     staging)
-      APP_NAME="Plywo Staging"
+      APP_NAME="RunDiff Staging"
       APP_SLUG="plywo-staging"
       MANIFEST_PATH=".github/app-manifest.staging.json"
       ;;
     production)
-      APP_NAME="Plywo"
+      APP_NAME="RunDiff"
       APP_SLUG="plywo"
       MANIFEST_PATH=".github/app-manifest.json"
       ;;
   esac
 
   export PLYWO_GITHUB_APP_MANIFEST_ENV="$ENVIRONMENT"
-  export PLYWO_GITHUB_APP_OWNER="${PLYWO_GITHUB_APP_OWNER:-plywo}"
+  export PLYWO_GITHUB_APP_OWNER="${PLYWO_GITHUB_APP_OWNER:-rundiff-hq}"
 }
 
 select_environment "${1:-}"
@@ -458,7 +458,7 @@ finish_setup() {
 }
 
 main() {
-  [[ -f Gemfile && -f mise.toml ]] || die "Run this script from the plywo repository"
+  [[ -f Gemfile && -f mise.toml ]] || die "Run this script from the rundiff repository"
   [[ -f "$MANIFEST_PATH" ]] || die "Manifest does not exist: ${MANIFEST_PATH}"
 
   log "GitHub App environment: ${ENVIRONMENT} (${APP_NAME})"
