@@ -55,6 +55,12 @@ dump_failure_state() {
   ' || true
 }
 
+dump_timing_summary() {
+  echo "=== production lab timing summary ==="
+  "${COMPOSE[@]}" logs --no-color control-plane control-plane-worker executor 2>/dev/null |
+    grep -E 'RunDiff execution stage .*execution_id=.*stage=.*elapsed_ms=.*outcome=' || true
+}
+
 cleanup() {
   local exit_code=$?
   if [[ $exit_code -ne 0 ]]; then
@@ -110,5 +116,7 @@ fi
   puts "production_lab_executor_github_secrets=false"
   puts "production_lab_repository_capability_persisted=false"
 '
+
+dump_timing_summary
 
 echo "production_lab_gate=passed"
