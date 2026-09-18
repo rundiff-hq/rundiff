@@ -60,6 +60,16 @@ They still follow the cost policy by combining:
 
 Within the main CI workflow, expensive jobs use normal `needs` dependencies so they do not start until the cheap quality gate succeeds.
 
+## Behavioral gate confidence
+
+RunDiff separates deterministic behavioral evidence from noisy timing evidence.
+
+Deterministic regressions such as SQL-count growth, new runtime errors, changed side-effect counts, and other discrete behavioral changes keep their normal gating severity.
+
+Until #103 lands repeated paired/interleaved sampling, one latency observation is not treated as high-confidence evidence. Request wall time, queue/dispatch wait, worker wall time, and CPU timing findings are still reported as regressions when they cross their absolute + percentage thresholds, but a **single timing sample is review-only** and cannot by itself produce a BLOCK recommendation.
+
+This is not a wider threshold and it does not hide the finding. GitHub output identifies the evidence as `single_sample_timing` and explains that repeated sampling is required to promote timing evidence to blocking confidence. If deterministic blocking evidence is present in the same comparison, the deterministic finding still wins and the recommendation remains BLOCK.
+
 ## Future optimization
 
 As RunDiff gains reusable execution artifacts, candidate evidence and immutable image layers should be reused across checks instead of recomputed. The long-term goal is not merely faster CI; it is **one execution, many consumers**.
