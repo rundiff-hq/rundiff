@@ -80,8 +80,9 @@ module RunDiff
         unless findings.empty?
           lines.concat([ "", "### Findings", "" ])
           findings.each do |finding|
+            note = confidence_note(finding)
             lines << "- **#{finding.fetch("severity").upcase}** - `#{finding.fetch("reason_code")}` - " \
-              "#{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}"
+              "#{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}#{note}"
           end
         end
 
@@ -189,7 +190,7 @@ module RunDiff
             "path" => source.fetch("path"),
             "start_line" => source.fetch("start_line"),
             "end_line" => source.fetch("end_line"),
-            "annotation_level" => ANNOTATION_LEVELS.fetch(finding.fetch("severity"), "warning"),
+            "annotation_level" => annotation_level(finding),
             "title" => "RunDiff: #{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}",
             "message" => annotation_message(finding)
           }
@@ -198,9 +199,12 @@ module RunDiff
 
       def annotation_message(finding)
         signal = finding.fetch("signal")
-        "#{finding.fetch("reason_code")}: #{SIGNAL_LABELS.fetch(signal, signal)} changed from " \
+        message = "#{finding.fetch("reason_code")}: #{SIGNAL_LABELS.fetch(signal, signal)} changed from " \
           "#{format_value(signal, finding.fetch("baseline"))} to #{format_value(signal, finding.fetch("candidate"))} " \
           "(#{display_percent(finding.fetch("delta_percent"))})."
+        return message if finding.fetch("blocking", true)
+
+        "#{message} Single-sample timing evidence is review-only until repeated sampling confirms it."
       end
 
       def decision_line
@@ -208,7 +212,23 @@ module RunDiff
         return "**#{recommendation}** - no behavioral regression detected." if findings.empty?
 
         label = findings.one? ? "regression" : "regressions"
-        "**#{recommendation}** - #{findings.size} behavioral #{label} detected."
+        line = "**#{recommendation}** - #{findings.size} behavioral #{label} detected."
+        if findings.all? { |finding| finding.fetch("confidence", "deterministic") == "single_sample_timing" }
+          line += " Timing evidence is single-sample and review-only."
+        end
+        line
+      end
+
+      def annotation_level(finding)
+        return "warning" unless finding.fetch("blocking", true)
+
+        ANNOTATION_LEVELS.fetch(finding.fetch("severity"), "warning")
+      end
+
+      def confidence_note(finding)
+        return "" unless finding.fetch("confidence", "deterministic") == "single_sample_timing"
+
+        " - single-sample timing evidence; review-only"
       end
 
       def format_value(signal, value)
