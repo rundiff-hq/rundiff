@@ -232,6 +232,15 @@ Expected readiness payloads:
 
 Only after this gate is green should production GitHub webhook traffic be treated as live.
 
+After the GitHub App and Cloudflare identity cutover is complete, verify the public identity as well:
+
+```bash
+RUNDIFF_GITHUB_APP_SLUG=<actual-production-app-slug> \
+  bash bin/verify-production-identity
+```
+
+The manual external checklist is tracked in #121 and documented in `docs/external-identity-cutover.md`.
+
 ## Image release
 
 `.github/workflows/release-image.yml` publishes the repository Dockerfile to GHCR on either:
