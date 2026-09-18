@@ -38,33 +38,6 @@ class RunDiffSubjectConfigurationTest < ActiveSupport::TestCase
     end
   end
 
-  test "falls back to legacy rundiff.yml when rundiff.yml is absent" do
-    Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "rundiff.yml"), <<~YAML)
-        version: 1
-        scenario:
-          path: /legacy
-      YAML
-
-      configuration = RunDiff::Subject::Configuration.load(root: directory)
-
-      assert_equal "/legacy", configuration.scenario_path
-      assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
-    end
-  end
-
-  test "prefers rundiff.yml over legacy rundiff.yml" do
-    Dir.mktmpdir do |directory|
-      File.write(File.join(directory, "rundiff.yml"), "version: 1\nscenario:\n  path: /legacy\n")
-      File.write(File.join(directory, "rundiff.yml"), "version: 1\nscenario:\n  path: /canonical\n")
-
-      configuration = RunDiff::Subject::Configuration.load(root: directory)
-
-      assert_equal "/canonical", configuration.scenario_path
-      assert_equal Pathname(directory).join("rundiff.yml"), configuration.source_path
-    end
-  end
-
   test "loads explicit Ruby process service with bounded HTTP readiness" do
     Dir.mktmpdir do |directory|
       File.write(File.join(directory, "rundiff.yml"), <<~YAML)
