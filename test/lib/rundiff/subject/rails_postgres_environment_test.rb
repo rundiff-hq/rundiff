@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
+class RunDiffSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
   Execution = Data.define(:execution_id)
 
   class CommandRecorder
@@ -17,7 +17,7 @@ class PlywoSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
   end
 
   test "declares the subject capabilities it actually provides" do
-    environment = Plywo::Subject::RailsPostgresEnvironment.new(
+    environment = RunDiff::Subject::RailsPostgresEnvironment.new(
       command_runner: CommandRecorder.new,
       postgres_url: "postgres://db.example"
     )
@@ -33,7 +33,7 @@ class PlywoSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
 
   test "prepares an isolated Rails PostgreSQL subject environment" do
     command_runner = CommandRecorder.new
-    environment = Plywo::Subject::RailsPostgresEnvironment.new(
+    environment = RunDiff::Subject::RailsPostgresEnvironment.new(
       command_runner:,
       postgres_url: "postgres://db.example/"
     )
@@ -42,11 +42,11 @@ class PlywoSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
 
     env = environment.prepare(root:, execution:, role: "base")
 
-    assert_equal "postgres://db.example/plywo_app_abcdef123456_base", env.fetch("DATABASE_URL")
-    assert_equal "postgres://db.example/plywo_app_abcdef123456_base_queue", env.fetch("SOLID_QUEUE_DATABASE_URL")
+    assert_equal "postgres://db.example/rundiff_app_abcdef123456_base", env.fetch("DATABASE_URL")
+    assert_equal "postgres://db.example/rundiff_app_abcdef123456_base_queue", env.fetch("SOLID_QUEUE_DATABASE_URL")
     assert_equal root.join("Gemfile").to_s, env.fetch("BUNDLE_GEMFILE")
     assert_equal "test", env.fetch("RAILS_ENV")
-    assert_equal "solid_queue", env.fetch("PLYWO_ASYNC_TRANSPORT")
+    assert_equal "solid_queue", env.fetch("RUNDIFF_ASYNC_TRANSPORT")
 
     call = command_runner.calls.fetch(0)
     assert_equal env, call.fetch(:env)
@@ -56,7 +56,7 @@ class PlywoSubjectRailsPostgresEnvironmentTest < ActiveSupport::TestCase
 
   test "uses distinct subject state for baseline and candidate" do
     command_runner = CommandRecorder.new
-    environment = Plywo::Subject::RailsPostgresEnvironment.new(
+    environment = RunDiff::Subject::RailsPostgresEnvironment.new(
       command_runner:,
       postgres_url: "postgres://db.example"
     )

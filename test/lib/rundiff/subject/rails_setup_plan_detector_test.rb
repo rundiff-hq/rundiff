@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectRailsSetupPlanDetectorTest < ActiveSupport::TestCase
+class RunDiffSubjectRailsSetupPlanDetectorTest < ActiveSupport::TestCase
   Configuration = Data.define(:persistence)
 
   test "detects reproducible Rails bootstrap and database preparation" do
@@ -64,7 +64,7 @@ class PlywoSubjectRailsSetupPlanDetectorTest < ActiveSupport::TestCase
       write(root, "bin/rails", "#!/usr/bin/env ruby\n")
       write(root, "package.json", "{}\n")
 
-      error = assert_raises(Plywo::Subject::JavascriptPackageManagerDetector::Error) do
+      error = assert_raises(RunDiff::Subject::JavascriptPackageManagerDetector::Error) do
         detector.call(
           root:,
           configuration: Configuration.new(persistence: "auto")
@@ -91,7 +91,7 @@ class PlywoSubjectRailsSetupPlanDetectorTest < ActiveSupport::TestCase
       write(root, "Gemfile", "source \"https://rubygems.org\"\ngem \"rails\"\n")
       write(root, "bin/rails", "#!/usr/bin/env ruby\n")
 
-      error = assert_raises(Plywo::Subject::RailsSetupPlanDetector::Error) do
+      error = assert_raises(RunDiff::Subject::RailsSetupPlanDetector::Error) do
         detector.call(
           root:,
           configuration: Configuration.new(persistence: "auto")
@@ -105,11 +105,11 @@ class PlywoSubjectRailsSetupPlanDetectorTest < ActiveSupport::TestCase
   private
 
   def detector
-    @detector ||= Plywo::Subject::RailsSetupPlanDetector.new
+    @detector ||= RunDiff::Subject::RailsSetupPlanDetector.new
   end
 
   def with_subject
-    Dir.mktmpdir("plywo-setup-plan-") do |directory|
+    Dir.mktmpdir("rundiff-setup-plan-") do |directory|
       yield Pathname(directory)
     end
   end

@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
+class RunDiffSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
   Execution = Data.define(:execution_id)
 
   class CommandRecorder
@@ -18,7 +18,7 @@ class PlywoSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
   end
 
   test "declares the subject capabilities it actually provides" do
-    environment = Plywo::Subject::RailsSqliteEnvironment.new(command_runner: CommandRecorder.new)
+    environment = RunDiff::Subject::RailsSqliteEnvironment.new(command_runner: CommandRecorder.new)
 
     assert_equal [ "rails" ], environment.capabilities_for(:framework)
     assert_equal [ "sqlite" ], environment.capabilities_for(:persistence)
@@ -34,7 +34,7 @@ class PlywoSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
       command_runner = CommandRecorder.new
       bundle_path = File.join(directory, "bundle")
       bundle_app_config = File.join(directory, "bundle-config")
-      environment = Plywo::Subject::RailsSqliteEnvironment.new(
+      environment = RunDiff::Subject::RailsSqliteEnvironment.new(
         command_runner:,
         state_root: directory,
         bundle_path:,
@@ -45,14 +45,14 @@ class PlywoSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
 
       env = environment.prepare(root:, execution:, role: "base")
 
-      assert_equal File.join(directory, "plywo_subject_abcdef123456_base.sqlite3"), env.fetch("PLYWO_SQLITE_DATABASE")
+      assert_equal File.join(directory, "rundiff_subject_abcdef123456_base.sqlite3"), env.fetch("RUNDIFF_SQLITE_DATABASE")
       assert_equal root.join("Gemfile").to_s, env.fetch("BUNDLE_GEMFILE")
       assert_equal File.expand_path(bundle_path), env.fetch("BUNDLE_PATH")
       assert_equal File.expand_path(bundle_app_config), env.fetch("BUNDLE_APP_CONFIG")
       assert_nil env.fetch("DATABASE_URL")
       assert_nil env.fetch("SOLID_QUEUE_DATABASE_URL")
       assert_equal "test", env.fetch("RAILS_ENV")
-      assert_equal "test_adapter", env.fetch("PLYWO_ASYNC_TRANSPORT")
+      assert_equal "test_adapter", env.fetch("RUNDIFF_ASYNC_TRANSPORT")
 
       call = command_runner.calls.fetch(0)
       assert_equal env, call.fetch(:env)
@@ -63,15 +63,15 @@ class PlywoSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
 
   test "uses distinct SQLite files for baseline and candidate and cleans sidecars" do
     Dir.mktmpdir do |directory|
-      environment = Plywo::Subject::RailsSqliteEnvironment.new(
+      environment = RunDiff::Subject::RailsSqliteEnvironment.new(
         command_runner: CommandRecorder.new,
         state_root: directory
       )
       execution = Execution.new("github-abcdef1234567890")
       root = Pathname("/tmp/customer-subject")
 
-      baseline = environment.env_for(root:, execution:, role: "base").fetch("PLYWO_SQLITE_DATABASE")
-      candidate = environment.env_for(root:, execution:, role: "candidate").fetch("PLYWO_SQLITE_DATABASE")
+      baseline = environment.env_for(root:, execution:, role: "base").fetch("RUNDIFF_SQLITE_DATABASE")
+      candidate = environment.env_for(root:, execution:, role: "candidate").fetch("RUNDIFF_SQLITE_DATABASE")
 
       assert_not_equal baseline, candidate
       assert_match(/_base\.sqlite3\z/, baseline)

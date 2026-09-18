@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
+class RunDiffSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
   test "stores declared runtime, package-manager, and service-provider versions" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.new(
+    capabilities = RunDiff::Subject::RuntimeCapabilities.new(
       runtimes: {
         ruby: "3.4.10",
         node: "24.0.0"
@@ -41,7 +41,7 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
   end
 
   test "ruby_only declares the current Ruby and no JavaScript tooling or service providers" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.ruby_only(version: "3.4.10")
+    capabilities = RunDiff::Subject::RuntimeCapabilities.ruby_only(version: "3.4.10")
 
     assert_equal "3.4.10", capabilities.runtime_version("ruby")
     refute capabilities.runtime?("node")
@@ -55,7 +55,7 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
 
   test "loads executor capabilities from an explicit JSON environment declaration" do
     env = {
-      Plywo::Subject::RuntimeCapabilities::ENV_KEY => JSON.generate(
+      RunDiff::Subject::RuntimeCapabilities::ENV_KEY => JSON.generate(
         "runtimes" => {
           "ruby" => "3.4.10",
           "node" => "24.20.0"
@@ -69,7 +69,7 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
       )
     }
 
-    capabilities = Plywo::Subject::RuntimeCapabilities.from_env(env:, ruby_version: "3.4.10")
+    capabilities = RunDiff::Subject::RuntimeCapabilities.from_env(env:, ruby_version: "3.4.10")
 
     assert_equal "3.4.10", capabilities.runtime_version("ruby")
     assert_equal "24.20.0", capabilities.runtime_version("node")
@@ -78,7 +78,7 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
   end
 
   test "falls back to Ruby-only capabilities when the executor declaration is absent" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.from_env(env: {}, ruby_version: "3.4.10")
+    capabilities = RunDiff::Subject::RuntimeCapabilities.from_env(env: {}, ruby_version: "3.4.10")
 
     assert_equal "3.4.10", capabilities.runtime_version("ruby")
     refute capabilities.runtime?("node")
@@ -87,7 +87,7 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
   end
 
   test "adds a service provider discovered through an isolated provider handshake" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.new(
+    capabilities = RunDiff::Subject::RuntimeCapabilities.new(
       runtimes: { ruby: "3.4.10" },
       package_managers: {},
       service_providers: {}
@@ -101,13 +101,13 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
   end
 
   test "rejects a discovered service-provider version that conflicts with the declaration" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.new(
+    capabilities = RunDiff::Subject::RuntimeCapabilities.new(
       runtimes: { ruby: "3.4.10" },
       package_managers: {},
       service_providers: { compose: "old" }
     )
 
-    error = assert_raises(Plywo::Subject::RuntimeCapabilities::Error) do
+    error = assert_raises(RunDiff::Subject::RuntimeCapabilities::Error) do
       capabilities.with_service_provider("compose", "1")
     end
 
@@ -118,31 +118,31 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
 
   test "rejects invalid executor capability JSON instead of probing the host" do
     env = {
-      Plywo::Subject::RuntimeCapabilities::ENV_KEY => "{"
+      RunDiff::Subject::RuntimeCapabilities::ENV_KEY => "{"
     }
 
-    error = assert_raises(Plywo::Subject::RuntimeCapabilities::Error) do
-      Plywo::Subject::RuntimeCapabilities.from_env(env:, ruby_version: "3.4.10")
+    error = assert_raises(RunDiff::Subject::RuntimeCapabilities::Error) do
+      RunDiff::Subject::RuntimeCapabilities.from_env(env:, ruby_version: "3.4.10")
     end
 
-    assert_match(/Invalid PLYWO_EXECUTOR_CAPABILITIES_JSON/, error.message)
+    assert_match(/Invalid RUNDIFF_EXECUTOR_CAPABILITIES_JSON/, error.message)
   end
 
   test "rejects non-object executor capability JSON" do
     env = {
-      Plywo::Subject::RuntimeCapabilities::ENV_KEY => "[]"
+      RunDiff::Subject::RuntimeCapabilities::ENV_KEY => "[]"
     }
 
-    error = assert_raises(Plywo::Subject::RuntimeCapabilities::Error) do
-      Plywo::Subject::RuntimeCapabilities.from_env(env:, ruby_version: "3.4.10")
+    error = assert_raises(RunDiff::Subject::RuntimeCapabilities::Error) do
+      RunDiff::Subject::RuntimeCapabilities.from_env(env:, ruby_version: "3.4.10")
     end
 
-    assert_equal "PLYWO_EXECUTOR_CAPABILITIES_JSON must contain a JSON object", error.message
+    assert_equal "RUNDIFF_EXECUTOR_CAPABILITIES_JSON must contain a JSON object", error.message
   end
 
   test "rejects capabilities without a version" do
-    error = assert_raises(Plywo::Subject::RuntimeCapabilities::Error) do
-      Plywo::Subject::RuntimeCapabilities.new(
+    error = assert_raises(RunDiff::Subject::RuntimeCapabilities::Error) do
+      RunDiff::Subject::RuntimeCapabilities.new(
         runtimes: { ruby: "" },
         package_managers: {}
       )
@@ -152,8 +152,8 @@ class PlywoSubjectRuntimeCapabilitiesTest < ActiveSupport::TestCase
   end
 
   test "rejects non-mapping capability declarations" do
-    error = assert_raises(Plywo::Subject::RuntimeCapabilities::Error) do
-      Plywo::Subject::RuntimeCapabilities.new(
+    error = assert_raises(RunDiff::Subject::RuntimeCapabilities::Error) do
+      RunDiff::Subject::RuntimeCapabilities.new(
         runtimes: [ "ruby" ],
         package_managers: {}
       )

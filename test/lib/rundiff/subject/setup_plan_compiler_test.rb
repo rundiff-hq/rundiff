@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
+class RunDiffSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   Configuration = Data.define(:persistence, :services)
 
   class Detector
@@ -16,11 +16,11 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
 
   test "returns the single detected setup plan" do
     plan = setup_plan("rails")
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new(plan:) ]
     )
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
       assert_same plan, compiler.call(
         root: Pathname(directory),
         configuration: configuration
@@ -29,12 +29,12 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   test "compiles explicit process services into typed lifecycle operations" do
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new(plan: setup_plan("rails")) ]
     )
     service = process_service
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
       compiled = compiler.call(
         root: Pathname(directory),
         configuration: configuration(services: [ service ])
@@ -60,17 +60,17 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   test "compiles explicit Compose services only when executor declares the provider" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.new(
+    capabilities = RunDiff::Subject::RuntimeCapabilities.new(
       runtimes: { ruby: "3.4.10" },
       package_managers: {},
       service_providers: { compose: "2.40.0" }
     )
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new(plan: setup_plan("rails")) ],
       runtime_capabilities: capabilities
     )
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
       compiled = compiler.call(
         root: Pathname(directory),
         configuration: configuration(services: [ compose_service ])
@@ -90,18 +90,18 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   test "fails closed when Compose provider capability is absent" do
-    capabilities = Plywo::Subject::RuntimeCapabilities.new(
+    capabilities = RunDiff::Subject::RuntimeCapabilities.new(
       runtimes: { ruby: "3.4.10" },
       package_managers: {},
       service_providers: {}
     )
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new(plan: setup_plan("rails")) ],
       runtime_capabilities: capabilities
     )
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
-      error = assert_raises(Plywo::Subject::SetupPlanCompiler::Error) do
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
+      error = assert_raises(RunDiff::Subject::SetupPlanCompiler::Error) do
         compiler.call(
           root: Pathname(directory),
           configuration: configuration(services: [ compose_service ])
@@ -114,22 +114,22 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   test "records declared executor runtime capabilities in plan evidence" do
-    plan = Plywo::Subject::SetupPlan.new(
+    plan = RunDiff::Subject::SetupPlan.new(
       framework: "rails",
       steps: [],
       evidence: { "framework" => "rails" }
     )
-    capabilities = Plywo::Subject::RuntimeCapabilities.new(
+    capabilities = RunDiff::Subject::RuntimeCapabilities.new(
       runtimes: { ruby: "3.4.10", node: "24.0.0" },
       package_managers: { pnpm: "10.0.0" },
       service_providers: { compose: "2.40.0" }
     )
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new(plan:) ],
       runtime_capabilities: capabilities
     )
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
       compiled = compiler.call(
         root: Pathname(directory),
         configuration: configuration
@@ -142,12 +142,12 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   test "fails closed when no detector can compile the subject" do
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new ]
     )
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
-      error = assert_raises(Plywo::Subject::SetupPlanCompiler::Error) do
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
+      error = assert_raises(RunDiff::Subject::SetupPlanCompiler::Error) do
         compiler.call(
           root: Pathname(directory),
           configuration: configuration
@@ -159,12 +159,12 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   test "fails closed when multiple detectors claim the subject" do
-    compiler = Plywo::Subject::SetupPlanCompiler.new(
+    compiler = RunDiff::Subject::SetupPlanCompiler.new(
       detectors: [ Detector.new(plan: setup_plan("rails")), Detector.new(plan: setup_plan("other")) ]
     )
 
-    Dir.mktmpdir("plywo-plan-compiler-") do |directory|
-      error = assert_raises(Plywo::Subject::SetupPlanCompiler::Error) do
+    Dir.mktmpdir("rundiff-plan-compiler-") do |directory|
+      error = assert_raises(RunDiff::Subject::SetupPlanCompiler::Error) do
         compiler.call(
           root: Pathname(directory),
           configuration: configuration
@@ -183,7 +183,7 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   def process_service
-    Plywo::Subject::Configuration::Service.new(
+    RunDiff::Subject::Configuration::Service.new(
       name: "mock-api",
       type: "process",
       runtime: "ruby",
@@ -191,7 +191,7 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
       args: [ "ready" ].freeze,
       port_env: "MOCK_API_PORT",
       url_env: "MOCK_API_URL",
-      readiness: Plywo::Subject::Configuration::Readiness.new(
+      readiness: RunDiff::Subject::Configuration::Readiness.new(
         type: "http",
         path: "/health",
         timeout_seconds: 4
@@ -200,7 +200,7 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   def compose_service
-    Plywo::Subject::Configuration::ComposeService.new(
+    RunDiff::Subject::Configuration::ComposeService.new(
       name: "cache",
       type: "compose",
       manifest: "compose.yml",
@@ -208,7 +208,7 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
       target_port: 6379,
       url_scheme: "redis",
       url_env: "REDIS_URL",
-      readiness: Plywo::Subject::Configuration::Readiness.new(
+      readiness: RunDiff::Subject::Configuration::Readiness.new(
         type: "tcp",
         path: nil,
         timeout_seconds: 5
@@ -217,7 +217,7 @@ class PlywoSubjectSetupPlanCompilerTest < ActiveSupport::TestCase
   end
 
   def setup_plan(framework)
-    Plywo::Subject::SetupPlan.new(
+    RunDiff::Subject::SetupPlan.new(
       framework:,
       steps: [
         {

@@ -1,7 +1,7 @@
 require "test_helper"
 require "tmpdir"
 
-class PlywoSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
+class RunDiffSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
   class RecordingRunner
     attr_reader :calls
 
@@ -14,7 +14,7 @@ class PlywoSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
       @calls << { env:, command:, chdir: }
       if @fail_bundle_check && command.last == "check"
         @fail_bundle_check = false
-        raise Plywo::Github::LocalPullRequestRunner::Error, "bundle check failed"
+        raise RunDiff::Github::LocalPullRequestRunner::Error, "bundle check failed"
       end
 
       "true\n"
@@ -24,12 +24,12 @@ class PlywoSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
   test "requires a committed lockfile" do
     Dir.mktmpdir do |directory|
       File.write(File.join(directory, "Gemfile"), "source \"https://rubygems.org\"\n")
-      bootstrap = Plywo::Subject::RailsBundleBootstrap.new(
+      bootstrap = RunDiff::Subject::RailsBundleBootstrap.new(
         command_runner: RecordingRunner.new,
         cache_root: File.join(directory, "cache")
       )
 
-      error = assert_raises(Plywo::Subject::RailsBundleBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::RailsBundleBootstrap::Error) do
         bootstrap.call(root: directory)
       end
 
@@ -40,13 +40,13 @@ class PlywoSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
   test "rejects a different Ruby major minor line" do
     Dir.mktmpdir do |directory|
       write_bundle_files(directory, ruby_version: "3.3.9")
-      bootstrap = Plywo::Subject::RailsBundleBootstrap.new(
+      bootstrap = RunDiff::Subject::RailsBundleBootstrap.new(
         command_runner: RecordingRunner.new,
         cache_root: File.join(directory, "cache"),
         ruby_version: "3.4.10"
       )
 
-      error = assert_raises(Plywo::Subject::RailsBundleBootstrap::Error) do
+      error = assert_raises(RunDiff::Subject::RailsBundleBootstrap::Error) do
         bootstrap.call(root: directory)
       end
 
@@ -59,7 +59,7 @@ class PlywoSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
     Dir.mktmpdir do |directory|
       write_bundle_files(directory, ruby_version: "3.4.10")
       runner = RecordingRunner.new(fail_bundle_check: true)
-      bootstrap = Plywo::Subject::RailsBundleBootstrap.new(
+      bootstrap = RunDiff::Subject::RailsBundleBootstrap.new(
         command_runner: runner,
         cache_root: File.join(directory, "cache"),
         ruby_version: "3.4.10"
@@ -71,7 +71,7 @@ class PlywoSubjectRailsBundleBootstrapTest < ActiveSupport::TestCase
       assert env.fetch("BUNDLE_PATH").start_with?(File.join(directory, "cache"))
       assert env.fetch("BUNDLE_APP_CONFIG").start_with?(File.join(directory, "cache"))
       assert_equal "true", env.fetch("BUNDLE_FROZEN")
-      assert_equal "4.0.13", env.fetch("PLYWO_SUBJECT_BUNDLER_VERSION")
+      assert_equal "4.0.13", env.fetch("RUNDIFF_SUBJECT_BUNDLER_VERSION")
       assert runner.calls.any? { |call| call.fetch(:command).include?("install") }
     end
   end

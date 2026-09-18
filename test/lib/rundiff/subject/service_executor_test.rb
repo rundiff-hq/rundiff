@@ -3,13 +3,13 @@ require "net/http"
 require "tmpdir"
 require "uri"
 
-class PlywoSubjectServiceExecutorTest < ActiveSupport::TestCase
+class RunDiffSubjectServiceExecutorTest < ActiveSupport::TestCase
   test "starts Ruby entrypoint on a dynamic port, waits for HTTP readiness, and tears it down" do
-    Dir.mktmpdir("plywo-service-executor-") do |directory|
+    Dir.mktmpdir("rundiff-service-executor-") do |directory|
       root = Pathname(directory)
       write_service(root)
       plan = setup_plan(status: 200)
-      executor = Plywo::Subject::ServiceExecutor.new
+      executor = RunDiff::Subject::ServiceExecutor.new
       result = executor.start(
         root:,
         execution: Object.new,
@@ -54,11 +54,11 @@ class PlywoSubjectServiceExecutorTest < ActiveSupport::TestCase
   end
 
   test "reports readiness failure with service context" do
-    Dir.mktmpdir("plywo-service-executor-") do |directory|
+    Dir.mktmpdir("rundiff-service-executor-") do |directory|
       root = Pathname(directory)
       write_service(root)
       plan = setup_plan(status: 503, timeout_seconds: 1)
-      executor = Plywo::Subject::ServiceExecutor.new
+      executor = RunDiff::Subject::ServiceExecutor.new
       result = executor.start(
         root:,
         execution: Object.new,
@@ -67,7 +67,7 @@ class PlywoSubjectServiceExecutorTest < ActiveSupport::TestCase
         setup_plan: plan
       )
 
-      error = assert_raises(Plywo::Subject::ServiceExecutor::Error) do
+      error = assert_raises(RunDiff::Subject::ServiceExecutor::Error) do
         executor.healthcheck(
           root:,
           execution: Object.new,
@@ -93,15 +93,15 @@ class PlywoSubjectServiceExecutorTest < ActiveSupport::TestCase
   end
 
   test "rejects entrypoints that resolve outside the repository" do
-    Dir.mktmpdir("plywo-service-root-") do |directory|
-      Dir.mktmpdir("plywo-service-outside-") do |outside|
+    Dir.mktmpdir("rundiff-service-root-") do |directory|
+      Dir.mktmpdir("rundiff-service-outside-") do |outside|
         root = Pathname(directory)
         outside_script = Pathname(outside).join("outside.rb")
         outside_script.write("exit 0\n")
         root.join("service.rb").make_symlink(outside_script)
 
-        error = assert_raises(Plywo::Subject::ServiceExecutor::Error) do
-          Plywo::Subject::ServiceExecutor.new.start(
+        error = assert_raises(RunDiff::Subject::ServiceExecutor::Error) do
+          RunDiff::Subject::ServiceExecutor.new.start(
             root:,
             execution: Object.new,
             role: "candidate",
@@ -116,12 +116,12 @@ class PlywoSubjectServiceExecutorTest < ActiveSupport::TestCase
   end
 
   test "does not let service URL overwrite capture environment" do
-    Dir.mktmpdir("plywo-service-executor-") do |directory|
+    Dir.mktmpdir("rundiff-service-executor-") do |directory|
       root = Pathname(directory)
       write_service(root)
 
-      error = assert_raises(Plywo::Subject::ServiceExecutor::Error) do
-        Plywo::Subject::ServiceExecutor.new.start(
+      error = assert_raises(RunDiff::Subject::ServiceExecutor::Error) do
+        RunDiff::Subject::ServiceExecutor.new.start(
           root:,
           execution: Object.new,
           role: "candidate",
@@ -137,7 +137,7 @@ class PlywoSubjectServiceExecutorTest < ActiveSupport::TestCase
   private
 
   def setup_plan(status:, timeout_seconds: 2)
-    Plywo::Subject::SetupPlan.new(
+    RunDiff::Subject::SetupPlan.new(
       framework: "test",
       steps: [
         {

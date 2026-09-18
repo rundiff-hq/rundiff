@@ -2,7 +2,7 @@ require "test_helper"
 require "socket"
 require "tmpdir"
 
-class PlywoSubjectServiceExecutorComposeTest < ActiveSupport::TestCase
+class RunDiffSubjectServiceExecutorComposeTest < ActiveSupport::TestCase
   class TcpComposeProvider
     attr_reader :stopped
 
@@ -17,7 +17,7 @@ class PlywoSubjectServiceExecutorComposeTest < ActiveSupport::TestCase
         end
       end
       handle = Data.define(:id).new(id: "compose-handle")
-      Plywo::Subject::ComposeServiceProvider::Started.new(
+      RunDiff::Subject::ComposeServiceProvider::Started.new(
         handle:,
         host: "127.0.0.1",
         port: @server.addr[1]
@@ -36,9 +36,9 @@ class PlywoSubjectServiceExecutorComposeTest < ActiveSupport::TestCase
   end
 
   test "starts Compose provider, exports typed URL, waits for TCP readiness, and stops it" do
-    Dir.mktmpdir("plywo-compose-executor-") do |directory|
+    Dir.mktmpdir("rundiff-compose-executor-") do |directory|
       provider = TcpComposeProvider.new
-      executor = Plywo::Subject::ServiceExecutor.new(compose_provider: provider)
+      executor = RunDiff::Subject::ServiceExecutor.new(compose_provider: provider)
       plan = compose_plan
       result = executor.start(
         root: Pathname(directory),
@@ -76,9 +76,9 @@ class PlywoSubjectServiceExecutorComposeTest < ActiveSupport::TestCase
   end
 
   test "fails closed when Compose steps reach an executor without a provider" do
-    Dir.mktmpdir("plywo-compose-executor-") do |directory|
-      error = assert_raises(Plywo::Subject::ServiceExecutor::Error) do
-        Plywo::Subject::ServiceExecutor.new.start(
+    Dir.mktmpdir("rundiff-compose-executor-") do |directory|
+      error = assert_raises(RunDiff::Subject::ServiceExecutor::Error) do
+        RunDiff::Subject::ServiceExecutor.new.start(
           root: Pathname(directory),
           execution: Object.new,
           role: "candidate",
@@ -94,7 +94,7 @@ class PlywoSubjectServiceExecutorComposeTest < ActiveSupport::TestCase
   private
 
   def compose_plan
-    Plywo::Subject::SetupPlan.new(
+    RunDiff::Subject::SetupPlan.new(
       framework: "test",
       steps: [
         {

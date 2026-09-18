@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoSubjectSetupPlanTest < ActiveSupport::TestCase
+class RunDiffSubjectSetupPlanTest < ActiveSupport::TestCase
   test "groups validated steps by lifecycle phase and serializes provenance" do
-    plan = Plywo::Subject::SetupPlan.new(
+    plan = RunDiff::Subject::SetupPlan.new(
       framework: "rails",
       steps: [
         {
@@ -26,8 +26,8 @@ class PlywoSubjectSetupPlanTest < ActiveSupport::TestCase
   end
 
   test "rejects unsupported phases and provenance" do
-    phase_error = assert_raises(Plywo::Subject::SetupPlan::Error) do
-      Plywo::Subject::SetupPlan::Step.new(
+    phase_error = assert_raises(RunDiff::Subject::SetupPlan::Error) do
+      RunDiff::Subject::SetupPlan::Step.new(
         phase: "capture",
         operation: "rails.capture",
         provenance: "detected"
@@ -35,8 +35,8 @@ class PlywoSubjectSetupPlanTest < ActiveSupport::TestCase
     end
     assert_match(/Unsupported setup-plan phase/, phase_error.message)
 
-    provenance_error = assert_raises(Plywo::Subject::SetupPlan::Error) do
-      Plywo::Subject::SetupPlan::Step.new(
+    provenance_error = assert_raises(RunDiff::Subject::SetupPlan::Error) do
+      RunDiff::Subject::SetupPlan::Step.new(
         phase: "bootstrap",
         operation: "ruby.bundle",
         provenance: "guessed"
