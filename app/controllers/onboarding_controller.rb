@@ -16,7 +16,7 @@ class OnboardingController < ApplicationController
   def index
     @github_app_slug = ENV.fetch("PLYWO_GITHUB_APP_SLUG") { default_github_app_slug }
     unless /\A[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\z/.match?(@github_app_slug)
-      return render plain: "Plywo GitHub App configuration error: invalid PLYWO_GITHUB_APP_SLUG\n",
+      return render plain: "RunDiff GitHub App configuration error: invalid PLYWO_GITHUB_APP_SLUG\n",
         status: :unprocessable_entity
     end
 
