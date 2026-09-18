@@ -26,6 +26,7 @@ class RunDiffSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
     assert environment.capability?("telemetry.subject_owned_rails")
     assert environment.capability?("runtime.local_process")
     assert environment.capability?("state.isolated_comparable")
+    assert environment.capability?("state.sample_isolated")
     assert environment.capability?("evidence.sql_queries")
   end
 
