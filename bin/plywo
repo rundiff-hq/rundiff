@@ -1,3 +1,0 @@
-#!/usr/bin/env ruby
-warn "bin/plywo is deprecated; use bin/rundiff"
-load File.expand_path("rundiff", __dir__)
