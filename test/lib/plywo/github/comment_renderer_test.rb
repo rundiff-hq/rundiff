@@ -6,7 +6,7 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
     markdown = Plywo::Github::CommentRenderer.markdown(
       payload:,
       context: {
-        repository: "plywo/plywo",
+        repository: "rundiff-hq/rundiff",
         pr_number: 1,
         baseline_label: "dogfood baseline",
         baseline_sha: "synthetic",
@@ -17,7 +17,7 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
     )
 
     assert_includes markdown, Plywo::Github::CommentRenderer::MARKER
-    assert_includes markdown, "Plywo · Behavioral Review"
+    assert_includes markdown, "RunDiff · Behavioral Review"
     assert_includes markdown, "SQL queries"
     assert_includes markdown, "Merge recommendation: **BLOCK**"
     assert_includes markdown, "bootstrap dogfood run"
@@ -28,7 +28,7 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
     markdown = Plywo::Github::CommentRenderer.markdown(
       payload:,
       context: {
-        repository: "plywo/plywo",
+        repository: "rundiff-hq/rundiff",
         pr_number: 2,
         baseline_label: "main",
         baseline_sha: "0123456789abcdef",
@@ -39,9 +39,9 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
     )
 
     assert_includes markdown, "1 regression · 1 high"
-    assert_includes markdown, "[`01234567`](https://github.com/plywo/plywo/commit/0123456789abcdef)"
-    assert_includes markdown, "[`fedcba98`](https://github.com/plywo/plywo/commit/fedcba9876543210)"
-    assert_includes markdown, "[Source diff](https://github.com/plywo/plywo/compare/0123456789abcdef...fedcba9876543210)"
+    assert_includes markdown, "[`01234567`](https://github.com/rundiff-hq/rundiff/commit/0123456789abcdef)"
+    assert_includes markdown, "[`fedcba98`](https://github.com/rundiff-hq/rundiff/commit/fedcba9876543210)"
+    assert_includes markdown, "[Source diff](https://github.com/rundiff-hq/rundiff/compare/0123456789abcdef...fedcba9876543210)"
     assert_includes markdown, "Evidence: exact Git worktrees + isolated PostgreSQL databases"
   end
 
