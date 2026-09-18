@@ -43,7 +43,7 @@ module Plywo
       end
 
       def markdown
-        lines = [ MARKER, "## 🟣 Plywo · Behavioral Review", "", summary_callout, "" ]
+        lines = [ MARKER, "## 🟣 RunDiff · Behavioral Review", "", summary_callout, "" ]
         lines.concat(signal_table)
         lines.concat(runtime_diagnosis_section)
         lines.concat(findings_section)
