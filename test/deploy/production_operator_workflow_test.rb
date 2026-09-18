@@ -180,6 +180,134 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
     end
   end
 
+  test "production cutover verifier runs identity then Cloudflare and may stop before proof" do
+    Dir.mktmpdir("rundiff-production-cutover-") do |destination|
+      infra = File.join(destination, "infra")
+      FileUtils.mkdir_p(File.join(infra, "scripts"))
+      log = File.join(destination, "cutover.log")
+      identity = File.join(destination, "identity")
+      cloudflare = File.join(infra, "scripts", "verify_cloudflare_identity.py")
+
+      write_executable(identity, <<~BASH)
+        #!/usr/bin/env bash
+        printf '%s\\n' identity >> "$CUTOVER_LOG"
+        printf '%s\\n' production_identity=verified
+      BASH
+      write_executable(cloudflare, <<~PYTHON)
+        #!/usr/bin/env python3
+        import os
+        with open(os.environ["CUTOVER_LOG"], "a", encoding="utf-8") as handle:
+            handle.write("cloudflare\\n")
+        print("cloudflare_identity=verified")
+      PYTHON
+
+      stdout, stderr, status = run_script(
+        "verify-production-cutover",
+        "--infra-repo",
+        infra,
+        env: {
+          "RUNDIFF_IDENTITY_VERIFIER" => identity,
+          "CUTOVER_LOG" => log
+        }
+      )
+
+      assert status.success?, stderr
+      assert_equal %w[identity cloudflare], File.readlines(log, chomp: true)
+      assert_includes stdout, "stage=production_identity status=verified"
+      assert_includes stdout, "stage=cloudflare_identity status=verified"
+      assert_includes stdout, "stage=production_proof status=not_requested"
+      assert_includes stdout, "production_cutover=verified"
+    end
+  end
+
+  test "production cutover verifier collects proof only when all proof arguments are present" do
+    Dir.mktmpdir("rundiff-production-cutover-") do |destination|
+      infra = File.join(destination, "infra")
+      FileUtils.mkdir_p(File.join(infra, "scripts"))
+      log = File.join(destination, "cutover.log")
+      identity = File.join(destination, "identity")
+      proof = File.join(destination, "proof")
+      cloudflare = File.join(infra, "scripts", "verify_cloudflare_identity.py")
+      output = File.join(destination, "proof.json")
+
+      write_executable(identity, <<~BASH)
+        #!/usr/bin/env bash
+        printf '%s\\n' identity >> "$CUTOVER_LOG"
+      BASH
+      write_executable(cloudflare, <<~PYTHON)
+        #!/usr/bin/env python3
+        import os
+        with open(os.environ["CUTOVER_LOG"], "a", encoding="utf-8") as handle:
+            handle.write("cloudflare\\n")
+      PYTHON
+      write_executable(proof, <<~BASH)
+        #!/usr/bin/env bash
+        printf 'proof %s\\n' "$*" >> "$CUTOVER_LOG"
+        printf '%s\\n' '{"schema_version":"1"}' > "$7"
+      BASH
+
+      stdout, stderr, status = run_script(
+        "verify-production-cutover",
+        "--infra-repo",
+        infra,
+        "--proof-repo",
+        "external-owner/proof-repo",
+        "--regression-pr",
+        "12",
+        "--neutral-pr",
+        "13",
+        "--proof-output",
+        output,
+        env: {
+          "RUNDIFF_IDENTITY_VERIFIER" => identity,
+          "RUNDIFF_PROOF_COLLECTOR" => proof,
+          "CUTOVER_LOG" => log
+        }
+      )
+
+      assert status.success?, stderr
+      calls = File.readlines(log, chomp: true)
+      assert_equal "identity", calls.fetch(0)
+      assert_equal "cloudflare", calls.fetch(1)
+      assert_includes calls.fetch(2), "proof external-owner/proof-repo --regression-pr 12 --neutral-pr 13 --output #{output}"
+      assert File.file?(output)
+      assert_includes stdout, "stage=production_proof status=verified output=#{output}"
+      assert_includes stdout, "production_cutover=verified"
+    end
+  end
+
+  test "production cutover verifier rejects partial proof arguments before running stages" do
+    Dir.mktmpdir("rundiff-production-cutover-") do |destination|
+      infra = File.join(destination, "infra")
+      FileUtils.mkdir_p(File.join(infra, "scripts"))
+      File.write(File.join(infra, "scripts", "verify_cloudflare_identity.py"), "")
+
+      _stdout, stderr, status = run_script(
+        "verify-production-cutover",
+        "--infra-repo",
+        infra,
+        "--proof-repo",
+        "external-owner/proof-repo"
+      )
+
+      refute status.success?
+      assert_includes stderr, "proof mode requires"
+    end
+  end
+
+  test "production cutover verifier fails when the infra verifier is missing" do
+    Dir.mktmpdir("rundiff-production-cutover-") do |destination|
+      _stdout, stderr, status = run_script(
+        "verify-production-cutover",
+        "--infra-repo",
+        destination
+      )
+
+      refute status.success?
+      assert_includes stderr, "Cloudflare verifier not found"
+    end
+  end
+
   test "release workflow publishes the exact head only after successful main CI" do
     workflow = ROOT.join(".github/workflows/release-image.yml").read
 
