@@ -11,7 +11,7 @@ module RunDiff
         threshold_absolute: 20.0,
         severity: "high",
         blocking: false,
-        confidence: "single_sample_timing",
+        confidence: "single_sample_timing"
       },
       "process_cpu_ms" => { decision: false, optional: true },
       "thread_cpu_ms" => {
@@ -28,6 +28,8 @@ module RunDiff
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "scheduled_delay_ms" => { decision: false, optional: true },
@@ -36,6 +38,8 @@ module RunDiff
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "worker_wall_ms" => {
@@ -43,6 +47,8 @@ module RunDiff
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "worker_process_cpu_ms" => { decision: false, optional: true },
@@ -51,6 +57,8 @@ module RunDiff
         threshold_percent: 30.0,
         threshold_absolute: 10.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "sql_queries" => { reason_code: "DATABASE_QUERY_REGRESSION", threshold_percent: 25.0, severity: "high" },
