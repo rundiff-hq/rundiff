@@ -96,8 +96,3 @@ It requires a valid `X-Hub-Signature-256` generated with `RUNDIFF_GITHUB_WEBHOOK
 ## Promotion policy
 
 Bootstrap and dogfood `RunDiff Development` first. Create `RunDiff Staging` when we need a persistent pre-production environment. Create production `RunDiff` only after the development flow is green end-to-end and the production public URL and secret store are ready.
-
-
-## Rename compatibility
-
-The current runtime still uses the legacy `RUNDIFF_*` environment-variable prefix and existing GitHub App credentials. Rename the Apps and their slugs/settings separately; do not rotate credentials merely for the product rename.
