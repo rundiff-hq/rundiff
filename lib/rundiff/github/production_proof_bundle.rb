@@ -85,7 +85,7 @@ module RunDiff
         if owner.to_s.empty? || name.to_s.empty?
           raise Error, "repository must use owner/name form"
         end
-        if owner == "rundiff-hq"
+        if owner.casecmp?("rundiff-hq")
           raise Error, "production proof repository must be owned outside rundiff-hq"
         end
       end
@@ -163,13 +163,15 @@ module RunDiff
         end
         unless execution.outcome == expectation.fetch(:outcome)
           raise Error,
-            "execution #{execution.execution_id} outcome is #{execution.outcome.inspect}, "             "expected #{expectation.fetch(:outcome).inspect}"
+            "execution #{execution.execution_id} outcome is #{execution.outcome.inspect}, " \
+            "expected #{expectation.fetch(:outcome).inspect}"
         end
 
         recommendation = execution.result.dig("result", "merge_recommendation")
         unless recommendation == expectation.fetch(:recommendation)
           raise Error,
-            "execution #{execution.execution_id} recommendation is #{recommendation.inspect}, "             "expected #{expectation.fetch(:recommendation).inspect}"
+            "execution #{execution.execution_id} recommendation is #{recommendation.inspect}, " \
+            "expected #{expectation.fetch(:recommendation).inspect}"
         end
       end
 
@@ -189,6 +191,10 @@ module RunDiff
         }
         actual = expected.keys.to_h { |key| [ key, delivery.public_send(key) ] }
 
+        unless delivery.status == "completed"
+          raise Error, "webhook delivery #{delivery.delivery_id} is #{delivery.status}, expected completed"
+        end
+
         return if actual == expected
 
         raise Error, "webhook delivery #{delivery.delivery_id} does not match execution #{execution.execution_id}"
@@ -200,7 +206,9 @@ module RunDiff
         return if current_base == execution.baseline_sha && current_head == execution.candidate_sha
 
         raise Error,
-          "PR head/base is stale for execution #{execution.execution_id}: "           "recorded=#{execution.baseline_sha}...#{execution.candidate_sha} "           "current=#{current_base}...#{current_head}"
+          "PR head/base is stale for execution #{execution.execution_id}: " \
+          "recorded=#{execution.baseline_sha}...#{execution.candidate_sha} " \
+          "current=#{current_base}...#{current_head}"
       end
 
       def exact_check_run(client:, execution:)
@@ -221,7 +229,8 @@ module RunDiff
           check_run["conclusion"] == expectation.fetch(:conclusion)
 
         raise Error,
-          "Check Run #{check_run["id"]} is status=#{check_run["status"].inspect} "           "conclusion=#{check_run["conclusion"].inspect}, expected completed/#{expectation.fetch(:conclusion)}"
+          "Check Run #{check_run["id"]} is status=#{check_run["status"].inspect} " \
+          "conclusion=#{check_run["conclusion"].inspect}, expected completed/#{expectation.fetch(:conclusion)}"
       end
 
       def exact_comment(client:, number:)
