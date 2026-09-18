@@ -18,7 +18,7 @@ module Plywo
         request = Net::HTTP::Post.new(uri)
         request["Accept"] = "application/vnd.github+json"
         request["X-GitHub-Api-Version"] = "2022-11-28"
-        request["User-Agent"] = "plywo-github-app-bootstrap"
+        request["User-Agent"] = "rundiff-github-app-bootstrap"
 
         response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
           http.request(request)
