@@ -1,16 +1,16 @@
 require "test_helper"
 
-class Plywo::Github::RepositoryAdmissionPolicyTest < ActiveSupport::TestCase
+class RunDiff::Github::RepositoryAdmissionPolicyTest < ActiveSupport::TestCase
   test "development allows repositories when no allowlist is configured" do
-    policy = Plywo::Github::RepositoryAdmissionPolicy.new(env: {}, rails_env: "development")
+    policy = RunDiff::Github::RepositoryAdmissionPolicy.new(env: {}, rails_env: "development")
 
-    assert policy.allowed?("plywo/plywo")
+    assert policy.allowed?("rundiff/rundiff")
     assert_not policy.configured?
   end
 
   test "configured allowlist uses exact repository full names" do
-    policy = Plywo::Github::RepositoryAdmissionPolicy.new(
-      env: { "PLYWO_GITHUB_REPOSITORY_ALLOWLIST" => "customer/app, customer/other" },
+    policy = RunDiff::Github::RepositoryAdmissionPolicy.new(
+      env: { "RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST" => "customer/app, customer/other" },
       rails_env: "production"
     )
 
@@ -21,14 +21,14 @@ class Plywo::Github::RepositoryAdmissionPolicyTest < ActiveSupport::TestCase
   end
 
   test "production fails closed when the allowlist is absent" do
-    policy = Plywo::Github::RepositoryAdmissionPolicy.new(env: {}, rails_env: "production")
+    policy = RunDiff::Github::RepositoryAdmissionPolicy.new(env: {}, rails_env: "production")
 
     assert_not policy.allowed?("customer/app")
   end
 
   test "wildcard is detectable and does not act as a pattern" do
-    policy = Plywo::Github::RepositoryAdmissionPolicy.new(
-      env: { "PLYWO_GITHUB_REPOSITORY_ALLOWLIST" => "*" },
+    policy = RunDiff::Github::RepositoryAdmissionPolicy.new(
+      env: { "RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST" => "*" },
       rails_env: "production"
     )
 

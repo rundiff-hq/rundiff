@@ -1,6 +1,6 @@
 require "test_helper"
 
-class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
+class RunDiffGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
   Execution = Data.define(
     :context,
     :status,
@@ -34,7 +34,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
 
     def installation_token(**attributes)
       @calls << attributes
-      Plywo::Github::AppAuthentication::Token.new(
+      RunDiff::Github::AppAuthentication::Token.new(
         value: "scoped-clone-token",
         expires_at: Time.utc(2026, 9, 5, 0, 0, 0)
       )
@@ -51,7 +51,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
     assert_equal(
       {
         installation_id: 159_078_958,
-        repositories: [ "plywo" ],
+        repositories: [ "rundiff" ],
         permissions: { contents: "read" }
       },
       authentication.calls.fetch(0)
@@ -69,7 +69,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
   test "rejects a capability request that does not match the durable attempt" do
     authentication = Authentication.new
     provider = provider_for(execution: running_execution, authentication:)
-    mismatched = Plywo::Executor::Request.new(
+    mismatched = RunDiff::Executor::Request.new(
       schema_version: executor_request.schema_version,
       execution_id: executor_request.execution_id,
       scenario_id: executor_request.scenario_id,
@@ -79,7 +79,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
       context: executor_request.context
     )
 
-    error = assert_raises(Plywo::Github::RepositoryCapabilityProvider::Error) do
+    error = assert_raises(RunDiff::Github::RepositoryCapabilityProvider::Error) do
       provider.call(request: mismatched)
     end
 
@@ -94,7 +94,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
       authentication:
     )
 
-    error = assert_raises(Plywo::Github::RepositoryCapabilityProvider::Error) do
+    error = assert_raises(RunDiff::Github::RepositoryCapabilityProvider::Error) do
       provider.call(request: executor_request)
     end
 
@@ -105,7 +105,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
   private
 
   def provider_for(execution:, authentication:)
-    Plywo::Github::RepositoryCapabilityProvider.new(
+    RunDiff::Github::RepositoryCapabilityProvider.new(
       execution_model: ExecutionModel.new(execution),
       authentication:
     )
@@ -115,8 +115,8 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
     Execution.new(
       context: {
         "installation_id" => 159_078_958,
-        "repository" => "plywo/plywo",
-        "candidate_repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
+        "candidate_repository" => "rundiff/rundiff",
         "pull_request_number" => 40
       },
       status:,
@@ -129,7 +129,7 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
   end
 
   def executor_request
-    Plywo::Executor::Request.new(
+    RunDiff::Executor::Request.new(
       schema_version: "1",
       execution_id: "github-123",
       scenario_id: "scenario",
@@ -137,11 +137,11 @@ class PlywoGithubRepositoryCapabilityProviderTest < ActiveSupport::TestCase
       candidate_sha: "head",
       attempt_number: 1,
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 40,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     )
   end

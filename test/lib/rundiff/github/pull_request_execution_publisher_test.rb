@@ -1,7 +1,7 @@
 require "test_helper"
 
-class PlywoGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
-  class TestPublisher < Plywo::Github::PullRequestExecutionPublisher
+class RunDiffGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
+  class TestPublisher < RunDiff::Github::PullRequestExecutionPublisher
     attr_accessor :check_override, :comment_override
 
     private
@@ -74,7 +74,7 @@ class PlywoGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
   def execution
     Execution.new(
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 40
       },
       candidate_sha: "head-sha",

@@ -2,7 +2,7 @@ require "test_helper"
 require "pathname"
 require "tmpdir"
 
-class PlywoGithubLocalPullRequestRunnerSubjectWorkspaceTest < ActiveSupport::TestCase
+class RunDiffGithubLocalPullRequestRunnerSubjectWorkspaceTest < ActiveSupport::TestCase
   class RecordingIdentity
     attr_reader :events
 
@@ -29,7 +29,7 @@ class PlywoGithubLocalPullRequestRunnerSubjectWorkspaceTest < ActiveSupport::Tes
 
   test "activates and seals one subject workspace in deterministic order" do
     identity = RecordingIdentity.new
-    runner = Plywo::Github::LocalPullRequestRunner.allocate
+    runner = RunDiff::Github::LocalPullRequestRunner.allocate
     runner.instance_variable_set(:@execution_identity, identity)
 
     Dir.mktmpdir do |directory|
@@ -56,7 +56,7 @@ class PlywoGithubLocalPullRequestRunnerSubjectWorkspaceTest < ActiveSupport::Tes
 
   test "seals output and workspace when subject execution fails" do
     identity = RecordingIdentity.new
-    runner = Plywo::Github::LocalPullRequestRunner.allocate
+    runner = RunDiff::Github::LocalPullRequestRunner.allocate
     runner.instance_variable_set(:@execution_identity, identity)
 
     assert_raises(RuntimeError) do

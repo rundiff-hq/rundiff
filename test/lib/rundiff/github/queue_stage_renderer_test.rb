@@ -1,14 +1,14 @@
 require "test_helper"
 
-class PlywoGithubQueueStageRendererTest < ActiveSupport::TestCase
+class RunDiffGithubQueueStageRendererTest < ActiveSupport::TestCase
   test "renders a dispatch regression as post-eligibility wait" do
     payload = pair_payload(
       baseline: async_execution(queue_wait_ms: 130.0, scheduled_delay_ms: 0.0, dispatch_wait_ms: 130.0),
       candidate: async_execution(queue_wait_ms: 530.0, scheduled_delay_ms: 0.0, dispatch_wait_ms: 530.0)
     )
 
-    comment = Plywo::Github::CommentRenderer.markdown(payload:)
-    check = Plywo::Github::CheckRenderer.call(payload:)
+    comment = RunDiff::Github::CommentRenderer.markdown(payload:)
+    check = RunDiff::Github::CheckRenderer.call(payload:)
     summary = check.fetch("summary")
 
     assert_equal "neutral", check.fetch("conclusion")
@@ -27,8 +27,8 @@ class PlywoGithubQueueStageRendererTest < ActiveSupport::TestCase
       candidate: async_execution(queue_wait_ms: 380.0, scheduled_delay_ms: 250.0, dispatch_wait_ms: 130.0)
     )
 
-    comment = Plywo::Github::CommentRenderer.markdown(payload:)
-    check = Plywo::Github::CheckRenderer.call(payload:)
+    comment = RunDiff::Github::CommentRenderer.markdown(payload:)
+    check = RunDiff::Github::CheckRenderer.call(payload:)
     summary = check.fetch("summary")
 
     assert_equal "success", check.fetch("conclusion")
@@ -43,7 +43,7 @@ class PlywoGithubQueueStageRendererTest < ActiveSupport::TestCase
   private
 
   def pair_payload(baseline:, candidate:)
-    Plywo::ExecutionPair.call(baseline:, candidate:)
+    RunDiff::ExecutionPair.call(baseline:, candidate:)
   end
 
   def async_execution(queue_wait_ms:, scheduled_delay_ms:, dispatch_wait_ms:)
