@@ -2,15 +2,15 @@
 
 ## Product invariant
 
-Plywo answers:
+RunDiff answers:
 
 > What did this software change actually change?
 
-Do not reduce Plywo to a test dashboard, CI wrapper, Playwright plugin, or generic observability backend.
+Do not reduce RunDiff to a test dashboard, CI wrapper, Playwright plugin, or generic observability backend.
 
 ## Rules
 
-1. `Plywo Execution` is the central abstraction.
+1. `RunDiff Execution` is the central abstraction.
 2. Playwright, Cypress, Capybara, Maestro, CLI processes, language tests, load tools, and agents are producers/adapters.
 3. Keep portable contracts and comparison logic independent of Rails when practical.
 4. Rails is the initial product shell, not the permanent boundary for every component.
@@ -28,7 +28,7 @@ Behavioral Diff:
 - baseline passes;
 - candidate passes;
 - candidate changes runtime behavior;
-- Plywo explains the regression;
+- RunDiff explains the regression;
 - GitHub gets a concise report;
 - agents get stable machine-readable findings.
 
@@ -36,8 +36,12 @@ Keep work aligned with this slice until it is end-to-end.
 
 ## Agent CI policy
 
-- Never treat queued/in-progress Plywo checks as success.
+- Never treat queued/in-progress RunDiff checks as success.
 - `INFRA_FAILURE` may be rerun.
 - High/critical behavioral regressions block merge.
 - Never accept a baseline without explicit human approval.
 - Stop on `MANUAL_REVIEW_REQUIRED`.
+
+## Rename compatibility
+
+RunDiff is the canonical product name. Do not remove legacy `Plywo::*`, `PLYWO_*`, persisted table names, or protocol identifiers until their compatibility migration is complete.
