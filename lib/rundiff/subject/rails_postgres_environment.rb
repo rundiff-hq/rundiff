@@ -1,3 +1,4 @@
+require "pg"
 require_relative "state_identity"
 module RunDiff
   module Subject
@@ -17,11 +18,13 @@ module RunDiff
       def initialize(
         command_runner:,
         postgres_url: ENV.fetch("RUNDIFF_LOCAL_POSTGRES_URL", DEFAULT_POSTGRES_URL),
-        runtime_env: {}
+        runtime_env: {},
+        admin_connection_factory: ->(url) { PG.connect(url) }
       )
         @command_runner = command_runner
         @postgres_url = postgres_url.sub(%r{/+$}, "")
         @runtime_env = runtime_env.transform_keys(&:to_s)
+        @admin_connection_factory = admin_connection_factory
       end
 
       def capabilities
@@ -54,11 +57,32 @@ module RunDiff
         )
       end
 
+      def cleanup(root:, execution:, role:, sample_index: nil)
+        drop_database(database_name(execution:, role: "#{role}_queue", sample_index:))
+        drop_database(database_name(execution:, role:, sample_index:))
+      end
+
       private
 
       def database_url(execution:, role:, sample_index: nil)
+        "#{@postgres_url}/#{database_name(execution:, role:, sample_index:)}"
+      end
+
+      def database_name(execution:, role:, sample_index: nil)
         state = StateIdentity.for(execution:, role:, sample_index:)
-        "#{@postgres_url}/rundiff_app_#{state.suffix}"
+        "rundiff_app_#{state.suffix}"
+      end
+
+      def drop_database(name)
+        connection = @admin_connection_factory.call("#{@postgres_url}/postgres")
+        connection.exec_params(
+          "SELECT pg_terminate_backend(pid) FROM pg_stat_activity " \
+            "WHERE datname = $1 AND pid <> pg_backend_pid()",
+          [ name ]
+        )
+        connection.exec("DROP DATABASE IF EXISTS #{PG::Connection.quote_ident(name)}")
+      ensure
+        connection&.close
       end
     end
   end
