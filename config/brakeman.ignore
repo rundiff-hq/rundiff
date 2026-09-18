@@ -6,14 +6,14 @@
       "fingerprint": "c0fbefede1729c2613ff84a7060b6ad82d0fa365f2ae72a92c7b2a6e26be4ae4",
       "check_name": "Execute",
       "message": "Possible command injection",
-      "file": "lib/plywo/subject/service_executor.rb",
+      "file": "lib/rundiff/subject/service_executor.rb",
       "line": 176,
       "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
       "code": "Process.spawn(safe_inherited_environment.merge(env).merge(execution_identity.environment(:workspace => root)).merge(step.details.fetch(\"port_env\") => allocate_port.to_s, step.details.fetch(\"url_env\") => (\"http://#{\"127.0.0.1\"}:#{allocate_port}\")), RbConfig.ruby, \"--\", resolve_entrypoint(:root => root, :value => step.details.fetch(\"entrypoint\"), :service_name => step.details.fetch(\"name\")).to_s, *step.details.fetch(\"args\"), :chdir => root.to_s, :out => state_dir.join(\"#{step.details.fetch(\"name\")}.stdout.log\").to_s, :err => state_dir.join(\"#{step.details.fetch(\"name\")}.stderr.log\").to_s, :unsetenv_others => true, **execution_identity.spawn_options)",
       "render_path": null,
       "location": {
         "type": "method",
-        "class": "Plywo::Subject::ServiceExecutor",
+        "class": "RunDiff::Subject::ServiceExecutor",
         "method": "start_process"
       },
       "user_input": "allocate_port",
@@ -27,14 +27,14 @@
       "fingerprint": "b6c16f24963a9d866f85a3dbdcd0568f31c5668a542b40655067522a0dec7d03",
       "check_name": "Execute",
       "message": "Possible command injection",
-      "file": "lib/plywo/subject/service_executor.rb",
+      "file": "lib/rundiff/subject/service_executor.rb",
       "line": 189,
       "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
       "code": "Process.spawn(safe_inherited_environment.merge(env).merge(execution_identity.environment(:workspace => root)).merge(step.details.fetch(\"port_env\") => allocate_port.to_s, step.details.fetch(\"url_env\") => (\"http://#{\"127.0.0.1\"}:#{allocate_port}\")), \"node\", \"--\", resolve_entrypoint(:root => root, :value => step.details.fetch(\"entrypoint\"), :service_name => step.details.fetch(\"name\")).to_s, *step.details.fetch(\"args\"), :chdir => root.to_s, :out => state_dir.join(\"#{step.details.fetch(\"name\")}.stdout.log\").to_s, :err => state_dir.join(\"#{step.details.fetch(\"name\")}.stderr.log\").to_s, :unsetenv_others => true, **execution_identity.spawn_options)",
       "render_path": null,
       "location": {
         "type": "method",
-        "class": "Plywo::Subject::ServiceExecutor",
+        "class": "RunDiff::Subject::ServiceExecutor",
         "method": "start_process"
       },
       "user_input": "allocate_port",

@@ -5,15 +5,15 @@ default: &default
 
 development:
   <<: *default
-  database: plywo_development
+  database: rundiff_development
 
 test:
   primary:
     <<: *default
-    url: <%= ENV.fetch("DATABASE_URL", "postgres://localhost/plywo_test") %>
+    url: <%= ENV.fetch("DATABASE_URL", "postgres://localhost/rundiff_test") %>
   queue:
     <<: *default
-    url: <%= ENV.fetch("SOLID_QUEUE_DATABASE_URL", "postgres://localhost/plywo_queue_test") %>
+    url: <%= ENV.fetch("SOLID_QUEUE_DATABASE_URL", "postgres://localhost/rundiff_queue_test") %>
     migrations_paths: db/queue_migrate
 
 production:

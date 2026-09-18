@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  runtime_role = Plywo::Runtime::Role.from_env
+  runtime_role = RunDiff::Runtime::Role.from_env
 
   root "home#index"
   get "up" => "rails/health#show", as: :rails_health_check
@@ -19,7 +19,7 @@ Rails.application.routes.draw do
   end
 
   if Rails.env.development? || Rails.env.test?
-    post "/__plywo/demo/behavior" => "demo/behavior#create"
-    post "/__plywo/demo/process-proof" => "demo/process_proof#create"
+    post "/__rundiff/demo/behavior" => "demo/behavior#create"
+    post "/__rundiff/demo/process-proof" => "demo/process_proof#create"
   end
 end
