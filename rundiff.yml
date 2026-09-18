@@ -1,0 +1,5 @@
+version: 1
+scenario:
+  path: /__rundiff/demo/behavior
+subject:
+  persistence: auto
