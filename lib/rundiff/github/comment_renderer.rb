@@ -77,9 +77,15 @@ module RunDiff
           end.join(" · ")
           regression_label = findings.one? ? "regression" : "regressions"
 
+          confidence = if findings.all? { |finding| finding.fetch("confidence", "deterministic") == "single_sample_timing" }
+            " · timing evidence is single-sample and review-only"
+          else
+            ""
+          end
+
           "> [!WARNING]\n> **Behavior changed while the functional scenario still passes.** " \
             "Merge recommendation: **#{result.fetch("merge_recommendation").upcase}** · " \
-            "#{findings.size} #{regression_label} · #{severity_summary}."
+            "#{findings.size} #{regression_label} · #{severity_summary}#{confidence}."
         end
       end
 
@@ -210,10 +216,12 @@ module RunDiff
         findings.each do |finding|
           severity = finding.fetch("severity")
           signal = finding.fetch("signal")
+          confidence = finding.fetch("confidence", "deterministic") == "single_sample_timing" ?
+            " · _single-sample timing, review-only_" : ""
           lines << "- #{SEVERITY_ICONS.fetch(severity, "⚪")} **#{severity.upcase}** · " \
             "`#{finding.fetch("reason_code")}` · **#{SIGNAL_LABELS.fetch(signal, signal)}** · " \
             "#{format_value(signal, finding.fetch("baseline"))} → #{format_value(signal, finding.fetch("candidate"))} " \
-            "(#{display_percent(finding.fetch("delta_percent"))})"
+            "(#{display_percent(finding.fetch("delta_percent"))})#{confidence}"
         end
         lines.concat([ "", "</details>", "" ])
       end
