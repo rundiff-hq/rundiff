@@ -1,13 +1,13 @@
 require "digest"
 
-module Plywo
+module RunDiff
   module Github
     class ExecutionDispatcher
       DEFAULT_SCENARIO_ID = "dogfood.git.behavior".freeze
 
       def initialize(
-        scenario_id: ENV.fetch("PLYWO_SCENARIO_ID", DEFAULT_SCENARIO_ID),
-        cancellation: Plywo::Executor::Cancellation.new
+        scenario_id: ENV.fetch("RUNDIFF_SCENARIO_ID", DEFAULT_SCENARIO_ID),
+        cancellation: RunDiff::Executor::Cancellation.new
       )
         @scenario_id = scenario_id
         @cancellation = cancellation
@@ -17,7 +17,7 @@ module Plywo
         context = build_context(delivery:, pull_request:)
         execution_id = execution_id_for(context:)
         cancel_superseded_executions!(context:, current_execution_id: execution_id)
-        existing = PlywoExecution.find_by(execution_id:)
+        existing = RunDiffExecution.find_by(execution_id:)
 
         if existing
           return [ existing, true ] if existing.status == "queued"
@@ -26,7 +26,7 @@ module Plywo
           return [ existing, false ]
         end
 
-        execution = PlywoExecution.create!(
+        execution = RunDiffExecution.create!(
           execution_id:,
           source: "github_pull_request",
           scenario_id: @scenario_id,
@@ -37,15 +37,15 @@ module Plywo
 
         [ execution, true ]
       rescue ActiveRecord::RecordNotUnique
-        execution = PlywoExecution.find_by!(execution_id:)
+        execution = RunDiffExecution.find_by!(execution_id:)
         [ execution, execution.status == "queued" ]
       end
 
       private
 
       def cancel_superseded_executions!(context:, current_execution_id:)
-        PlywoExecution
-          .where(source: "github_pull_request", status: PlywoExecution::CANCELLABLE_STATUSES)
+        RunDiffExecution
+          .where(source: "github_pull_request", status: RunDiffExecution::CANCELLABLE_STATUSES)
           .where("context ->> 'repository' = ?", context.fetch("repository"))
           .where("context ->> 'pull_request_number' = ?", context.fetch("pull_request_number").to_s)
           .where.not(execution_id: current_execution_id)

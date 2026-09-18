@@ -2,7 +2,7 @@ require "json"
 require "net/http"
 require "uri"
 
-module Plywo
+module RunDiff
   module Github
     class CheckPublisher
       def initialize(token:, api_url: "https://api.github.com")
@@ -50,7 +50,7 @@ module Plywo
         http_request["Authorization"] = "Bearer #{@token}"
         http_request["Accept"] = "application/vnd.github+json"
         http_request["X-GitHub-Api-Version"] = "2022-11-28"
-        http_request["User-Agent"] = "plywo-ci"
+        http_request["User-Agent"] = "rundiff-ci"
         http_request["Content-Type"] = "application/json" if body
         http_request.body = JSON.generate(body) if body
 

@@ -1,10 +1,10 @@
 require "json"
 require "uri"
 
-module Plywo
+module RunDiff
   module Github
     class AppManifest
-      PLACEHOLDER = "{{PLYWO_PUBLIC_URL}}"
+      PLACEHOLDER = "{{RUNDIFF_PUBLIC_URL}}"
       FILES = {
         "development" => ".github/app-manifest.development.json",
         "staging" => ".github/app-manifest.staging.json",
@@ -37,12 +37,12 @@ module Plywo
         uri = URI(value.to_s)
         path = uri.path.to_s
         unless uri.is_a?(URI::HTTPS) && uri.host && (path.empty? || path == "/") && uri.query.nil? && uri.fragment.nil?
-          raise ArgumentError, "PLYWO_PUBLIC_URL must be an HTTPS origin without a path"
+          raise ArgumentError, "RUNDIFF_PUBLIC_URL must be an HTTPS origin without a path"
         end
 
         value.to_s.sub(%r{/+\z}, "")
       rescue URI::InvalidURIError
-        raise ArgumentError, "PLYWO_PUBLIC_URL must be a valid HTTPS origin"
+        raise ArgumentError, "RUNDIFF_PUBLIC_URL must be a valid HTTPS origin"
       end
 
       def replace_placeholders(value)

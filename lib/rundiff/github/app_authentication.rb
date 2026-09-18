@@ -5,17 +5,17 @@ require "openssl"
 require "time"
 require "uri"
 
-module Plywo
+module RunDiff
   module Github
     class AppAuthentication
       Error = Class.new(StandardError)
       Token = Data.define(:value, :expires_at)
 
       def self.from_env(root: Dir.pwd)
-        private_key_path = File.expand_path(ENV.fetch("PLYWO_GITHUB_PRIVATE_KEY_PATH"), root.to_s)
+        private_key_path = File.expand_path(ENV.fetch("RUNDIFF_GITHUB_PRIVATE_KEY_PATH"), root.to_s)
 
         new(
-          app_id: ENV.fetch("PLYWO_GITHUB_APP_ID"),
+          app_id: ENV.fetch("RUNDIFF_GITHUB_APP_ID"),
           private_key_path:,
           api_url: ENV.fetch("GITHUB_API_URL", "https://api.github.com")
         )
@@ -89,7 +89,7 @@ module Plywo
         http_request["Authorization"] = authorization
         http_request["Accept"] = "application/vnd.github+json"
         http_request["X-GitHub-Api-Version"] = "2022-11-28"
-        http_request["User-Agent"] = "plywo-github-app"
+        http_request["User-Agent"] = "rundiff-github-app"
         http_request["Content-Type"] = "application/json"
         http_request.body = JSON.generate(body)
 

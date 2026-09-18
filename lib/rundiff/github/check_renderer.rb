@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Github
     class CheckRenderer
       NAME = "RunDiff / Behavioral Diff".freeze
@@ -190,7 +190,7 @@ module Plywo
             "start_line" => source.fetch("start_line"),
             "end_line" => source.fetch("end_line"),
             "annotation_level" => ANNOTATION_LEVELS.fetch(finding.fetch("severity"), "warning"),
-            "title" => "Plywo: #{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}",
+            "title" => "RunDiff: #{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}",
             "message" => annotation_message(finding)
           }
         end.first(50)

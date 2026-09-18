@@ -2,7 +2,7 @@ require "json"
 require "net/http"
 require "uri"
 
-module Plywo
+module RunDiff
   module Github
     class AppManifestConverter
       class Error < StandardError; end

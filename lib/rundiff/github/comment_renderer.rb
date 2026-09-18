@@ -1,7 +1,7 @@
-module Plywo
+module RunDiff
   module Github
     class CommentRenderer
-      MARKER = "<!-- plywo:behavioral-diff:v1 -->".freeze
+      MARKER = "<!-- rundiff:behavioral-diff:v1 -->".freeze
       SIGNAL_LABELS = {
         "duration_ms" => "Request wall time",
         "process_cpu_ms" => "Request process CPU",
@@ -254,7 +254,7 @@ module Plywo
         links << "`#{context("repository")}`" if context("repository")
         links << "PR ##{context("pr_number")}" if context("pr_number")
 
-        [ "---", "<sub>#{([ "Plywo v0.0.1" ] + links).join(" · ")}</sub>" ]
+        [ "---", "<sub>#{([ "RunDiff v0.0.1" ] + links).join(" · ")}</sub>" ]
       end
 
       def format_value(signal, value)

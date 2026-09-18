@@ -5,7 +5,7 @@ require "open3"
 require "rbconfig"
 require_relative "../subject/execution_identity"
 
-module Plywo
+module RunDiff
   module Github
     class LocalPullRequestRunner
       Error = Class.new(StandardError)
@@ -22,7 +22,7 @@ module Plywo
           SSL_CERT_DIR
         ].freeze
 
-        def initialize(host_env: ENV, execution_identity: Plywo::Subject::ExecutionIdentity.new)
+        def initialize(host_env: ENV, execution_identity: RunDiff::Subject::ExecutionIdentity.new)
           @host_env = host_env
           @execution_identity = execution_identity
         end
@@ -84,24 +84,24 @@ module Plywo
         @tool_root = Pathname(tool_root).expand_path
         @command_runner = command_runner
         @fetch_repository = fetch_repository
-        @execution_identity = execution_identity || Plywo::Subject::ExecutionIdentity.from_env
+        @execution_identity = execution_identity || RunDiff::Subject::ExecutionIdentity.from_env
         @subject_command_runner = subject_command_runner || default_subject_command_runner(command_runner)
-        runtime_capabilities ||= Plywo::Subject::RuntimeCapabilities.from_env
-        subject_discovery ||= Plywo::Subject::Discovery.new(
+        runtime_capabilities ||= RunDiff::Subject::RuntimeCapabilities.from_env
+        subject_discovery ||= RunDiff::Subject::Discovery.new(
           command_runner: @subject_command_runner,
           execution_identity: @execution_identity
         )
-        setup_plan_compiler ||= Plywo::Subject::SetupPlanCompiler.new(runtime_capabilities:)
+        setup_plan_compiler ||= RunDiff::Subject::SetupPlanCompiler.new(runtime_capabilities:)
         subject_bootstrap ||= default_subject_bootstrap(runtime_capabilities:)
-        service_executor ||= Plywo::Subject::ServiceExecutor.new(execution_identity: @execution_identity)
-        @subject_lifecycle = subject_lifecycle || Plywo::Subject::Lifecycle.new(
+        service_executor ||= RunDiff::Subject::ServiceExecutor.new(execution_identity: @execution_identity)
+        @subject_lifecycle = subject_lifecycle || RunDiff::Subject::Lifecycle.new(
           discovery: subject_discovery,
           bootstrap: subject_bootstrap,
           environment: subject_environment,
           setup_plan_compiler:,
           service_executor:
         )
-        @capture_runtime = capture_runtime || Plywo::Subject::RailsCaptureRuntime.new
+        @capture_runtime = capture_runtime || RunDiff::Subject::RailsCaptureRuntime.new
       end
 
       def call(execution:)
@@ -115,8 +115,8 @@ module Plywo
         prepare_worktree!(path: paths.fetch(:baseline_root), sha: execution.baseline_sha)
         prepare_worktree!(path: paths.fetch(:candidate_root), sha: execution.candidate_sha)
 
-        capture_configuration = Plywo::Subject::Configuration.load(root: paths.fetch(:candidate_root))
-        baseline_setup_configuration = Plywo::Subject::Configuration.load(root: paths.fetch(:baseline_root))
+        capture_configuration = RunDiff::Subject::Configuration.load(root: paths.fetch(:candidate_root))
+        baseline_setup_configuration = RunDiff::Subject::Configuration.load(root: paths.fetch(:baseline_root))
 
         with_subject_workspace(
           root: paths.fetch(:baseline_root),
@@ -181,16 +181,16 @@ module Plywo
       end
 
       def default_subject_bootstrap(runtime_capabilities:)
-        cache_root = @execution_identity.enabled? ? nil : @tool_root.join("tmp", "plywo", "bundles")
+        cache_root = @execution_identity.enabled? ? nil : @tool_root.join("tmp", "rundiff", "bundles")
 
-        Plywo::Subject::BootstrapExecutor.new(
-          ruby_bundle_bootstrap: Plywo::Subject::RailsBundleBootstrap.new(
+        RunDiff::Subject::BootstrapExecutor.new(
+          ruby_bundle_bootstrap: RunDiff::Subject::RailsBundleBootstrap.new(
             command_runner: @subject_command_runner,
             bundler_installer_command_runner: @command_runner,
             cache_root:,
             execution_identity: @execution_identity
           ),
-          javascript_dependencies_bootstrap: Plywo::Subject::JavascriptDependenciesBootstrap.new(
+          javascript_dependencies_bootstrap: RunDiff::Subject::JavascriptDependenciesBootstrap.new(
             command_runner: @subject_command_runner
           ),
           runtime_capabilities:
@@ -214,7 +214,7 @@ module Plywo
       end
 
       def execution_paths(execution:)
-        directory = @root.join("tmp", "plywo", "github", execution.execution_id.delete_prefix("github-")[0, 16])
+        directory = @root.join("tmp", "rundiff", "github", execution.execution_id.delete_prefix("github-")[0, 16])
         FileUtils.mkdir_p(directory)
         @execution_identity.prepare_parent_directory(directory)
 
@@ -245,13 +245,13 @@ module Plywo
       def capture_subject!(execution:, root:, label:, sha:, environment:, output:)
         capture_script = @capture_runtime.script_for(root:, tool_root: @tool_root)
         env = environment.merge(
-          "PLYWO_RUN_ID" => execution.execution_id,
-          "PLYWO_SCENARIO_ID" => execution.scenario_id,
-          "PLYWO_SUBJECT" => "github-pull-request",
-          "PLYWO_EXECUTION_LABEL" => label,
-          "PLYWO_EXECUTION_SHA" => sha,
-          "PLYWO_OUTPUT" => output.to_s,
-          "PLYWO_CAPTURE_RUNTIME" => @capture_runtime.mode_for(root:)
+          "RUNDIFF_RUN_ID" => execution.execution_id,
+          "RUNDIFF_SCENARIO_ID" => execution.scenario_id,
+          "RUNDIFF_SUBJECT" => "github-pull-request",
+          "RUNDIFF_EXECUTION_LABEL" => label,
+          "RUNDIFF_EXECUTION_SHA" => sha,
+          "RUNDIFF_OUTPUT" => output.to_s,
+          "RUNDIFF_CAPTURE_RUNTIME" => @capture_runtime.mode_for(root:)
         )
 
         @subject_command_runner.call(
@@ -270,9 +270,9 @@ module Plywo
       end
 
       def compare(baseline_output:, candidate_output:, changed_paths:)
-        baseline = Plywo::ExecutionReducer.call(execution: JSON.parse(File.read(baseline_output)))
-        candidate = Plywo::ExecutionReducer.call(execution: JSON.parse(File.read(candidate_output)))
-        Plywo::ExecutionPair.call(baseline:, candidate:, changed_paths:)
+        baseline = RunDiff::ExecutionReducer.call(execution: JSON.parse(File.read(baseline_output)))
+        candidate = RunDiff::ExecutionReducer.call(execution: JSON.parse(File.read(candidate_output)))
+        RunDiff::ExecutionPair.call(baseline:, candidate:, changed_paths:)
       end
 
       def cleanup_worktree(path)
