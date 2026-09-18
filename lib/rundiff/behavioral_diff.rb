@@ -9,7 +9,9 @@ module RunDiff
         reason_code: "PERFORMANCE_REGRESSION",
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
-        severity: "high"
+        severity: "high",
+        blocking: false,
+        confidence: "single_sample_timing"
       },
       "process_cpu_ms" => { decision: false, optional: true },
       "thread_cpu_ms" => {
@@ -17,6 +19,8 @@ module RunDiff
         threshold_percent: 30.0,
         threshold_absolute: 10.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "queue_wait_ms" => {
@@ -24,6 +28,8 @@ module RunDiff
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "scheduled_delay_ms" => { decision: false, optional: true },
@@ -32,6 +38,8 @@ module RunDiff
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "worker_wall_ms" => {
@@ -39,6 +47,8 @@ module RunDiff
         threshold_percent: 20.0,
         threshold_absolute: 20.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "worker_process_cpu_ms" => { decision: false, optional: true },
@@ -47,6 +57,8 @@ module RunDiff
         threshold_percent: 30.0,
         threshold_absolute: 10.0,
         severity: "medium",
+        blocking: false,
+        confidence: "single_sample_timing",
         optional: true
       },
       "sql_queries" => { reason_code: "DATABASE_QUERY_REGRESSION", threshold_percent: 25.0, severity: "high" },
@@ -99,6 +111,8 @@ module RunDiff
           "type" => "behavioral_regression",
           "reason_code" => policy.fetch(:reason_code),
           "severity" => policy.fetch(:severity),
+          "blocking" => policy.fetch(:blocking, true),
+          "confidence" => policy.fetch(:confidence, "deterministic"),
           "signal" => signal,
           "baseline" => baseline_value,
           "candidate" => candidate_value,
@@ -243,11 +257,17 @@ module RunDiff
     end
 
     def block_merge?(findings)
-      findings.any? { |finding| %w[critical high].include?(finding.fetch("severity")) }
+      findings.any? do |finding|
+        finding.fetch("blocking", true) &&
+          %w[critical high].include?(finding.fetch("severity"))
+      end
     end
 
     def recommended_action(findings)
-      primary = findings.min_by do |finding|
+      prioritized = findings.select { |finding| finding.fetch("blocking", true) }
+      prioritized = findings if prioritized.empty?
+
+      primary = prioritized.min_by do |finding|
         %w[critical high medium low].index(finding.fetch("severity")) || 99
       end
 
