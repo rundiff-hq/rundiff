@@ -15,7 +15,8 @@ module RunDiff
         command_runner: RunDiff::Github::LocalPullRequestRunner::CommandRunner.new,
         runner_factory: nil,
         repository_capability_provider: nil,
-        git_base_url: ENV.fetch("RUNDIFF_GITHUB_GIT_BASE_URL", "https://github.com")
+        git_base_url: ENV.fetch("RUNDIFF_GITHUB_GIT_BASE_URL", "https://github.com"),
+        stage_timer: RunDiff::ExecutionStageTimer.new
       )
         @root = Pathname(root).expand_path
         @workspace_root = Pathname(workspace_root || File.join(Dir.tmpdir, "rundiff", "repositories")).expand_path
@@ -23,6 +24,7 @@ module RunDiff
         @command_runner = command_runner
         @repository_capability_provider = repository_capability_provider
         @git_base_url = normalize_git_base_url(git_base_url)
+        @stage_timer = stage_timer
         @runner_factory = runner_factory || lambda do |repository_root:|
           default_runner(repository_root:)
         end
@@ -41,18 +43,23 @@ module RunDiff
         raise Error, "Executor repository must use owner/name form" unless REPOSITORY_PATTERN.match?(repository)
 
         repository_root = repository_root(request:)
-        prepare_repository!(
-          repository_root:,
-          repository:,
-          pull_request_number: Integer(context.fetch("pull_request_number")),
-          baseline_ref: context.fetch("baseline_ref"),
-          repository_capability:
-        )
-        assert_commit!(repository_root:, sha: request.baseline_sha)
-        assert_commit!(repository_root:, sha: request.candidate_sha)
+        @stage_timer.measure(execution_id: request.execution_id, stage: "repository_prepare") do
+          prepare_repository!(
+            repository_root:,
+            repository:,
+            pull_request_number: Integer(context.fetch("pull_request_number")),
+            baseline_ref: context.fetch("baseline_ref"),
+            repository_capability:
+          )
+          assert_commit!(repository_root:, sha: request.baseline_sha)
+          assert_commit!(repository_root:, sha: request.candidate_sha)
+        end
 
         runner = @runner_factory.call(repository_root:)
-        Result.success(runner.call(execution: request))
+        payload = @stage_timer.measure(execution_id: request.execution_id, stage: "behavioral_diff") do
+          runner.call(execution: request)
+        end
+        Result.success(payload)
       rescue StandardError => error
         Result.failure(error)
       ensure
