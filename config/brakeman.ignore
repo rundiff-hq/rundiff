@@ -3,7 +3,7 @@
     {
       "warning_type": "Command Injection",
       "warning_code": 14,
-      "fingerprint": "c0fbefede1729c2613ff84a7060b6ad82d0fa365f2ae72a92c7b2a6e26be4ae4",
+      "fingerprint": "19413a3e13df098ecd539d48c0719caad72bbd0c4eef8788e996089b4fd84064",
       "check_name": "Execute",
       "message": "Possible command injection",
       "file": "lib/rundiff/subject/service_executor.rb",
@@ -24,7 +24,7 @@
     {
       "warning_type": "Command Injection",
       "warning_code": 14,
-      "fingerprint": "b6c16f24963a9d866f85a3dbdcd0568f31c5668a542b40655067522a0dec7d03",
+      "fingerprint": "b281364305467fa9957248ac5f1357fa98cc9ba7a5a79727330bafc32768b4f8",
       "check_name": "Execute",
       "message": "Possible command injection",
       "file": "lib/rundiff/subject/service_executor.rb",
