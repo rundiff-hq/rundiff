@@ -10,6 +10,12 @@ bin/lab run executor --case isolated-compose-provider
 bin/lab run onboarding --case sqlite
 bin/lab run executor --case timeout
 bin/lab run executor --case remote-topology
+
+bin/lab groups
+bin/lab run-group smoke
+bin/lab run-group executor
+bin/lab run-group onboarding
+bin/lab run-group production
 ```
 
 The contract is:
@@ -97,3 +103,51 @@ Artifacts:
 ```text
 tmp/lab/executor/remote-topology/
 ```
+
+
+## Lab groups
+
+Groups are declarative text manifests under `lab/groups/*.txt`. Each non-comment line is a `lab/case` pair. The CLI runs them through the same single-case interface, so groups do not add a second execution path.
+
+Available groups:
+
+```text
+smoke
+  executor/timeout
+  executor/compose-service
+
+executor
+  executor/timeout
+  executor/compose-service
+  executor/isolated-compose-provider
+  executor/remote-topology
+
+onboarding
+  onboarding/sqlite
+
+production
+  production/topology
+```
+
+Run a group with:
+
+```bash
+bin/lab run-group smoke
+```
+
+Groups are fail-fast by default. For a diagnostic sweep that should continue after a failed case:
+
+```bash
+bin/lab run-group executor --keep-going
+```
+
+Every group writes:
+
+```text
+tmp/lab/groups/<group>/summary.tsv
+tmp/lab/groups/<group>/result.env
+```
+
+The TSV records each executed case, pass/fail status, and wall-clock seconds. `result.env` records total cases, passed/failed counts, total elapsed time, and final group status.
+
+The `executor` group includes `executor/remote-topology`, so it inherits that case's required `RUNDIFF_PROOF_*` inputs. The `smoke` group intentionally remains zero-configuration and fast enough for regular CI.
