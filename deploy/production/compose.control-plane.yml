@@ -1,6 +1,6 @@
 services:
   migrate:
-    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff-hq/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     env_file:
       - .env.control-plane
     volumes:
@@ -9,7 +9,7 @@ services:
     restart: "no"
 
   rundiff:
-    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff-hq/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     restart: unless-stopped
     env_file:
       - .env.control-plane
@@ -22,7 +22,7 @@ services:
       - "3000"
 
   worker:
-    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff-hq/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     restart: unless-stopped
     env_file:
       - .env.control-plane
