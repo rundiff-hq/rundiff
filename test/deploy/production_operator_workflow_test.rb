@@ -127,6 +127,58 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
     end
   end
 
+  test "production identity verifier checks canonical public surfaces" do
+    Dir.mktmpdir("rundiff-production-identity-") do |destination|
+      fake_bin = File.join(destination, "fake-bin")
+      FileUtils.mkdir_p(fake_bin)
+      write_executable(
+        File.join(fake_bin, "curl"),
+        <<~BASH
+          #!/usr/bin/env bash
+          url="${!#}"
+          case "$url" in
+            https://app.rundiff.com/up)
+              exit 0
+              ;;
+            https://app.rundiff.com/ready)
+              printf '%s\\n' '{"status":"ready","role":"control_plane","errors":[]}'
+              ;;
+            https://executor.rundiff.com/up)
+              exit 0
+              ;;
+            https://executor.rundiff.com/ready)
+              printf '%s\\n' '{"status":"ready","role":"executor_service","errors":[]}'
+              ;;
+            https://app.rundiff.com/onboarding)
+              printf '%s\\n' '<html><title>RunDiff</title><body>RunDiff onboarding</body></html>'
+              ;;
+            https://github.com/apps/rundiff)
+              printf '%s\\n' '<html><title>RunDiff</title><body>RunDiff</body></html>'
+              ;;
+            *)
+              echo "unexpected URL: $url" >&2
+              exit 22
+              ;;
+          esac
+        BASH
+      )
+
+      stdout, stderr, status = run_script(
+        "verify-production-identity",
+        env: {
+          "PATH" => "#{fake_bin}:#{ENV.fetch("PATH")}",
+          "RUNDIFF_GITHUB_APP_SLUG" => "rundiff"
+        }
+      )
+
+      assert status.success?, stderr
+      assert_includes stdout, "production_identity=verified"
+      assert_includes stdout, "control_plane=https://app.rundiff.com"
+      assert_includes stdout, "executor=https://executor.rundiff.com"
+      assert_includes stdout, "github_app_slug=rundiff"
+    end
+  end
+
   test "release workflow publishes the exact head only after successful main CI" do
     workflow = ROOT.join(".github/workflows/release-image.yml").read
 
