@@ -1,11 +1,11 @@
 # Production runtime
 
-Plywo production is intentionally split into two trust domains even though both roles currently ship from the same Rails codebase and container image.
+RunDiff production is intentionally split into two trust domains even though both roles currently ship from the same Rails codebase and container image.
 
 ```text
 GitHub
   -> control plane
-       -> durable PlywoExecution
+       -> durable RunDiffExecution
        -> HTTPS executor request + short-lived repository capability
             -> executor service
                  -> disposable Git clone/worktrees
@@ -17,7 +17,7 @@ GitHub
 
 ## Runtime roles
 
-Set `PLYWO_RUNTIME_ROLE` explicitly in production.
+Set `RUNDIFF_RUNTIME_ROLE` explicitly in production.
 
 ### `control_plane`
 
@@ -54,19 +54,19 @@ Production `/ready` deliberately rejects `combined`. Deployment isolation is par
 
 ## Container artifact
 
-The repository root `Dockerfile` packages the same Plywo codebase for either production role. Role selection remains runtime configuration rather than image-specific code.
+The repository root `Dockerfile` packages the same RunDiff codebase for either production role. Role selection remains runtime configuration rather than image-specific code.
 
 ```text
 same image
-  + PLYWO_RUNTIME_ROLE=control_plane
+  + RUNDIFF_RUNTIME_ROLE=control_plane
       -> GitHub-facing control plane
 
 same image
-  + PLYWO_RUNTIME_ROLE=executor_service
+  + RUNDIFF_RUNTIME_ROLE=executor_service
       -> isolated executor service
 ```
 
-The image includes Git plus the PostgreSQL/SQLite build/runtime dependencies needed by Plywo's currently supported Rails subject proofs. It deliberately does not yet define arbitrary customer dependency bootstrap or customer-authored setup hooks.
+The image includes Git plus the PostgreSQL/SQLite build/runtime dependencies needed by RunDiff's currently supported Rails subject proofs. It deliberately does not yet define arbitrary customer dependency bootstrap or customer-authored setup hooks.
 
 A reverse proxy or platform ingress should terminate public TLS. The control plane's configured remote executor URL is still required to use HTTPS in production readiness policy.
 
@@ -79,7 +79,7 @@ GET /ready
 
 `/up` is Rails process liveness.
 
-`/ready` is the Plywo deployment gate. It checks database connectivity plus role-specific production safety requirements. It returns `503` until the role is safe to receive traffic.
+`/ready` is the RunDiff deployment gate. It checks database connectivity plus role-specific production safety requirements. It returns `503` until the role is safe to receive traffic.
 
 The readiness response contains only status, role and configuration error descriptions. It never returns secret values and database exceptions are reduced to their class rather than their message.
 
@@ -87,20 +87,20 @@ The readiness response contains only status, role and configuration error descri
 
 | Setting | Control plane | Executor service |
 | --- | --- | --- |
-| `PLYWO_RUNTIME_ROLE` | `control_plane` | `executor_service` |
+| `RUNDIFF_RUNTIME_ROLE` | `control_plane` | `executor_service` |
 | `DATABASE_URL` | required | required |
-| `PLYWO_PUBLIC_URL` | HTTPS required | do not need |
-| `PLYWO_GITHUB_APP_ID` | required | do not need |
-| `PLYWO_GITHUB_WEBHOOK_SECRET` | required | forbidden |
-| `PLYWO_GITHUB_PRIVATE_KEY_PATH` | readable file required | forbidden |
-| `PLYWO_EXECUTOR` | `remote` | must not be `remote` |
-| `PLYWO_REMOTE_EXECUTOR_URL` | HTTPS required | forbidden |
-| `PLYWO_REMOTE_EXECUTOR_TOKEN` | required | forbidden |
-| `PLYWO_EXECUTOR_SERVICE_TOKEN` | do not need | required |
-| `PLYWO_EXECUTOR_SERVICE_ADAPTER` | do not need | `git_clone` |
-| `PLYWO_LOCAL_POSTGRES_URL` | do not need | PostgreSQL subject authority when applicable |
+| `RUNDIFF_PUBLIC_URL` | HTTPS required | do not need |
+| `RUNDIFF_GITHUB_APP_ID` | required | do not need |
+| `RUNDIFF_GITHUB_WEBHOOK_SECRET` | required | forbidden |
+| `RUNDIFF_GITHUB_PRIVATE_KEY_PATH` | readable file required | forbidden |
+| `RUNDIFF_EXECUTOR` | `remote` | must not be `remote` |
+| `RUNDIFF_REMOTE_EXECUTOR_URL` | HTTPS required | forbidden |
+| `RUNDIFF_REMOTE_EXECUTOR_TOKEN` | required | forbidden |
+| `RUNDIFF_EXECUTOR_SERVICE_TOKEN` | do not need | required |
+| `RUNDIFF_EXECUTOR_SERVICE_ADAPTER` | do not need | `git_clone` |
+| `RUNDIFF_LOCAL_POSTGRES_URL` | do not need | PostgreSQL subject authority when applicable |
 
-The control-plane `PLYWO_REMOTE_EXECUTOR_TOKEN` and executor-side `PLYWO_EXECUTOR_SERVICE_TOKEN` are the two ends of the same service-authentication credential. They should be injected into different deployments.
+The control-plane `RUNDIFF_REMOTE_EXECUTOR_TOKEN` and executor-side `RUNDIFF_EXECUTOR_SERVICE_TOKEN` are the two ends of the same service-authentication credential. They should be injected into different deployments.
 
 ## Route surface
 
@@ -127,13 +127,13 @@ GitHub routes are not mounted on an `executor_service` deployment. Executor rout
 
 ## GitHub App visibility
 
-The production manifest `.github/app-manifest.json` is public because Plywo v0.1 must be installable on customer GitHub accounts. Development and staging manifests remain private so internal environments are not distributable apps.
+The production manifest `.github/app-manifest.json` is public because RunDiff v0.1 must be installable on customer GitHub accounts. Development and staging manifests remain private so internal environments are not distributable apps.
 
 Public visibility does not imply GitHub Marketplace publication. A public GitHub App can be installed directly from its installation page while Marketplace remains a later product/distribution decision.
 
 ## CI topology proof
 
-Pull requests from the Plywo repository run a separate `remote_executor_topology` job.
+Pull requests from the RunDiff repository run a separate `remote_executor_topology` job.
 
 The proof deliberately uses separate containers/processes:
 
@@ -143,11 +143,11 @@ control-plane client container
   - has short-lived repository capability
   - sends Request v1
         |
-        | HTTP + out-of-band Plywo-Repository-Authorization
+        | HTTP + out-of-band RunDiff-Repository-Authorization
         v
 production executor container
-  - PLYWO_RUNTIME_ROLE=executor_service
-  - PLYWO_EXECUTOR_SERVICE_ADAPTER=git_clone
+  - RUNDIFF_RUNTIME_ROLE=executor_service
+  - RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone
   - no GitHub App private key
   - no webhook secret
   - no remote-executor recursion config
@@ -168,9 +168,9 @@ This validates the deployable transport/trust boundary without requiring a live 
 
 ## Compatibility
 
-`PLYWO_EXECUTOR_SERVICE=1` remains a compatibility signal. When `PLYWO_RUNTIME_ROLE` is absent, that flag resolves the deployment to `executor_service`.
+`RUNDIFF_EXECUTOR_SERVICE=1` remains a compatibility signal. When `RUNDIFF_RUNTIME_ROLE` is absent, that flag resolves the deployment to `executor_service`.
 
-New deployments should set `PLYWO_RUNTIME_ROLE` explicitly.
+New deployments should set `RUNDIFF_RUNTIME_ROLE` explicitly.
 
 ## Deployment gate
 
@@ -183,13 +183,13 @@ executor /up         -> 200
 executor /ready      -> 200
 ```
 
-A successful liveness check with failed readiness is not a healthy Plywo deployment.
+A successful liveness check with failed readiness is not a healthy RunDiff deployment.
 
 ## Still deliberately deferred
 
 The deployable image and separate-process executor path are now proven. Remaining runtime/product boundaries include:
 
-- arbitrary customer dependency/bootstrap policy beyond Plywo-on-Plywo compatible bundles
+- arbitrary customer dependency/bootstrap policy beyond RunDiff-on-RunDiff compatible bundles
 - hard worker/container termination
 - worker-host heartbeat independent of control-plane queueing
 - fork PR multi-repository capabilities

@@ -64,8 +64,8 @@ Persistence is discovered from `config/database.yml` first. If the adapter is no
 The result resolves to the existing subject environments:
 
 ```text
-Rails + PostgreSQL -> Plywo::Subject::RailsPostgresEnvironment
-Rails + SQLite     -> Plywo::Subject::RailsSqliteEnvironment
+Rails + PostgreSQL -> RunDiff::Subject::RailsPostgresEnvironment
+Rails + SQLite     -> RunDiff::Subject::RailsSqliteEnvironment
 ```
 
 The environment still owns preparation, isolated baseline/candidate state, runtime variables, and cleanup.
@@ -111,4 +111,4 @@ See #73, #65, #57 and `docs/subject-environments.md`.
 
 ## Rename compatibility
 
-`rundiff.yml` is now the canonical customer configuration name. The runtime should continue accepting legacy `plywo.yml` during the migration window so existing sandbox and customer branches do not fail abruptly.
+`rundiff.yml` is now the canonical customer configuration name. The runtime should continue accepting legacy `rundiff.yml` during the migration window so existing sandbox and customer branches do not fail abruptly.
