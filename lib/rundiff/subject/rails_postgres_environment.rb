@@ -11,6 +11,7 @@ module RunDiff
         telemetry.subject_owned_rails
         runtime.local_process
         state.isolated_comparable
+        state.sample_isolated
         evidence.sql_queries
         evidence.background_jobs
       ].freeze
