@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   class AsyncDiagnosis
     MIN_TOTAL_MS = 10.0
     QUEUE_BOUND_SHARE = 70.0

@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   class RuntimeDiagnosis
     MIN_WALL_MS = 10.0
     CPU_BOUND_RATIO = 70.0

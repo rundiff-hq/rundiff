@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   class ExecutionPair
     def self.call(baseline:, candidate:, changed_paths: [])
       new(baseline:, candidate:, changed_paths:).call

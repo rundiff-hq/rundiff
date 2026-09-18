@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   class AsyncDeltaDiagnosis
     ENQUEUE_TO_START_DOMINANT_SHARE = 70.0
     WORKER_RUNTIME_DOMINANT_SHARE = 30.0

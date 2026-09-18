@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   class ReportRenderer
     def self.markdown(result)
       new(result).markdown
@@ -9,11 +9,11 @@ module Plywo
     end
 
     def markdown
-      lines = [ "## Plywo Behavioral Diff", "" ]
+      lines = [ "## RunDiff Behavioral Diff", "" ]
       if findings.empty?
         lines << "✅ No behavioral regression detected."
       else
-        lines << "🟡 Tests passed, but Plywo detected **#{findings.size} behavioral regressions**."
+        lines << "🟡 Tests passed, but RunDiff detected **#{findings.size} behavioral regressions**."
       end
 
       lines += [ "", "| Signal | Baseline | Candidate | Change |", "| --- | ---: | ---: | ---: |" ]

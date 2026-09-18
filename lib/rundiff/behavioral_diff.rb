@@ -2,7 +2,7 @@ require_relative "async_delta_diagnosis"
 require_relative "async_diagnosis"
 require_relative "runtime_diagnosis"
 
-module Plywo
+module RunDiff
   class BehavioralDiff
     SIGNALS = {
       "duration_ms" => {

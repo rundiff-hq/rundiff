@@ -3,7 +3,7 @@ require "optparse"
 require_relative "behavioral_diff"
 require_relative "report_renderer"
 
-module Plywo
+module RunDiff
   class CLI
     def initialize(argv, stdout: $stdout, stderr: $stderr)
       @argv = argv.dup

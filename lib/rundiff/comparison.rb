@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   class Comparison
     RECOMMENDATION_ORDER = { "allow" => 0, "review" => 1, "block" => 2 }.freeze
 

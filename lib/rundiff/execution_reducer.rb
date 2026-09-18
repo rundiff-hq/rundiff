@@ -1,7 +1,7 @@
 require_relative "async_diagnosis"
 require_relative "runtime_diagnosis"
 
-module Plywo
+module RunDiff
   class ExecutionReducer
     COUNTABLE_SIGNALS = %w[sql_queries background_jobs emails http_requests errors].freeze
     SUMMABLE_RUNTIME_SIGNALS = %w[worker_wall_ms worker_process_cpu_ms worker_thread_cpu_ms].freeze
