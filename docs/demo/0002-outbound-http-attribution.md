@@ -1,6 +1,6 @@
 # Outbound HTTP attribution dogfood
 
-This slice proves that Plywo can observe a real synchronous outbound network call, attribute it to application code, and project a network-behavior change into GitHub without requiring a manual source marker.
+This slice proves that RunDiff can observe a real synchronous outbound network call, attribute it to application code, and project a network-behavior change into GitHub without requiring a manual source marker.
 
 ## Controlled regression
 
@@ -15,7 +15,7 @@ background jobs            unchanged
 emails                     unchanged
 outbound HTTP              1 -> 2
 runtime source             application Net::HTTP callsite
-Plywo Check                REVIEW / neutral
+RunDiff Check                REVIEW / neutral
 annotation                 1 warning
 ```
 
@@ -31,7 +31,7 @@ Expected final result:
 outbound HTTP              1 -> 1
 runtime attribution        still present
 findings                    []
-Plywo Check                ALLOW / success
+RunDiff Check                ALLOW / success
 annotations                0
 ```
 
