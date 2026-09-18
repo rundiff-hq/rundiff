@@ -6,10 +6,10 @@ require "uri"
 
 require_relative "../config/environment"
 
-identity = Plywo::Subject::ExecutionIdentity.from_env
+identity = RunDiff::Subject::ExecutionIdentity.from_env
 raise "subject execution identity is disabled" unless identity.enabled?
 
-Dir.mktmpdir("plywo-subject-privilege-") do |directory|
+Dir.mktmpdir("rundiff-subject-privilege-") do |directory|
   root = Pathname(directory)
   root.chmod(0o711)
   workspace = root.join("workspace")
@@ -84,7 +84,7 @@ Dir.mktmpdir("plywo-subject-privilege-") do |directory|
 
   identity.prepare_tree(workspace)
 
-  runner = Plywo::Github::LocalPullRequestRunner::CommandRunner.new(
+  runner = RunDiff::Github::LocalPullRequestRunner::CommandRunner.new(
     execution_identity: identity
   )
   output = runner.call(
@@ -106,7 +106,7 @@ Dir.mktmpdir("plywo-subject-privilege-") do |directory|
   raise "subject LOGNAME was overrideable: #{result.inspect}" unless result.fetch("logname") == identity.user
   raise "subject runtime could read provider authority material" if result.fetch("target_readable")
 
-  plan = Plywo::Subject::SetupPlan.new(
+  plan = RunDiff::Subject::SetupPlan.new(
     framework: "rails",
     steps: [
       {
@@ -141,7 +141,7 @@ Dir.mktmpdir("plywo-subject-privilege-") do |directory|
       }
     ]
   )
-  executor = Plywo::Subject::ServiceExecutor.new(execution_identity: identity)
+  executor = RunDiff::Subject::ServiceExecutor.new(execution_identity: identity)
   started = executor.start(
     root: workspace,
     execution: nil,

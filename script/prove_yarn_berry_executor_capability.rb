@@ -9,12 +9,12 @@ require "tmpdir"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 
-require TOOL_ROOT.join("lib", "plywo", "subject", "runtime_capabilities").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "bootstrap_executor").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "javascript_package_manager_detector").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "javascript_dependencies_bootstrap").to_s
-require TOOL_ROOT.join("lib", "plywo", "github", "local_pull_request_runner").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "runtime_capabilities").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "bootstrap_executor").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "javascript_package_manager_detector").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "javascript_dependencies_bootstrap").to_s
+require TOOL_ROOT.join("lib", "rundiff", "github", "local_pull_request_runner").to_s
 
 module YarnBerryExecutorCapabilityProof
   EXPECTED_NODE_VERSION = "24.20.0"
@@ -23,10 +23,10 @@ module YarnBerryExecutorCapabilityProof
   module_function
 
   def call
-    capabilities = Plywo::Subject::RuntimeCapabilities.from_env
+    capabilities = RunDiff::Subject::RuntimeCapabilities.from_env
     assert_capabilities!(capabilities)
 
-    command_runner = Plywo::Github::LocalPullRequestRunner::CommandRunner.new
+    command_runner = RunDiff::Github::LocalPullRequestRunner::CommandRunner.new
     node_runtime = run_version!(command_runner, %w[node --version])
     yarn_runtime = run_version!(command_runner, %w[yarn --version])
 
@@ -37,13 +37,13 @@ module YarnBerryExecutorCapabilityProof
       raise "Declared Yarn capability does not match runtime: #{yarn_runtime.inspect}"
     end
 
-    Dir.mktmpdir("plywo-yarn-berry-capability-") do |directory|
+    Dir.mktmpdir("rundiff-yarn-berry-capability-") do |directory|
       root = Pathname(directory)
       write_subject(root)
       generate_lockfile!(command_runner, root)
       remove_generated_install_state!(root)
 
-      detection = Plywo::Subject::JavascriptPackageManagerDetector.new.call(root:)
+      detection = RunDiff::Subject::JavascriptPackageManagerDetector.new.call(root:)
       unless detection&.manager == "yarn" && detection.lockfile == "yarn.lock"
         raise "Expected Yarn package-manager detection from yarn.lock"
       end
@@ -59,13 +59,13 @@ module YarnBerryExecutorCapabilityProof
       manifest_digest = Digest::SHA256.file(manifest).hexdigest
       lockfile_digest = Digest::SHA256.file(lockfile).hexdigest
 
-      javascript_bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner:)
-      bootstrap_executor = Plywo::Subject::BootstrapExecutor.new(
+      javascript_bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner:)
+      bootstrap_executor = RunDiff::Subject::BootstrapExecutor.new(
         ruby_bundle_bootstrap: nil,
         javascript_dependencies_bootstrap: javascript_bootstrap,
         runtime_capabilities: capabilities
       )
-      setup_plan = Plywo::Subject::SetupPlan.new(
+      setup_plan = RunDiff::Subject::SetupPlan.new(
         framework: "javascript",
         steps: [ detection.bootstrap_step ]
       )
@@ -140,7 +140,7 @@ module YarnBerryExecutorCapabilityProof
 
   def write_subject(root)
     package = {
-      "name" => "plywo-yarn-berry-capability-proof",
+      "name" => "rundiff-yarn-berry-capability-proof",
       "version" => "1.0.0",
       "private" => true,
       "packageManager" => "yarn@#{EXPECTED_YARN_VERSION}",

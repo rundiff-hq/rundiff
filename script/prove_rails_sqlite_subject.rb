@@ -35,7 +35,7 @@ module RailsSqliteSubjectProof
       actual_digest = Digest::SHA256.file(@lockfile).hexdigest
       return if actual_digest == @expected_digest
 
-      raise Plywo::Github::LocalPullRequestRunner::Error,
+      raise RunDiff::Github::LocalPullRequestRunner::Error,
         "Control-plane lockfile was already mutated #{phase} command: #{command.join(" ")} (chdir=#{chdir})"
     end
   end
@@ -43,8 +43,8 @@ module RailsSqliteSubjectProof
   module_function
 
   def call
-    Dir.mktmpdir("plywo-rails-sqlite-subject-") do |directory|
-      Dir.mktmpdir("plywo-rails-sqlite-bootstrap-") do |bootstrap_directory|
+    Dir.mktmpdir("rundiff-rails-sqlite-subject-") do |directory|
+      Dir.mktmpdir("rundiff-rails-sqlite-bootstrap-") do |bootstrap_directory|
         subject_root = Pathname(directory)
         bootstrap_root = Pathname(bootstrap_directory)
         tool_lock_digest = Digest::SHA256.file(TOOL_LOCKFILE).hexdigest
@@ -53,25 +53,25 @@ module RailsSqliteSubjectProof
         baseline_sha = commit(subject_root, "Baseline clean Rails behavior")
         write_candidate_behavior(subject_root)
         write_candidate_configuration(subject_root)
-        candidate_sha = commit(subject_root, "Increase query behavior and configure Plywo")
+        candidate_sha = commit(subject_root, "Increase query behavior and configure RunDiff")
         verify_tool_lock_unchanged!(tool_lock_digest)
 
         request = build_request(baseline_sha:, candidate_sha:)
         command_runner = GuardedCommandRunner.new(
-          delegate: Plywo::Github::LocalPullRequestRunner::CommandRunner.new,
+          delegate: RunDiff::Github::LocalPullRequestRunner::CommandRunner.new,
           lockfile: TOOL_LOCKFILE,
           expected_digest: tool_lock_digest
         )
-        runtime_capabilities = Plywo::Subject::RuntimeCapabilities.ruby_only
-        ruby_bundle_bootstrap = Plywo::Subject::RailsBundleBootstrap.new(
+        runtime_capabilities = RunDiff::Subject::RuntimeCapabilities.ruby_only
+        ruby_bundle_bootstrap = RunDiff::Subject::RailsBundleBootstrap.new(
           command_runner:,
           cache_root: bootstrap_root
         )
-        subject_bootstrap = Plywo::Subject::BootstrapExecutor.new(
+        subject_bootstrap = RunDiff::Subject::BootstrapExecutor.new(
           ruby_bundle_bootstrap:,
           runtime_capabilities:
         )
-        runner = Plywo::Github::LocalPullRequestRunner.new(
+        runner = RunDiff::Github::LocalPullRequestRunner.new(
           root: subject_root,
           tool_root: TOOL_ROOT,
           command_runner:,
@@ -79,7 +79,7 @@ module RailsSqliteSubjectProof
           subject_bootstrap:,
           runtime_capabilities:
         )
-        result = Plywo::Executor::LocalAdapter.new(runner:).call(request:)
+        result = RunDiff::Executor::LocalAdapter.new(runner:).call(request:)
 
         verify!(result)
         verify_clean_customer!(subject_root)
@@ -91,7 +91,7 @@ module RailsSqliteSubjectProof
 
   def prepare_subject_repository(subject_root)
     FileUtils.cp_r("#{FIXTURE_ROOT}/.", subject_root)
-    strip_plywo_runtime(subject_root)
+    strip_rundiff_runtime(subject_root)
     write_clean_application(subject_root)
     write_clean_application_job(subject_root)
     write_clean_behavior_controller(subject_root)
@@ -99,15 +99,15 @@ module RailsSqliteSubjectProof
     create_lockfile(subject_root)
 
     run!(%w[git init -q], chdir: subject_root)
-    run!([ "git", "config", "user.email", "sqlite-proof@plywo.local" ], chdir: subject_root)
-    run!([ "git", "config", "user.name", "Plywo SQLite Proof" ], chdir: subject_root)
+    run!([ "git", "config", "user.email", "sqlite-proof@rundiff.local" ], chdir: subject_root)
+    run!([ "git", "config", "user.name", "RunDiff SQLite Proof" ], chdir: subject_root)
   end
 
-  def strip_plywo_runtime(subject_root)
-    FileUtils.rm_rf(subject_root.join("lib", "plywo"))
+  def strip_rundiff_runtime(subject_root)
+    FileUtils.rm_rf(subject_root.join("lib", "rundiff"))
     FileUtils.rm_f(subject_root.join("app", "models", "current.rb"))
-    FileUtils.rm_f(subject_root.join("app", "models", "plywo_evidence_event.rb"))
-    FileUtils.rm_f(subject_root.join("app", "models", "plywo_execution_work_item.rb"))
+    FileUtils.rm_f(subject_root.join("app", "models", "rundiff_evidence_event.rb"))
+    FileUtils.rm_f(subject_root.join("app", "models", "rundiff_execution_work_item.rb"))
     FileUtils.rm_f(subject_root.join("config", "initializers", "runtime_evidence_bridge.rb"))
   end
 
@@ -126,7 +126,7 @@ module RailsSqliteSubjectProof
         class Application < Rails::Application
           config.load_defaults 8.1
           config.active_job.queue_adapter = :test
-          config.secret_key_base = "plywo-rails-sqlite-subject-fixture"
+          config.secret_key_base = "rundiff-rails-sqlite-subject-fixture"
         end
       end
     RUBY
@@ -195,18 +195,18 @@ module RailsSqliteSubjectProof
   end
 
   def write_candidate_configuration(subject_root)
-    subject_root.join("plywo.yml").write(<<~YAML)
+    subject_root.join("rundiff.yml").write(<<~YAML)
       version: 1
       scenario:
-        path: /__plywo/demo/behavior
+        path: /__rundiff/demo/behavior
       subject:
         persistence: auto
     YAML
   end
 
   def build_request(baseline_sha:, candidate_sha:)
-    Plywo::Executor::Request.new(
-      schema_version: Plywo::Executor::Request.current_schema_version,
+    RunDiff::Executor::Request.new(
+      schema_version: RunDiff::Executor::Request.current_schema_version,
       execution_id: "github-sqlite-proof-001",
       scenario_id: "rails.sqlite.query-behavior",
       baseline_sha:,
@@ -244,23 +244,23 @@ module RailsSqliteSubjectProof
 
   def verify_clean_customer!(subject_root)
     forbidden = [
-      subject_root.join("lib", "plywo"),
+      subject_root.join("lib", "rundiff"),
       subject_root.join("app", "models", "current.rb"),
-      subject_root.join("app", "models", "plywo_evidence_event.rb"),
-      subject_root.join("app", "models", "plywo_execution_work_item.rb"),
+      subject_root.join("app", "models", "rundiff_evidence_event.rb"),
+      subject_root.join("app", "models", "rundiff_execution_work_item.rb"),
       subject_root.join("config", "initializers", "runtime_evidence_bridge.rb")
     ]
     present = forbidden.select(&:exist?)
     return if present.empty?
 
-    raise "Customer fixture still owns Plywo runtime files: #{present.join(", ")}"
+    raise "Customer fixture still owns RunDiff runtime files: #{present.join(", ")}"
   end
 
   def verify_tool_lock_unchanged!(expected_digest)
     actual_digest = Digest::SHA256.file(TOOL_LOCKFILE).hexdigest
     return if actual_digest == expected_digest
 
-    raise "SQLite subject dependency setup mutated the Plywo control-plane lockfile"
+    raise "SQLite subject dependency setup mutated the RunDiff control-plane lockfile"
   end
 
   def print_proof(request:, result:, runtime_capabilities:)
@@ -278,8 +278,8 @@ module RailsSqliteSubjectProof
     puts "dependency_bootstrap=typed_setup_plan"
     puts "executor_ruby_capability=#{runtime_capabilities.runtime_version("ruby")}"
     puts "capture_runtime=tool_owned_portable_rails"
-    puts "customer_plywo_runtime_files=false"
-    puts "customer_controller_knows_plywo=false"
+    puts "customer_rundiff_runtime_files=false"
+    puts "customer_controller_knows_rundiff=false"
     puts "control_plane_lockfile_unchanged=true"
   end
 
