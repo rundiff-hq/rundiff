@@ -1,9 +1,9 @@
 require "test_helper"
 
-class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
+class RunDiffGithubCommentRendererTest < ActiveSupport::TestCase
   test "renders a durable GitHub review comment with runtime evidence" do
-    payload = Plywo::Demo::DogfoodRunner.call
-    markdown = Plywo::Github::CommentRenderer.markdown(
+    payload = RunDiff::Demo::DogfoodRunner.call
+    markdown = RunDiff::Github::CommentRenderer.markdown(
       payload:,
       context: {
         repository: "rundiff-hq/rundiff",
@@ -16,7 +16,7 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
       }
     )
 
-    assert_includes markdown, Plywo::Github::CommentRenderer::MARKER
+    assert_includes markdown, RunDiff::Github::CommentRenderer::MARKER
     assert_includes markdown, "RunDiff · Behavioral Review"
     assert_includes markdown, "SQL queries"
     assert_includes markdown, "Merge recommendation: **BLOCK**"
@@ -25,7 +25,7 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
 
   test "links real Git subjects and renders singular regression grammar" do
     payload = real_pair_payload
-    markdown = Plywo::Github::CommentRenderer.markdown(
+    markdown = RunDiff::Github::CommentRenderer.markdown(
       payload:,
       context: {
         repository: "rundiff-hq/rundiff",
@@ -46,7 +46,7 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
   end
 
   test "explains which async stage caused a regression for legacy evidence" do
-    markdown = Plywo::Github::CommentRenderer.markdown(payload: async_regression_payload)
+    markdown = RunDiff::Github::CommentRenderer.markdown(payload: async_regression_payload)
 
     assert_includes markdown, "Enqueue → worker start (aggregate)"
     assert_includes markdown, "enqueue-to-start dominates"
@@ -61,11 +61,11 @@ class PlywoGithubCommentRendererTest < ActiveSupport::TestCase
   def real_pair_payload
     baseline = execution(sql_queries: 14)
     candidate = execution(sql_queries: 19)
-    Plywo::ExecutionPair.call(baseline:, candidate:)
+    RunDiff::ExecutionPair.call(baseline:, candidate:)
   end
 
   def async_regression_payload
-    Plywo::ExecutionPair.call(
+    RunDiff::ExecutionPair.call(
       baseline: async_execution(queue_wait_ms: 137.5),
       candidate: async_execution(queue_wait_ms: 401.6)
     )

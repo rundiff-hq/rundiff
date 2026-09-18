@@ -1,8 +1,8 @@
 require "test_helper"
 
-class PlywoGithubCheckRendererTest < ActiveSupport::TestCase
+class RunDiffGithubCheckRendererTest < ActiveSupport::TestCase
   test "maps an allowed result to a successful GitHub check" do
-    rendered = Plywo::Github::CheckRenderer.call(
+    rendered = RunDiff::Github::CheckRenderer.call(
       payload: pair_payload(sql_queries: 14),
       run_url: "https://github.com/rundiff-hq/rundiff/actions/runs/1"
     )
@@ -30,7 +30,7 @@ class PlywoGithubCheckRendererTest < ActiveSupport::TestCase
       },
       changed_paths: [ "app/controllers/demo/behavior_controller.rb" ]
     )
-    rendered = Plywo::Github::CheckRenderer.call(payload:)
+    rendered = RunDiff::Github::CheckRenderer.call(payload:)
     annotation = rendered.fetch("annotations").first
 
     assert_equal "failure", rendered.fetch("conclusion")
@@ -41,7 +41,7 @@ class PlywoGithubCheckRendererTest < ActiveSupport::TestCase
   end
 
   test "renders async regression attribution in the check summary" do
-    rendered = Plywo::Github::CheckRenderer.call(payload: async_regression_payload)
+    rendered = RunDiff::Github::CheckRenderer.call(payload: async_regression_payload)
     summary = rendered.fetch("summary")
 
     assert_equal "neutral", rendered.fetch("conclusion")
@@ -54,7 +54,7 @@ class PlywoGithubCheckRendererTest < ActiveSupport::TestCase
   private
 
   def pair_payload(sql_queries:, attributions: {}, changed_paths: [])
-    Plywo::ExecutionPair.call(
+    RunDiff::ExecutionPair.call(
       baseline: execution(sql_queries: 14),
       candidate: execution(sql_queries:).merge("attributions" => attributions),
       changed_paths:
@@ -62,7 +62,7 @@ class PlywoGithubCheckRendererTest < ActiveSupport::TestCase
   end
 
   def async_regression_payload
-    Plywo::ExecutionPair.call(
+    RunDiff::ExecutionPair.call(
       baseline: async_execution(queue_wait_ms: 137.5),
       candidate: async_execution(queue_wait_ms: 401.6)
     )

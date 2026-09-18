@@ -3,8 +3,8 @@ require "base64"
 require "json"
 require "tmpdir"
 
-class PlywoGithubAppAuthenticationTest < ActiveSupport::TestCase
-  class FakeAuthentication < Plywo::Github::AppAuthentication
+class RunDiffGithubAppAuthenticationTest < ActiveSupport::TestCase
+  class FakeAuthentication < RunDiff::Github::AppAuthentication
     attr_reader :calls
 
     def initialize(response:, **attributes)
@@ -75,13 +75,13 @@ class PlywoGithubAppAuthenticationTest < ActiveSupport::TestCase
 
       authentication.installation_token(
         installation_id: 159_078_958,
-        repositories: [ "plywo" ],
+        repositories: [ "rundiff" ],
         permissions: { contents: "read" }
       )
 
       assert_equal(
         {
-          repositories: [ "plywo" ],
+          repositories: [ "rundiff" ],
           permissions: { contents: "read" }
         },
         authentication.calls.fetch(0).fetch(:body)

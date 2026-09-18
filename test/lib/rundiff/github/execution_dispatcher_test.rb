@@ -1,10 +1,10 @@
 require "test_helper"
 
-class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
+class RunDiffGithubExecutionDispatcherTest < ActiveSupport::TestCase
   test "reuses one durable execution and safely re-enqueues while it is queued" do
     delivery = create_delivery
     pull_request = pull_request_payload
-    dispatcher = Plywo::Github::ExecutionDispatcher.new(scenario_id: "scenario")
+    dispatcher = RunDiff::Github::ExecutionDispatcher.new(scenario_id: "scenario")
 
     first, first_enqueue = dispatcher.call(delivery:, pull_request:)
     second, second_enqueue = dispatcher.call(delivery:, pull_request:)
@@ -18,8 +18,8 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
 
   test "cancels an older active revision of the same pull request" do
     notification_job = recording_notification_job
-    cancellation = Plywo::Executor::Cancellation.new(notification_job:)
-    dispatcher = Plywo::Github::ExecutionDispatcher.new(
+    cancellation = RunDiff::Executor::Cancellation.new(notification_job:)
+    dispatcher = RunDiff::Github::ExecutionDispatcher.new(
       scenario_id: "scenario",
       cancellation:
     )
@@ -42,7 +42,7 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
   end
 
   test "does not cancel an active execution from another pull request" do
-    dispatcher = Plywo::Github::ExecutionDispatcher.new(scenario_id: "scenario")
+    dispatcher = RunDiff::Github::ExecutionDispatcher.new(scenario_id: "scenario")
     other_delivery = create_delivery(pull_request_number: 99)
     other, = dispatcher.call(delivery: other_delivery, pull_request: pull_request_payload)
     other.claim!
@@ -56,7 +56,7 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
 
   test "does not re-enqueue a completed execution for the same identity" do
     delivery = create_delivery
-    dispatcher = Plywo::Github::ExecutionDispatcher.new(scenario_id: "scenario")
+    dispatcher = RunDiff::Github::ExecutionDispatcher.new(scenario_id: "scenario")
     execution, = dispatcher.call(delivery:, pull_request: pull_request_payload)
     execution.update!(status: "completed", decision: "allow", outcome: "allow", finished_at: Time.current)
 
@@ -69,7 +69,7 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
 
   test "requeues an infra failure for the same identity" do
     delivery = create_delivery
-    dispatcher = Plywo::Github::ExecutionDispatcher.new(scenario_id: "scenario")
+    dispatcher = RunDiff::Github::ExecutionDispatcher.new(scenario_id: "scenario")
     execution, = dispatcher.call(delivery:, pull_request: pull_request_payload)
     execution.claim!
     execution.fail!(RuntimeError.new("boom"))
@@ -86,7 +86,7 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
 
   test "does not requeue a failed execution without an infra failure outcome" do
     delivery = create_delivery
-    dispatcher = Plywo::Github::ExecutionDispatcher.new(scenario_id: "scenario")
+    dispatcher = RunDiff::Github::ExecutionDispatcher.new(scenario_id: "scenario")
     execution, = dispatcher.call(delivery:, pull_request: pull_request_payload)
     execution.update!(status: "failed", failure: "manual stop", finished_at: Time.current)
 
@@ -105,7 +105,7 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
       event: "pull_request",
       action: "synchronize",
       installation_id: 123,
-      repository: "plywo/plywo",
+      repository: "rundiff/rundiff",
       pull_request_number:,
       base_sha: "old-base",
       head_sha: "head-sha"
@@ -118,7 +118,7 @@ class PlywoGithubExecutionDispatcherTest < ActiveSupport::TestCase
       "head" => {
         "ref" => "feature",
         "sha" => "head-sha",
-        "repo" => { "full_name" => "plywo/plywo" }
+        "repo" => { "full_name" => "rundiff/rundiff" }
       }
     }
   end

@@ -1,7 +1,7 @@
 require "test_helper"
 
-class PlywoGithubCommentPublisherTest < ActiveSupport::TestCase
-  class FakePublisher < Plywo::Github::CommentPublisher
+class RunDiffGithubCommentPublisherTest < ActiveSupport::TestCase
+  class FakePublisher < RunDiff::Github::CommentPublisher
     attr_reader :calls
 
     def initialize(responses)
@@ -20,11 +20,11 @@ class PlywoGithubCommentPublisherTest < ActiveSupport::TestCase
 
   test "skips a stale run before reading or updating comments" do
     publisher = FakePublisher.new(
-      [ :get, "/repos/plywo/plywo/pulls/2" ] => { "head" => { "sha" => "new-head" } }
+      [ :get, "/repos/rundiff/rundiff/pulls/2" ] => { "head" => { "sha" => "new-head" } }
     )
 
     action = publisher.upsert(
-      repository: "plywo/plywo",
+      repository: "rundiff/rundiff",
       pr_number: 2,
       body: "report",
       author: "github-actions[bot]",
@@ -36,21 +36,21 @@ class PlywoGithubCommentPublisherTest < ActiveSupport::TestCase
   end
 
   test "updates the owned durable comment when the run matches the current head" do
-    comments_path = "/repos/plywo/plywo/issues/2/comments?per_page=100"
+    comments_path = "/repos/rundiff/rundiff/issues/2/comments?per_page=100"
     publisher = FakePublisher.new(
-      [ :get, "/repos/plywo/plywo/pulls/2" ] => { "head" => { "sha" => "current-head" } },
+      [ :get, "/repos/rundiff/rundiff/pulls/2" ] => { "head" => { "sha" => "current-head" } },
       [ :get, comments_path ] => [
         {
           "id" => 42,
-          "body" => Plywo::Github::CommentRenderer::MARKER,
+          "body" => RunDiff::Github::CommentRenderer::MARKER,
           "user" => { "login" => "github-actions[bot]" }
         }
       ],
-      [ :patch, "/repos/plywo/plywo/issues/comments/42" ] => {}
+      [ :patch, "/repos/rundiff/rundiff/issues/comments/42" ] => {}
     )
 
     action = publisher.upsert(
-      repository: "plywo/plywo",
+      repository: "rundiff/rundiff",
       pr_number: 2,
       body: "updated report",
       author: "github-actions[bot]",
