@@ -25,18 +25,18 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: plywo_test
+          POSTGRES_DB: rundiff_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d plywo_test"
+          --health-cmd "pg_isready -U postgres -d rundiff_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     env:
-      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/plywo_test
-      SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/plywo_queue_test
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_test
+      SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_queue_test
       RAILS_ENV: test
 
     steps:
@@ -56,21 +56,21 @@ jobs:
         run: bin/rails test
 
       - name: Dogfood durable worker evidence
-        run: bundle exec ruby script/plywo_durable_worker_evidence.rb
+        run: bundle exec ruby script/rundiff_durable_worker_evidence.rb
 
       - name: Dogfood isolated worker process
-        run: bundle exec ruby script/plywo_os_process_worker_proof.rb
+        run: bundle exec ruby script/rundiff_os_process_worker_proof.rb
 
       - name: Dogfood Solid Queue transport
         env:
-          PLYWO_SOLID_QUEUE: "1"
+          RUNDIFF_SOLID_QUEUE: "1"
           SOLID_QUEUE_SKIP_RECURRING: "true"
-        run: bundle exec ruby script/plywo_solid_queue_transport_proof.rb
+        run: bundle exec ruby script/rundiff_solid_queue_transport_proof.rb
 
       - name: Dogfood Rails instrumentation
         env:
-          PLYWO_OUTPUT: tmp/plywo-dogfood.json
-        run: bin/rails plywo:dogfood
+          RUNDIFF_OUTPUT: tmp/rundiff-dogfood.json
+        run: bin/rails rundiff:dogfood
 
       - name: Prove Rails SQLite customer subject
         run: ruby script/prove_rails_sqlite_subject.rb
@@ -78,9 +78,9 @@ jobs:
       - name: Prepare real Git subjects
         if: github.event_name == 'pull_request'
         run: |
-          git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > /tmp/plywo-changed-paths.txt
-          git worktree add --detach /tmp/plywo-base "${{ github.event.pull_request.base.sha }}"
-          git worktree add --detach /tmp/plywo-candidate "${{ github.event.pull_request.head.sha }}"
+          git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > /tmp/rundiff-changed-paths.txt
+          git worktree add --detach /tmp/rundiff-base "${{ github.event.pull_request.base.sha }}"
+          git worktree add --detach /tmp/rundiff-candidate "${{ github.event.pull_request.head.sha }}"
 
       - name: Prepare isolated subject databases
         if: github.event_name == 'pull_request'
@@ -88,15 +88,15 @@ jobs:
           BUNDLE_PATH: ${{ github.workspace }}/vendor/bundle
         run: |
           (
-            cd /tmp/plywo-base
-            DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/plywo_base \
-            SOLID_QUEUE_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/plywo_base_queue \
+            cd /tmp/rundiff-base
+            DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/rundiff_base \
+            SOLID_QUEUE_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/rundiff_base_queue \
               bundle exec rails db:prepare
           )
           (
-            cd /tmp/plywo-candidate
-            DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/plywo_candidate \
-            SOLID_QUEUE_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/plywo_candidate_queue \
+            cd /tmp/rundiff-candidate
+            DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/rundiff_candidate \
+            SOLID_QUEUE_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/rundiff_candidate_queue \
               bundle exec rails db:prepare
           )
 
@@ -104,81 +104,81 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BUNDLE_PATH: ${{ github.workspace }}/vendor/bundle
-          PLYWO_SOLID_QUEUE: "1"
-          PLYWO_ASYNC_TRANSPORT: solid_queue
+          RUNDIFF_SOLID_QUEUE: "1"
+          RUNDIFF_ASYNC_TRANSPORT: solid_queue
           SOLID_QUEUE_SKIP_RECURRING: "true"
-          SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/plywo_base_queue
-          PLYWO_RUN_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
-          PLYWO_SCENARIO_ID: dogfood.git.behavior
-          PLYWO_SUBJECT: git-comparison
-          PLYWO_EXECUTION_LABEL: ${{ github.base_ref }}
-          PLYWO_EXECUTION_SHA: ${{ github.event.pull_request.base.sha }}
-          PLYWO_OUTPUT: /tmp/plywo-base.json
+          SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_base_queue
+          RUNDIFF_RUN_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
+          RUNDIFF_SCENARIO_ID: dogfood.git.behavior
+          RUNDIFF_SUBJECT: git-comparison
+          RUNDIFF_EXECUTION_LABEL: ${{ github.base_ref }}
+          RUNDIFF_EXECUTION_SHA: ${{ github.event.pull_request.base.sha }}
+          RUNDIFF_OUTPUT: /tmp/rundiff-base.json
         run: |
-          cd /tmp/plywo-base
-          DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/plywo_base \
-            bundle exec ruby "${GITHUB_WORKSPACE}/script/plywo_capture_subject.rb"
+          cd /tmp/rundiff-base
+          DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/rundiff_base \
+            bundle exec ruby "${GITHUB_WORKSPACE}/script/rundiff_capture_subject.rb"
 
       - name: Capture candidate subject
         if: github.event_name == 'pull_request'
         env:
           BUNDLE_PATH: ${{ github.workspace }}/vendor/bundle
-          PLYWO_SOLID_QUEUE: "1"
-          PLYWO_ASYNC_TRANSPORT: solid_queue
+          RUNDIFF_SOLID_QUEUE: "1"
+          RUNDIFF_ASYNC_TRANSPORT: solid_queue
           SOLID_QUEUE_SKIP_RECURRING: "true"
-          SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/plywo_candidate_queue
-          PLYWO_RUN_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
-          PLYWO_SCENARIO_ID: dogfood.git.behavior
-          PLYWO_SUBJECT: git-comparison
-          PLYWO_EXECUTION_LABEL: ${{ github.head_ref }}
-          PLYWO_EXECUTION_SHA: ${{ github.event.pull_request.head.sha }}
-          PLYWO_OUTPUT: /tmp/plywo-candidate.json
+          SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_candidate_queue
+          RUNDIFF_RUN_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
+          RUNDIFF_SCENARIO_ID: dogfood.git.behavior
+          RUNDIFF_SUBJECT: git-comparison
+          RUNDIFF_EXECUTION_LABEL: ${{ github.head_ref }}
+          RUNDIFF_EXECUTION_SHA: ${{ github.event.pull_request.head.sha }}
+          RUNDIFF_OUTPUT: /tmp/rundiff-candidate.json
         run: |
-          cd /tmp/plywo-candidate
-          DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/plywo_candidate \
-            bundle exec ruby "${GITHUB_WORKSPACE}/script/plywo_capture_subject.rb"
+          cd /tmp/rundiff-candidate
+          DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/rundiff_candidate \
+            bundle exec ruby "${GITHUB_WORKSPACE}/script/rundiff_capture_subject.rb"
 
       - name: Compare real Git subjects
         if: github.event_name == 'pull_request'
         env:
-          PLYWO_BASELINE_INPUT: /tmp/plywo-base.json
-          PLYWO_CANDIDATE_INPUT: /tmp/plywo-candidate.json
-          PLYWO_CHANGED_PATHS: /tmp/plywo-changed-paths.txt
-          PLYWO_OUTPUT: tmp/plywo-git-comparison.json
-        run: bin/rails plywo:compare_executions
+          RUNDIFF_BASELINE_INPUT: /tmp/rundiff-base.json
+          RUNDIFF_CANDIDATE_INPUT: /tmp/rundiff-candidate.json
+          RUNDIFF_CHANGED_PATHS: /tmp/rundiff-changed-paths.txt
+          RUNDIFF_OUTPUT: tmp/rundiff-git-comparison.json
+        run: bin/rails rundiff:compare_executions
 
-      - name: Publish Plywo GitHub check
+      - name: Publish RunDiff GitHub check
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PLYWO_INPUT: tmp/plywo-git-comparison.json
-          PLYWO_PUBLISH: "1"
-          PLYWO_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
-          PLYWO_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bin/rails plywo:github_check
+          RUNDIFF_INPUT: tmp/rundiff-git-comparison.json
+          RUNDIFF_PUBLISH: "1"
+          RUNDIFF_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          RUNDIFF_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bin/rails rundiff:github_check
 
-      - name: Publish Plywo GitHub feedback
+      - name: Publish RunDiff GitHub feedback
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PLYWO_INPUT: tmp/plywo-git-comparison.json
-          PLYWO_PUBLISH: "1"
-          PLYWO_COMMENT_AUTHOR: github-actions[bot]
-          PLYWO_BASELINE_LABEL: ${{ github.base_ref }}
-          PLYWO_BASELINE_SHA: ${{ github.event.pull_request.base.sha }}
-          PLYWO_CANDIDATE_LABEL: ${{ github.head_ref }}
-          PLYWO_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
-          PLYWO_EXECUTION_MODE: exact Git worktrees + isolated PostgreSQL + Solid Queue databases
-          PLYWO_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bin/rails plywo:github_comment
+          RUNDIFF_INPUT: tmp/rundiff-git-comparison.json
+          RUNDIFF_PUBLISH: "1"
+          RUNDIFF_COMMENT_AUTHOR: github-actions[bot]
+          RUNDIFF_BASELINE_LABEL: ${{ github.base_ref }}
+          RUNDIFF_BASELINE_SHA: ${{ github.event.pull_request.base.sha }}
+          RUNDIFF_CANDIDATE_LABEL: ${{ github.head_ref }}
+          RUNDIFF_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          RUNDIFF_EXECUTION_MODE: exact Git worktrees + isolated PostgreSQL + Solid Queue databases
+          RUNDIFF_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bin/rails rundiff:github_comment
 
       - name: Demo portable behavioral diff
         run: |
-          bin/plywo diff \
+          bin/rundiff diff \
             --baseline examples/behavioral-diff/main.json \
             --candidate examples/behavioral-diff/candidate.json \
-            --format json > /tmp/plywo-result.json
-          cat /tmp/plywo-result.json
+            --format json > /tmp/rundiff-result.json
+          cat /tmp/rundiff-result.json
 
       - name: Brakeman
         run: bundle exec brakeman --no-pager
@@ -197,20 +197,20 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: plywo_executor_ci
+          POSTGRES_DB: rundiff_executor_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d plywo_executor_ci"
+          --health-cmd "pg_isready -U postgres -d rundiff_executor_ci"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     env:
-      PLYWO_IMAGE: plywo-ci:${{ github.sha }}
-      EXECUTOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/plywo_executor_ci
-      PLYWO_EXECUTOR_SERVICE_TOKEN: ci-executor-service-token
-      PLYWO_PROOF_EXECUTION_ID: github-topology-${{ github.run_id }}-${{ github.run_attempt }}
+      RUNDIFF_IMAGE: rundiff-ci:${{ github.sha }}
+      EXECUTOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_executor_ci
+      RUNDIFF_EXECUTOR_SERVICE_TOKEN: ci-executor-service-token
+      RUNDIFF_PROOF_EXECUTION_ID: github-topology-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - uses: actions/checkout@v4
@@ -218,7 +218,7 @@ jobs:
           fetch-depth: 0
 
       - name: Build deployable image
-        run: docker build -t "$PLYWO_IMAGE" .
+        run: docker build -t "$RUNDIFF_IMAGE" .
 
       - name: Prepare executor database
         run: |
@@ -227,64 +227,64 @@ jobs:
             -e RAILS_ENV=production \
             -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
             -e SOLID_QUEUE_DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e PLYWO_RUNTIME_ROLE=executor_service \
-            -e PLYWO_EXECUTOR_SERVICE_TOKEN="$PLYWO_EXECUTOR_SERVICE_TOKEN" \
-            -e PLYWO_EXECUTOR_SERVICE_ADAPTER=git_clone \
-            "$PLYWO_IMAGE" bin/rails db:prepare
+            -e RUNDIFF_RUNTIME_ROLE=executor_service \
+            -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
+            -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
+            "$RUNDIFF_IMAGE" bin/rails db:prepare
 
       - name: Start production executor service
         run: |
-          docker run -d --name plywo-executor --network host \
+          docker run -d --name rundiff-executor --network host \
             -e SECRET_KEY_BASE_DUMMY=1 \
             -e RAILS_ENV=production \
             -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
             -e SOLID_QUEUE_DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e PLYWO_RUNTIME_ROLE=executor_service \
-            -e PLYWO_EXECUTOR_SERVICE_TOKEN="$PLYWO_EXECUTOR_SERVICE_TOKEN" \
-            -e PLYWO_EXECUTOR_SERVICE_ADAPTER=git_clone \
-            -e PLYWO_LOCAL_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:5432 \
-            "$PLYWO_IMAGE" bin/rails server -b 0.0.0.0 -p 4010
+            -e RUNDIFF_RUNTIME_ROLE=executor_service \
+            -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
+            -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
+            -e RUNDIFF_LOCAL_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:5432 \
+            "$RUNDIFF_IMAGE" bin/rails server -b 0.0.0.0 -p 4010
 
       - name: Verify executor readiness and secret isolation
         run: |
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:4010/ready > /tmp/plywo-executor-ready.json; then
+            if curl --fail --silent http://127.0.0.1:4010/ready > /tmp/rundiff-executor-ready.json; then
               break
             fi
             if [ "$attempt" -eq 60 ]; then
-              docker logs plywo-executor
+              docker logs rundiff-executor
               exit 1
             fi
             sleep 1
           done
-          cat /tmp/plywo-executor-ready.json
-          docker exec plywo-executor sh -lc '
-            test -z "${PLYWO_GITHUB_PRIVATE_KEY_PATH:-}" &&
-            test -z "${PLYWO_GITHUB_WEBHOOK_SECRET:-}" &&
-            test -z "${PLYWO_GITHUB_APP_ID:-}" &&
-            test -z "${PLYWO_REMOTE_EXECUTOR_URL:-}" &&
-            test -z "${PLYWO_REMOTE_EXECUTOR_TOKEN:-}"
+          cat /tmp/rundiff-executor-ready.json
+          docker exec rundiff-executor sh -lc '
+            test -z "${RUNDIFF_GITHUB_PRIVATE_KEY_PATH:-}" &&
+            test -z "${RUNDIFF_GITHUB_WEBHOOK_SECRET:-}" &&
+            test -z "${RUNDIFF_GITHUB_APP_ID:-}" &&
+            test -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" &&
+            test -z "${RUNDIFF_REMOTE_EXECUTOR_TOKEN:-}"
           '
 
       - name: Dispatch Request v1 from separate control-plane client
         env:
-          PLYWO_PROOF_REPOSITORY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUNDIFF_PROOF_REPOSITORY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           docker run --rm --network host \
             -e SECRET_KEY_BASE_DUMMY=1 \
             -e RAILS_ENV=production \
             -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e PLYWO_REMOTE_EXECUTOR_URL=http://127.0.0.1:4010/v1/executions \
-            -e PLYWO_REMOTE_EXECUTOR_TOKEN="$PLYWO_EXECUTOR_SERVICE_TOKEN" \
-            -e PLYWO_PROOF_REPOSITORY_TOKEN="$PLYWO_PROOF_REPOSITORY_TOKEN" \
-            -e PLYWO_PROOF_EXECUTION_ID="$PLYWO_PROOF_EXECUTION_ID" \
-            -e PLYWO_PROOF_REPOSITORY="${{ github.repository }}" \
-            -e PLYWO_PROOF_PULL_REQUEST_NUMBER="${{ github.event.pull_request.number }}" \
-            -e PLYWO_PROOF_BASELINE_REF="${{ github.base_ref }}" \
-            -e PLYWO_PROOF_CANDIDATE_REF="${{ github.head_ref }}" \
-            -e PLYWO_PROOF_BASELINE_SHA="${{ github.event.pull_request.base.sha }}" \
-            -e PLYWO_PROOF_CANDIDATE_SHA="${{ github.event.pull_request.head.sha }}" \
-            "$PLYWO_IMAGE" ruby script/prove_remote_executor_topology.rb
+            -e RUNDIFF_REMOTE_EXECUTOR_URL=http://127.0.0.1:4010/v1/executions \
+            -e RUNDIFF_REMOTE_EXECUTOR_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
+            -e RUNDIFF_PROOF_REPOSITORY_TOKEN="$RUNDIFF_PROOF_REPOSITORY_TOKEN" \
+            -e RUNDIFF_PROOF_EXECUTION_ID="$RUNDIFF_PROOF_EXECUTION_ID" \
+            -e RUNDIFF_PROOF_REPOSITORY="${{ github.repository }}" \
+            -e RUNDIFF_PROOF_PULL_REQUEST_NUMBER="${{ github.event.pull_request.number }}" \
+            -e RUNDIFF_PROOF_BASELINE_REF="${{ github.base_ref }}" \
+            -e RUNDIFF_PROOF_CANDIDATE_REF="${{ github.head_ref }}" \
+            -e RUNDIFF_PROOF_BASELINE_SHA="${{ github.event.pull_request.base.sha }}" \
+            -e RUNDIFF_PROOF_CANDIDATE_SHA="${{ github.event.pull_request.head.sha }}" \
+            "$RUNDIFF_IMAGE" ruby script/prove_remote_executor_topology.rb
 
       - name: Verify repository capability was not persisted
         env:
@@ -295,13 +295,13 @@ jobs:
             -e RAILS_ENV=production \
             -e DATABASE_URL="$EXECUTOR_DATABASE_URL" \
             -e SOLID_QUEUE_DATABASE_URL="$EXECUTOR_DATABASE_URL" \
-            -e PLYWO_RUNTIME_ROLE=executor_service \
-            -e PLYWO_EXECUTOR_SERVICE_TOKEN="$PLYWO_EXECUTOR_SERVICE_TOKEN" \
-            -e PLYWO_EXECUTOR_SERVICE_ADAPTER=git_clone \
-            -e PLYWO_PROOF_EXECUTION_ID="$PLYWO_PROOF_EXECUTION_ID" \
+            -e RUNDIFF_RUNTIME_ROLE=executor_service \
+            -e RUNDIFF_EXECUTOR_SERVICE_TOKEN="$RUNDIFF_EXECUTOR_SERVICE_TOKEN" \
+            -e RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone \
+            -e RUNDIFF_PROOF_EXECUTION_ID="$RUNDIFF_PROOF_EXECUTION_ID" \
             -e EXPECTED_REPOSITORY_TOKEN="$EXPECTED_REPOSITORY_TOKEN" \
-            "$PLYWO_IMAGE" bin/rails runner '
-              record = PlywoExecutorRequest.find_by!(idempotency_key: "#{ENV.fetch("PLYWO_PROOF_EXECUTION_ID")}:1")
+            "$RUNDIFF_IMAGE" bin/rails runner '
+              record = RunDiffExecutorRequest.find_by!(idempotency_key: "#{ENV.fetch("RUNDIFF_PROOF_EXECUTION_ID")}:1")
               raise "Executor request did not complete" unless record.status == "completed"
               serialized = record.attributes.to_json
               raise "Repository capability leaked into executor ledger" if serialized.include?(ENV.fetch("EXPECTED_REPOSITORY_TOKEN"))
@@ -311,8 +311,8 @@ jobs:
 
       - name: Executor logs
         if: always()
-        run: docker logs plywo-executor || true
+        run: docker logs rundiff-executor || true
 
       - name: Stop executor service
         if: always()
-        run: docker rm -f plywo-executor || true
+        run: docker rm -f rundiff-executor || true
