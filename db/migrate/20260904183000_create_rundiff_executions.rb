@@ -1,6 +1,6 @@
-class CreatePlywoExecutions < ActiveRecord::Migration[8.1]
+class CreateRunDiffExecutions < ActiveRecord::Migration[8.1]
   def change
-    create_table :plywo_executions do |t|
+    create_table :rundiff_executions do |t|
       t.string :execution_id, null: false
       t.string :source, null: false
       t.string :scenario_id, null: false
@@ -16,7 +16,7 @@ class CreatePlywoExecutions < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :plywo_executions, :execution_id, unique: true
-    add_index :plywo_executions, :status
+    add_index :rundiff_executions, :execution_id, unique: true
+    add_index :rundiff_executions, :status
   end
 end

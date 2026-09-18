@@ -1,6 +1,6 @@
-class CreatePlywoExecutorRequests < ActiveRecord::Migration[8.1]
+class CreateRunDiffExecutorRequests < ActiveRecord::Migration[8.1]
   def change
-    create_table :plywo_executor_requests do |t|
+    create_table :rundiff_executor_requests do |t|
       t.string :idempotency_key, null: false
       t.string :request_digest, null: false
       t.string :status, null: false, default: "processing"
@@ -13,7 +13,7 @@ class CreatePlywoExecutorRequests < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :plywo_executor_requests, :idempotency_key, unique: true
-    add_index :plywo_executor_requests, [ :status, :lease_expires_at ]
+    add_index :rundiff_executor_requests, :idempotency_key, unique: true
+    add_index :rundiff_executor_requests, [ :status, :lease_expires_at ]
   end
 end

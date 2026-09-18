@@ -1,6 +1,6 @@
-class CreatePlywoEvidenceEvents < ActiveRecord::Migration[8.1]
+class CreateRunDiffEvidenceEvents < ActiveRecord::Migration[8.1]
   def change
-    create_table :plywo_evidence_events do |t|
+    create_table :rundiff_evidence_events do |t|
       t.string :execution_id, null: false
       t.string :run_id
       t.string :subject
@@ -17,7 +17,7 @@ class CreatePlywoEvidenceEvents < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :plywo_evidence_events, :execution_id
-    add_index :plywo_evidence_events, %i[execution_id signal]
+    add_index :rundiff_evidence_events, :execution_id
+    add_index :rundiff_evidence_events, %i[execution_id signal]
   end
 end
