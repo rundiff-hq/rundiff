@@ -38,9 +38,9 @@ class GithubPullRequestExecutionLeaseExpiryJobTest < ActiveJob::TestCase
     execution.reload
     assert_equal "failed", execution.status
     assert_equal "infra_failure", execution.outcome
-    assert_match(/Plywo::Executor::LeaseExpired/, execution.failure)
+    assert_match(/RunDiff::Executor::LeaseExpired/, execution.failure)
     assert execution.rerunnable?
-    assert_equal [ "Plywo::Executor::LeaseExpired" ], publisher.failure_classes
+    assert_equal [ "RunDiff::Executor::LeaseExpired" ], publisher.failure_classes
   end
 
   test "expires an overdue finalizing execution" do
@@ -59,7 +59,7 @@ class GithubPullRequestExecutionLeaseExpiryJobTest < ActiveJob::TestCase
     execution.reload
     assert_equal "failed", execution.status
     assert_equal "infra_failure", execution.outcome
-    assert_equal [ "Plywo::Executor::LeaseExpired" ], publisher.failure_classes
+    assert_equal [ "RunDiff::Executor::LeaseExpired" ], publisher.failure_classes
   end
 
   test "does nothing when the lease was renewed before expiry finalization" do
@@ -110,7 +110,7 @@ class GithubPullRequestExecutionLeaseExpiryJobTest < ActiveJob::TestCase
     )
 
     assert_equal "failed", execution.reload.status
-    assert_equal [ "Plywo::Executor::LeaseExpired" ], publisher.failure_classes
+    assert_equal [ "RunDiff::Executor::LeaseExpired" ], publisher.failure_classes
   end
 
   private
@@ -124,14 +124,14 @@ class GithubPullRequestExecutionLeaseExpiryJobTest < ActiveJob::TestCase
   end
 
   def running_execution(now:, lease_seconds:)
-    execution = PlywoExecution.create!(
+    execution = RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",
       baseline_sha: "base-sha",
       candidate_sha: "head-sha",
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 38,
         "installation_id" => 123
       }
@@ -154,7 +154,7 @@ class GithubPullRequestExecutionLeaseExpiryJobTest < ActiveJob::TestCase
   def client_for(pull_request)
     Object.new.tap do |client|
       client.define_singleton_method(:fetch) do |repository:, number:|
-        raise "unexpected repository" unless repository == "plywo/plywo"
+        raise "unexpected repository" unless repository == "rundiff/rundiff"
         raise "unexpected pull request" unless number == 38
 
         pull_request
@@ -163,7 +163,7 @@ class GithubPullRequestExecutionLeaseExpiryJobTest < ActiveJob::TestCase
   end
 
   def fake_authentication
-    token = Plywo::Github::AppAuthentication::Token.new(
+    token = RunDiff::Github::AppAuthentication::Token.new(
       value: "installation-token",
       expires_at: Time.utc(2026, 9, 4, 21, 0, 0)
     )

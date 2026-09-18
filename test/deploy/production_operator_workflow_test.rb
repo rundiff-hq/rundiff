@@ -8,7 +8,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
   PRODUCTION = ROOT.join("deploy/production")
 
   test "initializes control-plane files without overwriting existing values" do
-    Dir.mktmpdir("plywo-production-init-") do |destination|
+    Dir.mktmpdir("rundiff-production-init-") do |destination|
       stdout, stderr, status = run_script("init-production-role", "control-plane", destination)
 
       assert status.success?, stderr
@@ -29,7 +29,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
   end
 
   test "initializes executor files" do
-    Dir.mktmpdir("plywo-production-init-") do |destination|
+    Dir.mktmpdir("rundiff-production-init-") do |destination|
       _stdout, stderr, status = run_script("init-production-role", "executor", destination)
 
       assert status.success?, stderr
@@ -41,7 +41,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
   end
 
   test "deploy action validates, pulls, starts, and shows status for the selected role" do
-    Dir.mktmpdir("plywo-production-deploy-") do |destination|
+    Dir.mktmpdir("rundiff-production-deploy-") do |destination|
       prepare_control_plane_deploy_dir(destination)
       fake_bin = File.join(destination, "fake-bin")
       log = File.join(destination, "docker.log")
@@ -58,7 +58,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
       env = {
         "PATH" => "#{fake_bin}:#{ENV.fetch("PATH")}",
         "DOCKER_LOG" => log,
-        "PLYWO_PRODUCTION_DEPLOY_DIR" => destination
+        "RUNDIFF_PRODUCTION_DEPLOY_DIR" => destination
       }
 
       _stdout, stderr, status = run_script("deploy-production-role", "control-plane", "deploy", env:)
@@ -74,15 +74,15 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
   end
 
   test "deploy action fails before Docker when a required env file is absent" do
-    Dir.mktmpdir("plywo-production-deploy-") do |destination|
+    Dir.mktmpdir("rundiff-production-deploy-") do |destination|
       FileUtils.cp(PRODUCTION.join("compose.executor.yml"), File.join(destination, "compose.executor.yml"))
-      File.write(File.join(destination, ".env"), "PLYWO_IMAGE_TAG=sha-test\n")
+      File.write(File.join(destination, ".env"), "RUNDIFF_IMAGE_TAG=sha-test\n")
 
       _stdout, stderr, status = run_script(
         "deploy-production-role",
         "executor",
         "deploy",
-        env: { "PLYWO_PRODUCTION_DEPLOY_DIR" => destination }
+        env: { "RUNDIFF_PRODUCTION_DEPLOY_DIR" => destination }
       )
 
       refute status.success?
@@ -92,7 +92,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
   end
 
   test "release helper dispatches on a Git ref but pins checkout to an exact commit sha" do
-    Dir.mktmpdir("plywo-production-release-") do |destination|
+    Dir.mktmpdir("rundiff-production-release-") do |destination|
       fake_bin = File.join(destination, "fake-bin")
       log = File.join(destination, "gh.log")
       sha = "a" * 40
@@ -120,9 +120,9 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
 
       assert status.success?, stderr
       calls = File.readlines(log, chomp: true)
-      assert_includes calls, "api repos/plywo/plywo/commits/main --jq .sha"
+      assert_includes calls, "api repos/rundiff/rundiff/commits/main --jq .sha"
       assert_includes calls,
-        "workflow run release-image.yml --repo plywo/plywo --ref main -f release_sha=#{sha}"
+        "workflow run release-image.yml --repo rundiff/rundiff --ref main -f release_sha=#{sha}"
       assert_includes stdout, "image tag:  sha-#{sha}"
     end
   end
@@ -147,7 +147,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
 
   def prepare_control_plane_deploy_dir(destination)
     FileUtils.cp(PRODUCTION.join("compose.control-plane.yml"), File.join(destination, "compose.control-plane.yml"))
-    File.write(File.join(destination, ".env"), "PLYWO_IMAGE_TAG=sha-test\nPLYWO_CLOUDFLARED_IMAGE=cloudflared@test\n")
+    File.write(File.join(destination, ".env"), "RUNDIFF_IMAGE_TAG=sha-test\nRUNDIFF_CLOUDFLARED_IMAGE=cloudflared@test\n")
     File.write(File.join(destination, ".env.control-plane"), "RAILS_ENV=production\n")
     File.write(File.join(destination, ".env.control-plane.tunnel"), "TUNNEL_TOKEN=test\n")
   end

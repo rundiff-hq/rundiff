@@ -78,7 +78,7 @@ class GithubPullRequestExecutionHeartbeatJobTest < ActiveJob::TestCase
   private
 
   def create_running_execution(now:)
-    execution = PlywoExecution.create!(
+    execution = RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(32)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",

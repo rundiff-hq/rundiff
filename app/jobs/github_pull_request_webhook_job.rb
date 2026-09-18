@@ -16,7 +16,7 @@ class GithubPullRequestWebhookJob < ApplicationJob
     if current_head_sha != delivery.head_sha
       delivery.ignore!("stale_head")
       Rails.logger.info(
-        "Plywo GitHub delivery ignored delivery=#{delivery.delivery_id.inspect} reason=stale_head " \
+        "RunDiff GitHub delivery ignored delivery=#{delivery.delivery_id.inspect} reason=stale_head " \
         "expected_head_sha=#{delivery.head_sha.inspect} current_head_sha=#{current_head_sha.inspect}"
       )
       return
@@ -25,7 +25,7 @@ class GithubPullRequestWebhookJob < ApplicationJob
     unless delivery.runnable_pull_request?
       delivery.ignore!("action_not_execution_trigger")
       Rails.logger.info(
-        "Plywo GitHub App authenticated delivery=#{delivery.delivery_id.inspect} " \
+        "RunDiff GitHub App authenticated delivery=#{delivery.delivery_id.inspect} " \
         "repository=#{delivery.repository.inspect} pr=#{delivery.pull_request_number.inspect} " \
         "action=#{delivery.action.inspect} token_expires_at=#{token.expires_at.iso8601.inspect} execution=ignored"
       )
@@ -37,7 +37,7 @@ class GithubPullRequestWebhookJob < ApplicationJob
 
     delivery.complete!
     Rails.logger.info(
-      "Plywo GitHub App authenticated delivery=#{delivery.delivery_id.inspect} " \
+      "RunDiff GitHub App authenticated delivery=#{delivery.delivery_id.inspect} " \
       "repository=#{delivery.repository.inspect} pr=#{delivery.pull_request_number.inspect} " \
       "head_sha=#{delivery.head_sha.inspect} installation_id=#{delivery.installation_id.inspect} " \
       "token_expires_at=#{token.expires_at.iso8601.inspect} execution_id=#{execution.execution_id.inspect} " \
@@ -51,15 +51,15 @@ class GithubPullRequestWebhookJob < ApplicationJob
   private
 
   def app_authentication
-    Plywo::Github::AppAuthentication.from_env(root: ::Rails.root)
+    RunDiff::Github::AppAuthentication.from_env(root: ::Rails.root)
   end
 
   def pull_request_client(token:)
-    Plywo::Github::PullRequestClient.new(token:)
+    RunDiff::Github::PullRequestClient.new(token:)
   end
 
   def execution_dispatcher
-    Plywo::Github::ExecutionDispatcher.new
+    RunDiff::Github::ExecutionDispatcher.new
   end
 
   def execution_job_class

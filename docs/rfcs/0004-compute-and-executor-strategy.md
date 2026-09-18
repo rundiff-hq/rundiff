@@ -6,18 +6,18 @@ Draft.
 
 ## Context
 
-Plywo compares software behavior between a baseline and one or more candidates. The product therefore needs real execution compute, not only static repository analysis.
+RunDiff compares software behavior between a baseline and one or more candidates. The product therefore needs real execution compute, not only static repository analysis.
 
-The current Plywo repository uses GitHub Actions heavily for its own CI and dogfood proofs. That must not be confused with the desired hosted customer architecture. The production runtime already separates the GitHub-facing control plane from an isolated executor service through portable Request v1 / Result v1 contracts.
+The current RunDiff repository uses GitHub Actions heavily for its own CI and dogfood proofs. That must not be confused with the desired hosted customer architecture. The production runtime already separates the GitHub-facing control plane from an isolated executor service through portable Request v1 / Result v1 contracts.
 
 This RFC records the product and infrastructure implications of that split.
 
 ## Decision summary
 
-1. Hosted Plywo should use Plywo-managed compute by default.
-2. Installing Plywo should not require customers to double their GitHub Actions usage.
+1. Hosted RunDiff should use RunDiff-managed compute by default.
+2. Installing RunDiff should not require customers to double their GitHub Actions usage.
 3. GitHub Actions, Blacksmith-backed Actions, and customer self-hosted infrastructure should remain possible executor providers, especially for BYOC/enterprise use cases.
-4. Plywo must not implement a naive `CI x 2` or `CI x 3` execution model.
+4. RunDiff must not implement a naive `CI x 2` or `CI x 3` execution model.
 5. Only checks whose meaning depends on behavioral comparison should run A/B by default.
 6. Existing candidate CI evidence should be reused when identity and evidence contracts make reuse safe.
 7. Baseline execution should be reusable where scenario, environment, dependency and commit identity permit it.
@@ -27,9 +27,9 @@ This RFC records the product and infrastructure implications of that split.
 
 ## Two different compute planes
 
-### Plywo repository CI
+### RunDiff repository CI
 
-Today `plywo/plywo` runs tests, linting, security checks, dogfood flows and remote-executor topology proofs on GitHub Actions. This validates Plywo itself.
+Today `rundiff-hq/rundiff` runs tests, linting, security checks, dogfood flows and remote-executor topology proofs on GitHub Actions. This validates RunDiff itself.
 
 That does not define the customer product contract.
 
@@ -39,7 +39,7 @@ The intended hosted flow is:
 
 ```text
 GitHub
-  -> Plywo control plane
+  -> RunDiff control plane
        -> durable execution
        -> execution provider
             -> exact baseline/candidate subjects
@@ -57,12 +57,12 @@ The control plane should not execute customer repositories locally in production
 
 A simple integration could install a workflow into the customer repository and execute both baseline and candidate on GitHub-hosted runners. That is attractive operationally but creates poor default economics and product coupling.
 
-If a customer already executes the candidate in normal CI, a naive Plywo workflow can produce:
+If a customer already executes the candidate in normal CI, a naive RunDiff workflow can produce:
 
 ```text
 existing candidate CI      = 1x
-Plywo baseline             = +1x
-Plywo candidate again      = +1x
+RunDiff baseline             = +1x
+RunDiff candidate again      = +1x
 --------------------------------
 possible total             = 3x
 ```
@@ -71,12 +71,12 @@ Even a better implementation that reuses the candidate but adds a baseline can a
 
 ```text
 existing candidate CI      = 1x
-Plywo baseline             = +1x
+RunDiff baseline             = +1x
 --------------------------------
 comparison-related total   = 2x
 ```
 
-The actual customer invoice depends on included Actions minutes, runner class and plan, but the architectural point remains: Plywo should not make increased customer CI spend a prerequisite for adoption.
+The actual customer invoice depends on included Actions minutes, runner class and plan, but the architectural point remains: RunDiff should not make increased customer CI spend a prerequisite for adoption.
 
 ## Default hosted topology
 
@@ -84,7 +84,7 @@ The preferred hosted model is:
 
 ```text
                    +---------------------+
-GitHub webhook --->| Plywo control plane |
+GitHub webhook --->| RunDiff control plane |
                    | Rails + PostgreSQL  |
                    +----------+----------+
                               |
@@ -106,13 +106,13 @@ GitHub webhook --->| Plywo control plane |
                            R2/S3
 ```
 
-Customer code runs in an isolated executor environment owned by the selected execution provider. For `plywo_cloud`, Plywo owns that compute and recovers the cost through product pricing.
+Customer code runs in an isolated executor environment owned by the selected execution provider. For `rundiff_cloud`, RunDiff owns that compute and recovers the cost through product pricing.
 
 The product onboarding remains:
 
 ```text
 Install GitHub App
-add minimal plywo.yml
+add minimal rundiff.yml
 open/update PR
 ```
 
@@ -125,8 +125,8 @@ The existing Request v1 / Result v1 boundary should remain infrastructure-neutra
 Future provider families may include:
 
 ```text
-plywo_cloud
-  -> Plywo-managed VM/container pool
+rundiff_cloud
+  -> RunDiff-managed VM/container pool
 
 github_actions
   -> customer GitHub-hosted or configured Actions runner
@@ -144,7 +144,7 @@ Illustrative future configuration only:
 
 ```yaml
 executor:
-  provider: plywo_cloud
+  provider: rundiff_cloud
 ```
 
 This is not yet a committed configuration contract.
@@ -153,10 +153,10 @@ This is not yet a committed configuration contract.
 
 Blacksmith is a valid future execution provider or BYOC path because it is compatible with GitHub Actions and can provide faster/cheaper runner infrastructure than standard GitHub-hosted runners for some workloads.
 
-It should not become the architectural foundation of hosted Plywo. Otherwise the stack becomes:
+It should not become the architectural foundation of hosted RunDiff. Otherwise the stack becomes:
 
 ```text
-Plywo scheduler
+RunDiff scheduler
   -> GitHub Actions scheduler
        -> Blacksmith scheduler
             -> VM
@@ -165,7 +165,7 @@ Plywo scheduler
 instead of the simpler hosted path:
 
 ```text
-Plywo scheduler
+RunDiff scheduler
   -> executor
 ```
 
@@ -173,15 +173,15 @@ Blacksmith remains valuable for customers who already use it or explicitly want 
 
 ## GitHub self-hosted runners
 
-Customer or Plywo-owned self-hosted runners are also viable execution targets. They avoid GitHub-hosted runner-minute billing and preserve familiar Actions orchestration.
+Customer or RunDiff-owned self-hosted runners are also viable execution targets. They avoid GitHub-hosted runner-minute billing and preserve familiar Actions orchestration.
 
-However, Plywo already has its own durable execution lifecycle, cancellation, leases, Request v1 and Result v1. Therefore GitHub Actions is not required as an intermediary for Plywo-managed execution.
+However, RunDiff already has its own durable execution lifecycle, cancellation, leases, Request v1 and Result v1. Therefore GitHub Actions is not required as an intermediary for RunDiff-managed execution.
 
-A direct executor is simpler when Plywo owns the compute.
+A direct executor is simpler when RunDiff owns the compute.
 
 ## Do not run everything A/B
 
-Plywo is not `CI x 2`.
+RunDiff is not `CI x 2`.
 
 Checks should be classified by semantics.
 
@@ -217,7 +217,7 @@ The execution planner should make this classification explicit.
 
 ## Candidate result reuse
 
-If the customer already executed an equivalent candidate check in CI, Plywo should eventually be able to consume/import that evidence rather than rerunning it.
+If the customer already executed an equivalent candidate check in CI, RunDiff should eventually be able to consume/import that evidence rather than rerunning it.
 
 Reuse is allowed only when identity is strong enough, including at least:
 
@@ -245,7 +245,7 @@ fixture/database identity
 relevant secrets/emulator profile
 ```
 
-Invalidation must be explicit. Plywo must never silently reuse a baseline captured under an incompatible environment.
+Invalidation must be explicit. RunDiff must never silently reuse a baseline captured under an incompatible environment.
 
 ## Runtime evidence and eBPF
 
@@ -269,9 +269,9 @@ Deeper evidence may require a controlled host:
 - scheduler/kernel latency
 - low-level container/process profiling
 
-Generic GitHub-hosted or third-party runners may change kernel versions, capabilities, sandbox policies or privileges. Plywo should therefore capability-detect these features and record evidence provenance rather than assume that all providers support the same low-level instrumentation.
+Generic GitHub-hosted or third-party runners may change kernel versions, capabilities, sandbox policies or privileges. RunDiff should therefore capability-detect these features and record evidence provenance rather than assume that all providers support the same low-level instrumentation.
 
-Deep runtime evidence is a strong reason to maintain a Plywo-controlled executor option.
+Deep runtime evidence is a strong reason to maintain a RunDiff-controlled executor option.
 
 ## Isolation model
 
@@ -301,10 +301,10 @@ The important distinction is:
 ```text
 customer GitHub bill
 !=
-Plywo infrastructure cost
+RunDiff infrastructure cost
 ```
 
-For hosted `plywo_cloud`, the customer should normally pay a Plywo subscription/usage price while Plywo pays executor compute.
+For hosted `rundiff_cloud`, the customer should normally pay a RunDiff subscription/usage price while RunDiff pays executor compute.
 
 The current working hypothesis is that many Behavioral Reviews will have infrastructure costs measured in cents, while heavy browser/runtime/profiling workloads may cost materially more. This is not yet a pricing fact.
 
@@ -323,17 +323,17 @@ Real cost depends on:
 - retries/failures
 - idle capacity and scheduling model
 
-Before commercial pricing is finalized, Plywo must benchmark representative repositories across multiple providers and collect per-execution usage telemetry.
+Before commercial pricing is finalized, RunDiff must benchmark representative repositories across multiple providers and collect per-execution usage telemetry.
 
 ## Provider price snapshots are not architecture
 
 Public prices for GitHub-hosted runners, Blacksmith, Hetzner or any other cloud are transient. They may be useful to choose an initial implementation, but must not become durable assumptions in product contracts.
 
-A cheap general-purpose VM provider is an attractive first `plywo_cloud` prototype because raw VM economics can be much lower than per-minute hosted CI. Hetzner-class infrastructure is a candidate for benchmarking, not a permanent architectural dependency.
+A cheap general-purpose VM provider is an attractive first `rundiff_cloud` prototype because raw VM economics can be much lower than per-minute hosted CI. Hetzner-class infrastructure is a candidate for benchmarking, not a permanent architectural dependency.
 
 ## Usage metering
 
-Plywo should record operational usage metadata outside the portable behavioral result contract:
+RunDiff should record operational usage metadata outside the portable behavioral result contract:
 
 - provider
 - runner/machine class
@@ -369,7 +369,7 @@ The hosted product should not simply pass runner-minute cost through to customer
 A likely product shape is:
 
 ```text
-Plywo plan
+RunDiff plan
   -> included Behavioral Reviews / usage allowance
   -> managed compute included by default
   -> optional higher-cost/deeper evidence tiers
@@ -398,7 +398,7 @@ An LLM must not be required to decide whether deterministic evidence changed. Th
 ### Positive
 
 - default onboarding does not force higher customer GitHub Actions spend
-- hosted unit economics remain under Plywo's control
+- hosted unit economics remain under RunDiff's control
 - stronger tenant isolation is possible
 - deep runtime/eBPF capabilities can be supported on controlled hosts
 - enterprise customers can still bring compute
@@ -407,7 +407,7 @@ An LLM must not be required to decide whether deterministic evidence changed. Th
 
 ### Costs
 
-- Plywo must operate execution infrastructure
+- RunDiff must operate execution infrastructure
 - sandboxing and tenant isolation become first-class responsibilities
 - capacity planning and queueing become product concerns
 - usage metering and cleanup guarantees are required
@@ -415,12 +415,12 @@ An LLM must not be required to decide whether deterministic evidence changed. Th
 
 ## Open questions
 
-1. What is the first `plywo_cloud` isolation primitive: container, VM, microVM, or warm worker pool?
+1. What is the first `rundiff_cloud` isolation primitive: container, VM, microVM, or warm worker pool?
 2. What bootstrap contract is safe enough for arbitrary customer Rails applications?
 3. What exact identity is required for importing existing candidate CI evidence?
 4. What baseline cache invalidation contract is sufficient?
 5. Which eBPF features are worth making a hosted differentiator?
-6. Should provider choice live only in account policy or also in `plywo.yml`?
+6. Should provider choice live only in account policy or also in `rundiff.yml`?
 7. What usage dimensions should drive paid plans?
 8. What minimum runner capability contract should every provider expose?
 

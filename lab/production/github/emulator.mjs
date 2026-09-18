@@ -2,10 +2,10 @@ import fs from "node:fs";
 import process from "node:process";
 import { createEmulator } from "emulate";
 
-const webhookSecret = process.env.LAB_GITHUB_WEBHOOK_SECRET ?? "plywo-production-lab-webhook-secret";
+const webhookSecret = process.env.LAB_GITHUB_WEBHOOK_SECRET ?? "rundiff-production-lab-webhook-secret";
 const appId = Number(process.env.LAB_GITHUB_APP_ID ?? "12345");
 const installationId = Number(process.env.LAB_GITHUB_INSTALLATION_ID ?? "100");
-const stateRoot = process.env.PLYWO_LAB_STATE_ROOT ?? "/lab-state";
+const stateRoot = process.env.RUNDIFF_LAB_STATE_ROOT ?? "/lab-state";
 
 fs.mkdirSync(stateRoot, { recursive: true });
 
@@ -20,8 +20,8 @@ const seed = {
     users: [
       {
         login: "admin",
-        name: "Plywo Lab Admin",
-        email: "production-lab@plywo.local",
+        name: "RunDiff Lab Admin",
+        email: "production-lab@rundiff.local",
       },
     ],
     repos: [
@@ -41,8 +41,8 @@ const seed = {
     apps: [
       {
         app_id: appId,
-        slug: "plywo-lab",
-        name: "Plywo Lab",
+        slug: "rundiff-lab",
+        name: "RunDiff Lab",
         permissions: {
           contents: "read",
           checks: "write",

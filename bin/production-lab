@@ -22,7 +22,7 @@ dump_failure_state() {
         failure: delivery.failure&.gsub(/Bearer\s+\S+/i, "Bearer [REDACTED]")
       }
     end
-    executions = PlywoExecution.order(:id).map do |execution|
+    executions = RunDiffExecution.order(:id).map do |execution|
       {
         execution_id: execution.execution_id,
         status: execution.status,
@@ -50,7 +50,7 @@ dump_failure_state() {
   echo "=== production lab application log ===" >&2
   "${COMPOSE[@]}" exec -T control-plane sh -lc '
     if [ -f log/production.log ]; then
-      grep -E "Plywo|GithubPullRequest|GithubWebhook|SolidQueue|ERROR|Error|exception|Exception" log/production.log | tail -n 240
+      grep -E "RunDiff|RunDiff|GithubPullRequest|GithubWebhook|SolidQueue|ERROR|Error|exception|Exception" log/production.log | tail -n 240
     fi
   ' || true
 }
@@ -88,21 +88,21 @@ if [[ "$driver_exit" != "0" ]]; then
 fi
 
 "${COMPOSE[@]}" exec -T executor sh -lc '
-  test -z "${PLYWO_GITHUB_PRIVATE_KEY_PATH:-}" &&
-  test -z "${PLYWO_GITHUB_WEBHOOK_SECRET:-}" &&
-  test -z "${PLYWO_GITHUB_APP_ID:-}" &&
-  test -z "${PLYWO_REMOTE_EXECUTOR_URL:-}" &&
-  test -z "${PLYWO_REMOTE_EXECUTOR_TOKEN:-}" &&
-  test -z "${PLYWO_EXECUTOR:-}"
+  test -z "${RUNDIFF_GITHUB_PRIVATE_KEY_PATH:-}" &&
+  test -z "${RUNDIFF_GITHUB_WEBHOOK_SECRET:-}" &&
+  test -z "${RUNDIFF_GITHUB_APP_ID:-}" &&
+  test -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" &&
+  test -z "${RUNDIFF_REMOTE_EXECUTOR_TOKEN:-}" &&
+  test -z "${RUNDIFF_EXECUTOR:-}"
 '
 
 "${COMPOSE[@]}" exec -T executor bin/rails runner '
-  records = PlywoExecutorRequest.all.to_a
+  records = RunDiffExecutorRequest.all.to_a
   raise "Expected at least two executor ledger records" if records.size < 2
   raise "Expected completed executor records" unless records.all? { |record| record.status == "completed" }
 
   serialized = records.map(&:attributes).to_json
-  forbidden = ["repository_capability", "x-access-token", "github-app.pem", "plywo-production-lab-webhook-secret"]
+  forbidden = ["repository_capability", "x-access-token", "github-app.pem", "rundiff-production-lab-webhook-secret"]
   leaked = forbidden.select { |value| serialized.include?(value) }
   raise "Repository capability or GitHub secret persisted in executor ledger: #{leaked.join(", ")}" unless leaked.empty?
 

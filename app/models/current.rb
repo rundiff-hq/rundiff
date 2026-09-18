@@ -1,3 +1,3 @@
 class Current < ActiveSupport::CurrentAttributes
-  attribute :plywo_execution_id, :plywo_run_id, :plywo_subject
+  attribute :rundiff_execution_id, :rundiff_run_id, :rundiff_subject
 end

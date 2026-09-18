@@ -13,8 +13,8 @@ Rails.application.configure do
   # Quick Cloudflare tunnels use a random *.trycloudflare.com hostname.
   config.hosts << /[a-z0-9-]+\.trycloudflare\.com/
 
-  if ENV["PLYWO_PUBLIC_URL"].present?
-    public_host = URI(ENV.fetch("PLYWO_PUBLIC_URL")).host
+  if ENV["RUNDIFF_PUBLIC_URL"].present?
+    public_host = URI(ENV.fetch("RUNDIFF_PUBLIC_URL")).host
     config.hosts << public_host if public_host
   end
 end

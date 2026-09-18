@@ -6,7 +6,7 @@ require "securerandom"
 require_relative "../config/environment"
 
 candidate_sha = ARGV.fetch(0) { `git rev-parse HEAD`.strip }
-template = PlywoExecution
+template = RunDiffExecution
   .where(source: "github_pull_request", candidate_sha:)
   .order(:id)
   .last
@@ -14,7 +14,7 @@ template = PlywoExecution
 abort "No GitHub App execution found for candidate #{candidate_sha}" unless template
 abort "GitHub installation context is missing" unless template.context["installation_id"]
 
-execution = PlywoExecution.create!(
+execution = RunDiffExecution.create!(
   execution_id: "clone-proof-#{SecureRandom.hex(16)}",
   source: "repository_clone_proof",
   scenario_id: template.scenario_id,
@@ -26,11 +26,11 @@ execution = PlywoExecution.create!(
 
 abort "Could not claim proof execution" unless execution.claim!
 
-request = Plywo::Executor::Request.from_execution(execution)
-capability = Plywo::Github::RepositoryCapabilityProvider.new(root: Rails.root).call(request:)
+request = RunDiff::Executor::Request.from_execution(execution)
+capability = RunDiff::Github::RepositoryCapabilityProvider.new(root: Rails.root).call(request:)
 abort "Repository capability was not minted" unless capability
 
-result = Plywo::Executor::GitCloneAdapter.new(root: Rails.root).call(
+result = RunDiff::Executor::GitCloneAdapter.new(root: Rails.root).call(
   request:,
   repository_capability: capability
 )

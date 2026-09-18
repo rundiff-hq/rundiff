@@ -1,6 +1,6 @@
 # Demo 0001: Behavioral Diff
 
-**The tests passed. Plywo found what got worse.**
+**The tests passed. RunDiff found what got worse.**
 
 Scenario:
 
@@ -12,11 +12,11 @@ The final product will run the exact same scenario against `main` and a PR. Both
 
 ## Current dogfood implementation
 
-For the first executable slice, Plywo runs two local-only Rails HTTP executions through its own middleware stack:
+For the first executable slice, RunDiff runs two local-only Rails HTTP executions through its own middleware stack:
 
 ```bash
 bin/rails db:prepare
-bin/rails plywo:dogfood
+bin/rails rundiff:dogfood
 ```
 
 Both executions return success. The candidate intentionally performs more work:
@@ -26,14 +26,14 @@ Both executions return success. The candidate intentionally performs more work:
 - a duplicate email side effect
 - longer request duration
 
-`Plywo::Rails::EvidenceCollector` subscribes to Rails instrumentation while `X-Plywo-Execution-Id` is active. The resulting measurements are passed to the portable `Plywo::BehavioralDiff` engine.
+`RunDiff::Rails::EvidenceCollector` subscribes to Rails instrumentation while `X-RunDiff-Execution-Id` is active. The resulting measurements are passed to the portable `RunDiff::BehavioralDiff` engine.
 
 This is deliberately not yet a fake PR checkout. The next slice replaces the demo subject switch with two real Git subjects/worktrees while keeping the evidence and result contracts unchanged.
 
 GitHub headline:
 
 ```text
-Plywo / Behavioral Diff
+RunDiff / Behavioral Diff
 Tests passed on both versions, but behavior changed.
 ```
 

@@ -2,8 +2,32 @@ name: Isolated Compose Provider Proof
 
 on:
   pull_request:
+    paths:
+      - "app/**"
+      - "config/**"
+      - "db/**"
+      - "lib/**"
+      - "script/prove_isolated_compose_provider.rb"
+      - "script/prove_subject_privilege_boundary.rb"
+      - "Dockerfile"
+      - "Dockerfile.compose-provider"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".github/workflows/isolated-compose-provider-proof.yml"
   push:
     branches: [main]
+    paths:
+      - "app/**"
+      - "config/**"
+      - "db/**"
+      - "lib/**"
+      - "script/prove_isolated_compose_provider.rb"
+      - "script/prove_subject_privilege_boundary.rb"
+      - "Dockerfile"
+      - "Dockerfile.compose-provider"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".github/workflows/isolated-compose-provider-proof.yml"
 
 permissions:
   contents: read
@@ -15,36 +39,37 @@ concurrency:
 jobs:
   isolated_compose_provider:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     env:
-      PLYWO_EXECUTOR_IMAGE: plywo-isolated-executor:${{ github.sha }}
-      PLYWO_PROVIDER_IMAGE: plywo-compose-provider:${{ github.sha }}
-      PLYWO_PROVIDER_VOLUME: plywo-provider-${{ github.run_id }}-${{ github.run_attempt }}
-      PLYWO_COMPOSE_PROVIDER_SOCKET: /run/plywo-provider/provider.sock
+      RUNDIFF_EXECUTOR_IMAGE: rundiff-isolated-executor:${{ github.sha }}
+      RUNDIFF_PROVIDER_IMAGE: rundiff-compose-provider:${{ github.sha }}
+      RUNDIFF_PROVIDER_VOLUME: rundiff-provider-${{ github.run_id }}-${{ github.run_attempt }}
+      RUNDIFF_COMPOSE_PROVIDER_SOCKET: /run/rundiff-provider/provider.sock
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build executor and isolated provider images
         run: |
-          docker build -t "$PLYWO_EXECUTOR_IMAGE" .
-          docker build -f Dockerfile.compose-provider -t "$PLYWO_PROVIDER_IMAGE" .
+          docker build -t "$RUNDIFF_EXECUTOR_IMAGE" .
+          docker build -f Dockerfile.compose-provider -t "$RUNDIFF_PROVIDER_IMAGE" .
 
       - name: Start isolated provider authority
         run: |
-          docker volume create "$PLYWO_PROVIDER_VOLUME"
-          docker run -d --name plywo-compose-provider \
+          docker volume create "$RUNDIFF_PROVIDER_VOLUME"
+          docker run -d --name rundiff-compose-provider \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$PLYWO_PROVIDER_VOLUME:/run/plywo-provider" \
-            -e PLYWO_COMPOSE_PROVIDER_SOCKET="$PLYWO_COMPOSE_PROVIDER_SOCKET" \
-            "$PLYWO_PROVIDER_IMAGE"
+            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+            -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+            "$RUNDIFF_PROVIDER_IMAGE"
 
           for attempt in $(seq 1 60); do
-            if docker exec plywo-compose-provider test -S "$PLYWO_COMPOSE_PROVIDER_SOCKET"; then
+            if docker exec rundiff-compose-provider test -S "$RUNDIFF_COMPOSE_PROVIDER_SOCKET"; then
               break
             fi
             if [ "$attempt" -eq 60 ]; then
-              docker logs plywo-compose-provider
+              docker logs rundiff-compose-provider
               exit 1
             fi
             sleep 1
@@ -53,19 +78,19 @@ jobs:
       - name: Verify executor has no container-management authority
         run: |
           docker run --rm \
-            -v "$PLYWO_PROVIDER_VOLUME:/run/plywo-provider" \
-            "$PLYWO_EXECUTOR_IMAGE" \
+            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+            "$RUNDIFF_EXECUTOR_IMAGE" \
             sh -c 'test ! -S /var/run/docker.sock && ! command -v docker'
 
       - name: Verify customer UID cannot access provider control socket
         run: |
           docker run --rm --user 10001:10001 \
-            -v "$PLYWO_PROVIDER_VOLUME:/run/plywo-provider" \
-            -e PLYWO_COMPOSE_PROVIDER_SOCKET="$PLYWO_COMPOSE_PROVIDER_SOCKET" \
-            "$PLYWO_EXECUTOR_IMAGE" \
+            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+            -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+            "$RUNDIFF_EXECUTOR_IMAGE" \
             ruby -rsocket -e '
               begin
-                UNIXSocket.new(ENV.fetch("PLYWO_COMPOSE_PROVIDER_SOCKET"))
+                UNIXSocket.new(ENV.fetch("RUNDIFF_COMPOSE_PROVIDER_SOCKET"))
                 abort "subject UID unexpectedly opened provider control socket"
               rescue Errno::EACCES
                 puts "subject_provider_authority_access=false"
@@ -75,19 +100,19 @@ jobs:
       - name: Prove typed Compose lifecycle through isolated provider
         run: |
           docker run --rm --network host \
-            -v "$PLYWO_PROVIDER_VOLUME:/run/plywo-provider" \
-            -e PLYWO_COMPOSE_PROVIDER_SOCKET="$PLYWO_COMPOSE_PROVIDER_SOCKET" \
-            "$PLYWO_EXECUTOR_IMAGE" \
+            -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+            -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+            "$RUNDIFF_EXECUTOR_IMAGE" \
             ruby script/prove_isolated_compose_provider.rb
 
       - name: Verify provider resources were removed
         run: |
-          if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^plywo-' ; then
+          if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^rundiff-' ; then
             echo "Compose containers leaked after proof"
             docker ps -a
             exit 1
           fi
-          if docker network ls --filter label=com.docker.compose.project --format '{{.Name}}' | grep '^plywo-' ; then
+          if docker network ls --filter label=com.docker.compose.project --format '{{.Name}}' | grep '^rundiff-' ; then
             echo "Compose networks leaked after proof"
             docker network ls
             exit 1
@@ -95,10 +120,10 @@ jobs:
 
       - name: Provider logs
         if: always()
-        run: docker logs plywo-compose-provider || true
+        run: docker logs rundiff-compose-provider || true
 
       - name: Teardown provider authority
         if: always()
         run: |
-          docker rm -f plywo-compose-provider || true
-          docker volume rm -f "$PLYWO_PROVIDER_VOLUME" || true
+          docker rm -f rundiff-compose-provider || true
+          docker volume rm -f "$RUNDIFF_PROVIDER_VOLUME" || true

@@ -22,7 +22,7 @@ select_environment() {
     if [[ ! -t 0 ]]; then
       requested="development"
     else
-      printf '\nPlywo GitHub App setup\n\n'
+      printf '\nRunDiff GitHub App setup\n\n'
       printf '  1) Development\n'
       printf '  2) Staging\n'
       printf '  3) Production\n\n'
@@ -40,33 +40,33 @@ select_environment() {
 
   case "$ENVIRONMENT" in
     development)
-      APP_NAME="Plywo Development"
-      APP_SLUG="plywo-development"
+      APP_NAME="RunDiff Development"
+      APP_SLUG="rundiff-development"
       MANIFEST_PATH=".github/app-manifest.development.json"
       ;;
     staging)
-      APP_NAME="Plywo Staging"
-      APP_SLUG="plywo-staging"
+      APP_NAME="RunDiff Staging"
+      APP_SLUG="rundiff-staging"
       MANIFEST_PATH=".github/app-manifest.staging.json"
       ;;
     production)
-      APP_NAME="Plywo"
-      APP_SLUG="plywo"
+      APP_NAME="RunDiff"
+      APP_SLUG="rundiff"
       MANIFEST_PATH=".github/app-manifest.json"
       ;;
   esac
 
-  export PLYWO_GITHUB_APP_MANIFEST_ENV="$ENVIRONMENT"
-  export PLYWO_GITHUB_APP_OWNER="${PLYWO_GITHUB_APP_OWNER:-plywo}"
+  export RUNDIFF_GITHUB_APP_MANIFEST_ENV="$ENVIRONMENT"
+  export RUNDIFF_GITHUB_APP_OWNER="${RUNDIFF_GITHUB_APP_OWNER:-rundiff-hq}"
 }
 
 select_environment "${1:-}"
 
 PORT="${PORT:-3000}"
 LOCAL_URL="http://127.0.0.1:${PORT}"
-TUNNEL_NAME="${PLYWO_CLOUDFLARED_TUNNEL_NAME:-plywo-${ENVIRONMENT}}"
-TUNNEL_MODE="${PLYWO_TUNNEL_MODE:-auto}"
-TMP_BASE="${TMPDIR:-/tmp}/plywo-github-app-${ENVIRONMENT}"
+TUNNEL_NAME="${RUNDIFF_CLOUDFLARED_TUNNEL_NAME:-rundiff-${ENVIRONMENT}}"
+TUNNEL_MODE="${RUNDIFF_TUNNEL_MODE:-auto}"
+TMP_BASE="${TMPDIR:-/tmp}/rundiff-github-app-${ENVIRONMENT}"
 CF_LOG="${TMP_BASE}.cloudflared.log"
 RAILS_LOG="${TMP_BASE}.rails.log"
 CF_PID=""
@@ -192,11 +192,11 @@ source_github_app_credentials() {
   # shellcheck disable=SC1090
   source "$env_file"
 
-  if [[ -n "${PLYWO_GITHUB_APP_ID:-}" && \
-        -n "${PLYWO_GITHUB_CLIENT_ID:-}" && \
-        -n "${PLYWO_GITHUB_WEBHOOK_SECRET:-}" && \
-        -n "${PLYWO_GITHUB_PRIVATE_KEY_PATH:-}" && \
-        -f "${PLYWO_GITHUB_PRIVATE_KEY_PATH}" ]]; then
+  if [[ -n "${RUNDIFF_GITHUB_APP_ID:-}" && \
+        -n "${RUNDIFF_GITHUB_CLIENT_ID:-}" && \
+        -n "${RUNDIFF_GITHUB_WEBHOOK_SECRET:-}" && \
+        -n "${RUNDIFF_GITHUB_PRIVATE_KEY_PATH:-}" && \
+        -f "${RUNDIFF_GITHUB_PRIVATE_KEY_PATH}" ]]; then
     APP_ALREADY_CONFIGURED=1
     log "Existing ${APP_NAME} detected. Manifest registration will be skipped."
   else
@@ -207,10 +207,10 @@ source_github_app_credentials() {
 normalize_public_url() {
   local value="$1"
   value="${value%/}"
-  [[ "$value" == https://* ]] || die "PLYWO_PUBLIC_URL must start with https://"
+  [[ "$value" == https://* ]] || die "RUNDIFF_PUBLIC_URL must start with https://"
 
   local remainder="${value#https://}"
-  [[ "$remainder" != */* ]] || die "PLYWO_PUBLIC_URL must be an HTTPS origin without a path"
+  [[ "$remainder" != */* ]] || die "RUNDIFF_PUBLIC_URL must be an HTTPS origin without a path"
   printf '%s' "$value"
 }
 
@@ -221,9 +221,9 @@ public_hostname() {
 }
 
 clear_stale_quick_tunnel_url() {
-  if [[ "${PLYWO_PUBLIC_URL:-}" == https://*.trycloudflare.com ]]; then
+  if [[ "${RUNDIFF_PUBLIC_URL:-}" == https://*.trycloudflare.com ]]; then
     warn "Ignoring an exported trycloudflare.com URL because Quick Tunnel hostnames are ephemeral."
-    unset PLYWO_PUBLIC_URL
+    unset RUNDIFF_PUBLIC_URL
   fi
 }
 
@@ -243,8 +243,8 @@ start_quick_tunnel() {
   for ((i = 1; i <= 30; i++)); do
     public_url="$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" | tail -1 || true)"
     if [[ -n "$public_url" ]]; then
-      export PLYWO_PUBLIC_URL="$public_url"
-      log "Quick Tunnel: ${PLYWO_PUBLIC_URL}"
+      export RUNDIFF_PUBLIC_URL="$public_url"
+      log "Quick Tunnel: ${RUNDIFF_PUBLIC_URL}"
       return 0
     fi
 
@@ -281,7 +281,7 @@ prompt_public_hostname() {
     production) example="github.example.com" ;;
   esac
 
-  [[ -t 0 ]] || die "Set PLYWO_PUBLIC_URL=https://your-hostname and rerun"
+  [[ -t 0 ]] || die "Set RUNDIFF_PUBLIC_URL=https://your-hostname and rerun"
   printf '\nEnter the stable Cloudflare hostname or HTTPS URL for %s\n' "$APP_NAME"
   printf 'Examples: %s or https://%s\n' "$example" "$example"
   read -r -p 'Hostname or HTTPS URL: ' value
@@ -295,7 +295,7 @@ prompt_public_hostname() {
 }
 
 start_local_named_tunnel() {
-  local public_url="${PLYWO_PUBLIC_URL:-}"
+  local public_url="${RUNDIFF_PUBLIC_URL:-}"
   local hostname=""
 
   if [[ -z "$public_url" ]]; then
@@ -303,7 +303,7 @@ start_local_named_tunnel() {
   fi
 
   public_url="$(normalize_public_url "$public_url")"
-  export PLYWO_PUBLIC_URL="$public_url"
+  export RUNDIFF_PUBLIC_URL="$public_url"
   hostname="$(public_hostname "$public_url")"
 
   ensure_cloudflare_login
@@ -331,13 +331,13 @@ start_local_named_tunnel() {
 start_token_tunnel() {
   [[ -n "${CLOUDFLARED_TUNNEL_TOKEN:-}" ]] || die "CLOUDFLARED_TUNNEL_TOKEN is required for token mode"
 
-  if [[ -z "${PLYWO_PUBLIC_URL:-}" ]]; then
-    PLYWO_PUBLIC_URL="$(prompt_public_hostname)"
-    export PLYWO_PUBLIC_URL
+  if [[ -z "${RUNDIFF_PUBLIC_URL:-}" ]]; then
+    RUNDIFF_PUBLIC_URL="$(prompt_public_hostname)"
+    export RUNDIFF_PUBLIC_URL
   fi
 
-  PLYWO_PUBLIC_URL="$(normalize_public_url "$PLYWO_PUBLIC_URL")"
-  export PLYWO_PUBLIC_URL
+  RUNDIFF_PUBLIC_URL="$(normalize_public_url "$RUNDIFF_PUBLIC_URL")"
+  export RUNDIFF_PUBLIC_URL
 
   : >"$CF_LOG"
   log "Starting Cloudflare tunnel using token"
@@ -362,15 +362,15 @@ start_tunnel() {
       fi
       ;;
     external)
-      [[ -n "${PLYWO_PUBLIC_URL:-}" ]] || die "PLYWO_PUBLIC_URL is required in external tunnel mode"
-      PLYWO_PUBLIC_URL="$(normalize_public_url "$PLYWO_PUBLIC_URL")"
-      export PLYWO_PUBLIC_URL
+      [[ -n "${RUNDIFF_PUBLIC_URL:-}" ]] || die "RUNDIFF_PUBLIC_URL is required in external tunnel mode"
+      RUNDIFF_PUBLIC_URL="$(normalize_public_url "$RUNDIFF_PUBLIC_URL")"
+      export RUNDIFF_PUBLIC_URL
       : >"$CF_LOG"
       ;;
     auto)
       if [[ -n "${CLOUDFLARED_TUNNEL_TOKEN:-}" ]]; then
         start_token_tunnel
-      elif [[ -n "${PLYWO_PUBLIC_URL:-}" ]]; then
+      elif [[ -n "${RUNDIFF_PUBLIC_URL:-}" ]]; then
         start_local_named_tunnel
       elif [[ "$ENVIRONMENT" == "development" ]] && quick_tunnel_api_reachable; then
         start_quick_tunnel
@@ -382,7 +382,7 @@ start_tunnel() {
       fi
       ;;
     *)
-      die "Unknown PLYWO_TUNNEL_MODE=${TUNNEL_MODE}. Use auto, quick, named, or external."
+      die "Unknown RUNDIFF_TUNNEL_MODE=${TUNNEL_MODE}. Use auto, quick, named, or external."
       ;;
   esac
 }
@@ -411,8 +411,8 @@ start_rails() {
 
 verify_public_endpoint() {
   local public_url
-  public_url="$(normalize_public_url "$PLYWO_PUBLIC_URL")"
-  export PLYWO_PUBLIC_URL="$public_url"
+  public_url="$(normalize_public_url "$RUNDIFF_PUBLIC_URL")"
+  export RUNDIFF_PUBLIC_URL="$public_url"
 
   log "Checking public endpoint ${public_url}/up"
   if ! wait_for_http "${public_url}/up" 45; then
@@ -427,13 +427,13 @@ verify_public_endpoint() {
 }
 
 finish_setup() {
-  local registration_url="${PLYWO_PUBLIC_URL}/github/app/register"
-  local settings_url="https://github.com/organizations/${PLYWO_GITHUB_APP_OWNER}/settings/apps/${APP_SLUG}"
+  local registration_url="${RUNDIFF_PUBLIC_URL}/github/app/register"
+  local settings_url="https://github.com/organizations/${RUNDIFF_GITHUB_APP_OWNER}/settings/apps/${APP_SLUG}"
   local install_url="https://github.com/apps/${APP_SLUG}/installations/new"
 
   printf '\n%s is ready.\n' "$APP_NAME"
   printf 'Environment: %s\n' "$ENVIRONMENT"
-  printf 'Public URL:  %s\n' "$PLYWO_PUBLIC_URL"
+  printf 'Public URL:  %s\n' "$RUNDIFF_PUBLIC_URL"
   printf 'Rails log:   %s\n' "$RAILS_LOG"
   printf 'Tunnel log:  %s\n' "$CF_LOG"
 
@@ -442,7 +442,7 @@ finish_setup() {
     printf 'Settings: %s\n' "$settings_url"
     printf 'Install:  %s\n' "$install_url"
 
-    if [[ "${PLYWO_OPEN_INSTALL:-0}" == "1" && "${NO_OPEN:-0}" != "1" ]] && command -v open >/dev/null 2>&1; then
+    if [[ "${RUNDIFF_OPEN_INSTALL:-0}" == "1" && "${NO_OPEN:-0}" != "1" ]] && command -v open >/dev/null 2>&1; then
       open "$install_url"
     fi
   else
@@ -458,7 +458,7 @@ finish_setup() {
 }
 
 main() {
-  [[ -f Gemfile && -f mise.toml ]] || die "Run this script from the plywo repository"
+  [[ -f Gemfile && -f mise.toml ]] || die "Run this script from the rundiff repository"
   [[ -f "$MANIFEST_PATH" ]] || die "Manifest does not exist: ${MANIFEST_PATH}"
 
   log "GitHub App environment: ${ENVIRONMENT} (${APP_NAME})"

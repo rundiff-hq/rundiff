@@ -29,7 +29,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
 
     perform_job(
       execution:,
-      result: Plywo::Executor::Result.success(payload),
+      result: RunDiff::Executor::Result.success(payload),
       client: sequence_client([ current_pull_request ]),
       publisher:
     )
@@ -49,7 +49,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
 
     perform_job(
       execution:,
-      result: Plywo::Executor::Result.failure(RuntimeError.new("worker unavailable")),
+      result: RunDiff::Executor::Result.failure(RuntimeError.new("worker unavailable")),
       client: sequence_client([ current_pull_request ]),
       publisher:
     )
@@ -70,7 +70,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
 
     perform_job(
       execution:,
-      result: Plywo::Executor::Result.success(payload),
+      result: RunDiff::Executor::Result.success(payload),
       client: sequence_client([ stale ]),
       publisher:
     )
@@ -88,7 +88,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
     execution.update!(lease_expires_at: 1.minute.ago)
 
     job = TestJob.new
-    job.perform(execution.execution_id, Plywo::Executor::Result.success(payload).to_h)
+    job.perform(execution.execution_id, RunDiff::Executor::Result.success(payload).to_h)
 
     execution.reload
     assert_equal "running", execution.status
@@ -100,7 +100,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
     execution.complete!(payload)
 
     job = TestJob.new
-    job.perform(execution.execution_id, Plywo::Executor::Result.success(payload).to_h)
+    job.perform(execution.execution_id, RunDiff::Executor::Result.success(payload).to_h)
 
     assert_equal "completed", execution.reload.status
     assert_equal 1, execution.attempt_count
@@ -115,7 +115,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
     job.authentication_override = fake_authentication
     job.client_override = sequence_client([])
     job.publisher_override = publisher
-    job.perform(execution.execution_id, Plywo::Executor::Result.success(payload).to_h)
+    job.perform(execution.execution_id, RunDiff::Executor::Result.success(payload).to_h)
 
     execution.reload
     assert_equal "cancelled", execution.status
@@ -137,19 +137,19 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
   end
 
   def running_execution
-    execution = PlywoExecution.create!(
+    execution = RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(32)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",
       baseline_sha: "base-sha",
       candidate_sha: "head-sha",
       context: {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 36,
         "installation_id" => 123,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     )
     execution.claim!
@@ -174,7 +174,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
   end
 
   def fake_authentication
-    token = Plywo::Github::AppAuthentication::Token.new(
+    token = RunDiff::Github::AppAuthentication::Token.new(
       value: "installation-token",
       expires_at: Time.utc(2026, 9, 4, 19, 30, 0)
     )
@@ -192,7 +192,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
     queue = responses.dup
     Object.new.tap do |client|
       client.define_singleton_method(:fetch) do |repository:, number:|
-        raise "unexpected repository" unless repository == "plywo/plywo"
+        raise "unexpected repository" unless repository == "rundiff/rundiff"
         raise "unexpected pull request" unless number == 36
 
         queue.shift || raise("unexpected extra fetch")

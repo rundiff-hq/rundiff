@@ -1,4 +1,4 @@
 require "net/http"
-require Rails.root.join("lib/plywo/rails/net_http_instrumentation").to_s
+require Rails.root.join("lib/rundiff/rails/net_http_instrumentation").to_s
 
-Net::HTTP.prepend(Plywo::Rails::NetHttpInstrumentation) unless Net::HTTP < Plywo::Rails::NetHttpInstrumentation
+Net::HTTP.prepend(RunDiff::Rails::NetHttpInstrumentation) unless Net::HTTP < RunDiff::Rails::NetHttpInstrumentation

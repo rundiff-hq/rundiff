@@ -8,7 +8,7 @@ require "rbconfig"
 module RemoteExecutorTopologyProof
   class StaticRepositoryCapabilityProvider
     def initialize(token:)
-      @capability = Plywo::Executor::RepositoryCapability.new(token:)
+      @capability = RunDiff::Executor::RepositoryCapability.new(token:)
     end
 
     def call(request:)
@@ -21,27 +21,27 @@ module RemoteExecutorTopologyProof
   def call
     prove_customer_subprocess_environment_isolated!
 
-    request = Plywo::Executor::Request.new(
-      schema_version: Plywo::Executor::Request.current_schema_version,
-      execution_id: ENV.fetch("PLYWO_PROOF_EXECUTION_ID"),
+    request = RunDiff::Executor::Request.new(
+      schema_version: RunDiff::Executor::Request.current_schema_version,
+      execution_id: ENV.fetch("RUNDIFF_PROOF_EXECUTION_ID"),
       scenario_id: "production.remote-executor-topology",
-      baseline_sha: ENV.fetch("PLYWO_PROOF_BASELINE_SHA"),
-      candidate_sha: ENV.fetch("PLYWO_PROOF_CANDIDATE_SHA"),
+      baseline_sha: ENV.fetch("RUNDIFF_PROOF_BASELINE_SHA"),
+      candidate_sha: ENV.fetch("RUNDIFF_PROOF_CANDIDATE_SHA"),
       attempt_number: 1,
       context: {
-        "repository" => ENV.fetch("PLYWO_PROOF_REPOSITORY"),
-        "candidate_repository" => ENV.fetch("PLYWO_PROOF_REPOSITORY"),
-        "pull_request_number" => Integer(ENV.fetch("PLYWO_PROOF_PULL_REQUEST_NUMBER")),
-        "baseline_ref" => ENV.fetch("PLYWO_PROOF_BASELINE_REF"),
-        "candidate_ref" => ENV.fetch("PLYWO_PROOF_CANDIDATE_REF")
+        "repository" => ENV.fetch("RUNDIFF_PROOF_REPOSITORY"),
+        "candidate_repository" => ENV.fetch("RUNDIFF_PROOF_REPOSITORY"),
+        "pull_request_number" => Integer(ENV.fetch("RUNDIFF_PROOF_PULL_REQUEST_NUMBER")),
+        "baseline_ref" => ENV.fetch("RUNDIFF_PROOF_BASELINE_REF"),
+        "candidate_ref" => ENV.fetch("RUNDIFF_PROOF_CANDIDATE_REF")
       }
     )
 
-    adapter = Plywo::Executor::HttpAdapter.new(
-      url: ENV.fetch("PLYWO_REMOTE_EXECUTOR_URL"),
-      token: ENV.fetch("PLYWO_REMOTE_EXECUTOR_TOKEN"),
+    adapter = RunDiff::Executor::HttpAdapter.new(
+      url: ENV.fetch("RUNDIFF_REMOTE_EXECUTOR_URL"),
+      token: ENV.fetch("RUNDIFF_REMOTE_EXECUTOR_TOKEN"),
       repository_capability_provider: StaticRepositoryCapabilityProvider.new(
-        token: ENV.fetch("PLYWO_PROOF_REPOSITORY_TOKEN")
+        token: ENV.fetch("RUNDIFF_PROOF_REPOSITORY_TOKEN")
       )
     )
 
@@ -69,15 +69,15 @@ module RemoteExecutorTopologyProof
 
   def prove_customer_subprocess_environment_isolated!
     secret_keys = %w[
-      PLYWO_REMOTE_EXECUTOR_TOKEN
-      PLYWO_PROOF_REPOSITORY_TOKEN
+      RUNDIFF_REMOTE_EXECUTOR_TOKEN
+      RUNDIFF_PROOF_REPOSITORY_TOKEN
       RUBYOPT
       RUBYLIB
     ]
-    script = "require 'json'; print JSON.generate(ENV.to_h.slice(*#{(secret_keys + [ "PLYWO_EXPLICIT_SENTINEL" ]).inspect}))"
-    runner = Plywo::Github::LocalPullRequestRunner::CommandRunner.new
+    script = "require 'json'; print JSON.generate(ENV.to_h.slice(*#{(secret_keys + [ "RUNDIFF_EXPLICIT_SENTINEL" ]).inspect}))"
+    runner = RunDiff::Github::LocalPullRequestRunner::CommandRunner.new
     output = runner.call(
-      env: { "PLYWO_EXPLICIT_SENTINEL" => "visible" },
+      env: { "RUNDIFF_EXPLICIT_SENTINEL" => "visible" },
       command: [ RbConfig.ruby, "-e", script ],
       chdir: Rails.root.to_s
     )
@@ -85,7 +85,7 @@ module RemoteExecutorTopologyProof
 
     leaked = secret_keys.select { |key| child_env.key?(key) }
     raise "Customer subprocess inherited sensitive host environment: #{leaked.join(", ")}" if leaked.any?
-    raise "Explicit subprocess environment was lost" unless child_env["PLYWO_EXPLICIT_SENTINEL"] == "visible"
+    raise "Explicit subprocess environment was lost" unless child_env["RUNDIFF_EXPLICIT_SENTINEL"] == "visible"
   end
 end
 

@@ -47,7 +47,7 @@ class GithubPullRequestExecutionLeaseReaperJobTest < ActiveJob::TestCase
   private
 
   def create_execution
-    PlywoExecution.create!(
+    RunDiffExecution.create!(
       execution_id: "github-#{SecureRandom.hex(16)}",
       source: "github_pull_request",
       scenario_id: "dogfood.git.behavior",

@@ -37,7 +37,7 @@ class GithubWebhooksControllerTest < ActionDispatch::IntegrationTest
         "action" => "synchronize",
         "number" => 19,
         "installation" => { "id" => 158_885_061 },
-        "repository" => { "full_name" => "plywo/plywo" },
+        "repository" => { "full_name" => "rundiff/rundiff" },
         "pull_request" => {
           "base" => { "sha" => "base-sha" },
           "head" => { "sha" => "head-sha" }
@@ -50,7 +50,7 @@ class GithubWebhooksControllerTest < ActionDispatch::IntegrationTest
 
       assert_response :accepted
       delivery = GithubWebhookDelivery.find_by!(delivery_id: "delivery-pr-1")
-      assert_equal "plywo/plywo", delivery.repository
+      assert_equal "rundiff/rundiff", delivery.repository
       assert_equal 19, delivery.pull_request_number
       assert_equal "base-sha", delivery.base_sha
       assert_equal "head-sha", delivery.head_sha
@@ -117,7 +117,7 @@ class GithubWebhooksControllerTest < ActionDispatch::IntegrationTest
       payload = JSON.generate(
         "action" => "completed",
         "installation" => { "id" => 158_885_061 },
-        "repository" => { "full_name" => "plywo/plywo" }
+        "repository" => { "full_name" => "rundiff/rundiff" }
       )
 
       post_signed_webhook(payload:, event: "check_run", delivery: "delivery-check-run-completed")
@@ -134,7 +134,7 @@ class GithubWebhooksControllerTest < ActionDispatch::IntegrationTest
       payload = JSON.generate(
         "action" => "rerequested",
         "installation" => { "id" => 158_885_061 },
-        "repository" => { "full_name" => "plywo/plywo" },
+        "repository" => { "full_name" => "rundiff/rundiff" },
         "check_run" => {
           "head_sha" => "head-sha",
           "external_id" => "github-execution-123"
@@ -194,23 +194,23 @@ class GithubWebhooksControllerTest < ActionDispatch::IntegrationTest
   private
 
   def with_webhook_secret
-    previous_secret = ENV["PLYWO_GITHUB_WEBHOOK_SECRET"]
-    ENV["PLYWO_GITHUB_WEBHOOK_SECRET"] = "development-secret"
+    previous_secret = ENV["RUNDIFF_GITHUB_WEBHOOK_SECRET"]
+    ENV["RUNDIFF_GITHUB_WEBHOOK_SECRET"] = "development-secret"
     yield
   ensure
-    ENV["PLYWO_GITHUB_WEBHOOK_SECRET"] = previous_secret
+    ENV["RUNDIFF_GITHUB_WEBHOOK_SECRET"] = previous_secret
   end
 
   def with_repository_allowlist(value)
-    previous_allowlist = ENV["PLYWO_GITHUB_REPOSITORY_ALLOWLIST"]
-    ENV["PLYWO_GITHUB_REPOSITORY_ALLOWLIST"] = value
+    previous_allowlist = ENV["RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST"]
+    ENV["RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST"] = value
     yield
   ensure
-    ENV["PLYWO_GITHUB_REPOSITORY_ALLOWLIST"] = previous_allowlist
+    ENV["RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST"] = previous_allowlist
   end
 
   def post_signed_webhook(payload:, event:, delivery:)
-    signature = "sha256=#{OpenSSL::HMAC.hexdigest("SHA256", ENV.fetch("PLYWO_GITHUB_WEBHOOK_SECRET"), payload)}"
+    signature = "sha256=#{OpenSSL::HMAC.hexdigest("SHA256", ENV.fetch("RUNDIFF_GITHUB_WEBHOOK_SECRET"), payload)}"
 
     post github_webhooks_url,
       params: payload,

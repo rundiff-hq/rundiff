@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed design direction for Plywo and its future RunDiff identity. This RFC records product and architecture criteria, not an implementation commitment to any particular mutation engine.
+Proposed design direction for RunDiff, formerly RunDiff. This RFC records product and architecture criteria, not an implementation commitment to any particular mutation engine.
 
 ## Context
 
-Plywo already treats verification as a comparison between a baseline and one or more candidates. Mutation testing adds a second-order question that ordinary test execution cannot answer:
+RunDiff already treats verification as a comparison between a baseline and one or more candidates. Mutation testing adds a second-order question that ordinary test execution cannot answer:
 
 > Would the verification notice if the implementation were wrong?
 
@@ -219,7 +219,7 @@ This schema is illustrative. The public contract should be versioned and engine-
 
 ## Acceptance criteria for the future design
 
-Any mutation architecture adopted by Plywo / RunDiff should satisfy these criteria:
+Any mutation architecture adopted by RunDiff / RunDiff should satisfy these criteria:
 
 1. **Provider-neutral** - no public dependency on Mutineer, Stryker, Mutant, PIT, or another engine's native result schema.
 2. **Differential-first** - candidate regressions matter more than a global mutation score.

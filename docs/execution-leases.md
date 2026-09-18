@@ -1,6 +1,6 @@
 # Execution leases
 
-Plywo uses a durable lease on each claimed GitHub pull request execution so a worker that disappears cannot leave the control plane in a live state forever.
+RunDiff uses a durable lease on each claimed GitHub pull request execution so a worker that disappears cannot leave the control plane in a live state forever.
 
 ## Lifecycle
 
@@ -47,15 +47,15 @@ A successful heartbeat schedules the next heartbeat. Terminal, cancelled, expire
 
 Heartbeat, cancellation delivery, lease reaping, and lease expiry run on the dedicated `control` Solid Queue queue. The blocking executor job remains on `default`. This isolation is required because a synchronous remote execution can occupy a default worker for minutes; lifecycle control must still be able to renew or cancel that execution even when `JOB_CONCURRENCY=1`.
 
-The default heartbeat interval is one third of the execution lease. `PLYWO_EXECUTION_HEARTBEAT_INTERVAL_SECONDS` can override it, but the interval must remain positive and shorter than `PLYWO_EXECUTION_LEASE_SECONDS`.
+The default heartbeat interval is one third of the execution lease. `RUNDIFF_EXECUTION_HEARTBEAT_INTERVAL_SECONDS` can override it, but the interval must remain positive and shorter than `RUNDIFF_EXECUTION_LEASE_SECONDS`.
 
 ## Cancellation
 
-Cancellation is a terminal control-plane outcome, not an infrastructure failure. `Plywo::Executor::Cancellation` atomically marks the exact active attempt as `status=cancelled`, `outcome=cancelled`, records `cancelled_at` and `cancellation_reason`, closes the lease, and then schedules cooperative cancellation delivery to the executor.
+Cancellation is a terminal control-plane outcome, not an infrastructure failure. `RunDiff::Executor::Cancellation` atomically marks the exact active attempt as `status=cancelled`, `outcome=cancelled`, records `cancelled_at` and `cancellation_reason`, closes the lease, and then schedules cooperative cancellation delivery to the executor.
 
 When a new runnable revision of the same pull request is dispatched, `ExecutionDispatcher` cancels any older queued or running revision before creating the new durable execution. The cancellation reason is `superseded_by_new_pull_request_revision`. This prevents obsolete work from continuing merely because the stale-result guard would reject it later.
 
-For remote executors the control plane posts to the exact attempt cancellation endpoint. The executor service stores cancellation durably in `plywo_executor_requests`. A cancellation can win before the execution request arrives, while the adapter is running, or after a duplicate delivery. Once cancelled, that idempotency key cannot start work or accept a late result.
+For remote executors the control plane posts to the exact attempt cancellation endpoint. The executor service stores cancellation durably in `rundiff_executor_requests`. A cancellation can win before the execution request arrives, while the adapter is running, or after a duplicate delivery. Once cancelled, that idempotency key cannot start work or accept a late result.
 
 Cancellation acceptance does not depend on the configured worker adapter being healthy. The executor service can record the cancellation tombstone even when execution itself is disabled or unavailable. Likewise, a control-plane cancellation-notification enqueue or delivery failure never rewrites the already-durable execution as `infra_failure`.
 
@@ -80,6 +80,6 @@ Hard process or container termination remains a separate executor-host concern; 
 
 `GithubPullRequestExecutionLeaseReaperJob` runs every minute in production and schedules `GithubPullRequestExecutionLeaseExpiryJob` for overdue GitHub executions.
 
-The default lease is 30 minutes and can be changed with `PLYWO_EXECUTION_LEASE_SECONDS`.
+The default lease is 30 minutes and can be changed with `RUNDIFF_EXECUTION_LEASE_SECONDS`.
 
 The current heartbeat is control-plane scheduled on its own queue. A future worker-host heartbeat protocol can make liveness independent of the control-plane process and can carry progress metadata, but it must preserve the exact-attempt fencing rules above.

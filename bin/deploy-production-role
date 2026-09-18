@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEPLOY_DIR="${PLYWO_PRODUCTION_DEPLOY_DIR:-$ROOT_DIR/deploy/production}"
+DEPLOY_DIR="${RUNDIFF_PRODUCTION_DEPLOY_DIR:-$ROOT_DIR/deploy/production}"
 ROLE="${1:-}"
 ACTION="${2:-deploy}"
 

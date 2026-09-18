@@ -6,7 +6,7 @@ class GithubCheckRunRerequestJob < ApplicationJob
     return unless delivery.event == "check_run" && delivery.action == "rerequested"
     return unless delivery.claim!
 
-    execution = PlywoExecution.find_by(execution_id: delivery.external_id)
+    execution = RunDiffExecution.find_by(execution_id: delivery.external_id)
     unless execution
       delivery.ignore!("execution_not_found")
       return
@@ -39,7 +39,7 @@ class GithubCheckRunRerequestJob < ApplicationJob
     delivery.complete!
 
     Rails.logger.info(
-      "Plywo GitHub execution rerequested delivery=#{delivery.delivery_id.inspect} " \
+      "RunDiff GitHub execution rerequested delivery=#{delivery.delivery_id.inspect} " \
       "execution_id=#{execution.execution_id.inspect} next_attempt=#{execution.attempt_count + 1}"
     )
   rescue StandardError => error
@@ -55,11 +55,11 @@ class GithubCheckRunRerequestJob < ApplicationJob
   end
 
   def app_authentication
-    Plywo::Github::AppAuthentication.from_env(root: ::Rails.root)
+    RunDiff::Github::AppAuthentication.from_env(root: ::Rails.root)
   end
 
   def pull_request_client(token:)
-    Plywo::Github::PullRequestClient.new(token:)
+    RunDiff::Github::PullRequestClient.new(token:)
   end
 
   def execution_job_class

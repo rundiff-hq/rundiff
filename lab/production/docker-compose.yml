@@ -1,13 +1,13 @@
-name: plywo-production-lab
+name: rundiff-production-lab
 
-x-plywo-image: &plywo-image
-  image: plywo-production-lab:local
+x-rundiff-image: &rundiff-image
+  image: rundiff-production-lab:local
   build:
     context: ../..
     dockerfile: Dockerfile
 
 x-github-image: &github-image
-  image: plywo-production-lab-github:local
+  image: rundiff-production-lab-github:local
   build:
     context: ../..
     dockerfile: lab/production/github/Dockerfile
@@ -15,48 +15,48 @@ x-github-image: &github-image
 x-control-plane-environment: &control-plane-environment
   RAILS_ENV: production
   SECRET_KEY_BASE: production-lab-control-plane-secret-key-base
-  PLYWO_RUNTIME_ROLE: control_plane
-  DATABASE_URL: postgres://postgres:postgres@control-plane-postgres:5432/plywo_control_plane
-  SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@control-plane-postgres:5432/plywo_control_plane_queue
-  PLYWO_PUBLIC_URL: https://control-plane-tls:4444
+  RUNDIFF_RUNTIME_ROLE: control_plane
+  DATABASE_URL: postgres://postgres:postgres@control-plane-postgres:5432/rundiff_control_plane
+  SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@control-plane-postgres:5432/rundiff_control_plane_queue
+  RUNDIFF_PUBLIC_URL: https://control-plane-tls:4444
   GITHUB_API_URL: https://github-edge:4002
-  PLYWO_GITHUB_APP_SLUG: plywo-lab
-  PLYWO_GITHUB_APP_ID: "12345"
-  PLYWO_GITHUB_WEBHOOK_SECRET: plywo-production-lab-webhook-secret
-  PLYWO_GITHUB_PRIVATE_KEY_PATH: /lab-state/github-app.pem
-  PLYWO_GITHUB_APP_CHECK_NAME: Plywo Lab / Behavioral Diff
-  PLYWO_GITHUB_APP_BOT_LOGIN: plywo-lab[bot]
-  PLYWO_GITHUB_REPOSITORY_ALLOWLIST: admin/customer-rails
-  PLYWO_EXECUTOR: remote
-  PLYWO_REMOTE_EXECUTOR_URL: https://executor-tls:4443/v1/executions
-  PLYWO_REMOTE_EXECUTOR_TOKEN: production-lab-executor-token
-  PLYWO_REMOTE_EXECUTOR_OPEN_TIMEOUT_SECONDS: "5"
-  PLYWO_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS: "300"
-  PLYWO_EXECUTION_LEASE_SECONDS: "240"
-  PLYWO_EXECUTION_HEARTBEAT_INTERVAL_SECONDS: "60"
+  RUNDIFF_GITHUB_APP_SLUG: rundiff-lab
+  RUNDIFF_GITHUB_APP_ID: "12345"
+  RUNDIFF_GITHUB_WEBHOOK_SECRET: rundiff-production-lab-webhook-secret
+  RUNDIFF_GITHUB_PRIVATE_KEY_PATH: /lab-state/github-app.pem
+  RUNDIFF_GITHUB_APP_CHECK_NAME: RunDiff Lab / Behavioral Diff
+  RUNDIFF_GITHUB_APP_BOT_LOGIN: rundiff-lab[bot]
+  RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST: admin/customer-rails
+  RUNDIFF_EXECUTOR: remote
+  RUNDIFF_REMOTE_EXECUTOR_URL: https://executor-tls:4443/v1/executions
+  RUNDIFF_REMOTE_EXECUTOR_TOKEN: production-lab-executor-token
+  RUNDIFF_REMOTE_EXECUTOR_OPEN_TIMEOUT_SECONDS: "5"
+  RUNDIFF_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS: "300"
+  RUNDIFF_EXECUTION_LEASE_SECONDS: "240"
+  RUNDIFF_EXECUTION_HEARTBEAT_INTERVAL_SECONDS: "60"
   SOLID_QUEUE_SKIP_RECURRING: "true"
   SSL_CERT_FILE: /lab-tls/ca.pem
 
 x-executor-environment: &executor-environment
   RAILS_ENV: production
   SECRET_KEY_BASE: production-lab-executor-secret-key-base
-  PLYWO_RUNTIME_ROLE: executor_service
-  DATABASE_URL: postgres://postgres:postgres@executor-postgres:5432/plywo_executor
-  SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@executor-postgres:5432/plywo_executor
-  PLYWO_EXECUTOR_SERVICE_TOKEN: production-lab-executor-token
-  PLYWO_EXECUTOR_SERVICE_ADAPTER: git_clone
-  PLYWO_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS: "360"
-  PLYWO_GITHUB_GIT_BASE_URL: http://git-origin
+  RUNDIFF_RUNTIME_ROLE: executor_service
+  DATABASE_URL: postgres://postgres:postgres@executor-postgres:5432/rundiff_executor
+  SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@executor-postgres:5432/rundiff_executor
+  RUNDIFF_EXECUTOR_SERVICE_TOKEN: production-lab-executor-token
+  RUNDIFF_EXECUTOR_SERVICE_ADAPTER: git_clone
+  RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS: "360"
+  RUNDIFF_GITHUB_GIT_BASE_URL: http://git-origin
   SSL_CERT_FILE: /lab-tls/ca.pem
 
 services:
   prepare:
-    <<: *plywo-image
+    <<: *rundiff-image
     command: ruby script/prepare_production_lab.rb
     environment:
-      PLYWO_LAB_GIT_ROOT: /lab-git
-      PLYWO_LAB_STATE_ROOT: /lab-state
-      PLYWO_LAB_TLS_ROOT: /lab-tls
+      RUNDIFF_LAB_GIT_ROOT: /lab-git
+      RUNDIFF_LAB_STATE_ROOT: /lab-state
+      RUNDIFF_LAB_TLS_ROOT: /lab-tls
     volumes:
       - lab-git:/lab-git
       - lab-state:/lab-state
@@ -76,10 +76,10 @@ services:
       prepare:
         condition: service_completed_successfully
     environment:
-      LAB_GITHUB_WEBHOOK_SECRET: plywo-production-lab-webhook-secret
+      LAB_GITHUB_WEBHOOK_SECRET: rundiff-production-lab-webhook-secret
       LAB_GITHUB_APP_ID: "12345"
       LAB_GITHUB_INSTALLATION_ID: "100"
-      PLYWO_LAB_STATE_ROOT: /lab-state
+      RUNDIFF_LAB_STATE_ROOT: /lab-state
       NODE_EXTRA_CA_CERTS: /lab-tls/ca.pem
     volumes:
       - lab-state:/lab-state
@@ -100,10 +100,10 @@ services:
     command: node edge.mjs
     environment:
       GITHUB_EMULATOR_URL: http://github-emulator:4001
-      PLYWO_CONTROL_PLANE_WEBHOOK_URL: https://control-plane-tls:4444/github/webhooks
-      LAB_GITHUB_WEBHOOK_SECRET: plywo-production-lab-webhook-secret
-      PLYWO_LAB_SHA_STATE: /lab-state/shas.json
-      PLYWO_LAB_TLS_ROOT: /lab-tls
+      RUNDIFF_CONTROL_PLANE_WEBHOOK_URL: https://control-plane-tls:4444/github/webhooks
+      LAB_GITHUB_WEBHOOK_SECRET: rundiff-production-lab-webhook-secret
+      RUNDIFF_LAB_SHA_STATE: /lab-state/shas.json
+      RUNDIFF_LAB_TLS_ROOT: /lab-tls
       NODE_EXTRA_CA_CERTS: /lab-tls/ca.pem
     volumes:
       - lab-state:/lab-state:ro
@@ -114,15 +114,15 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: plywo_control_plane
+      POSTGRES_DB: rundiff_control_plane
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d plywo_control_plane"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rundiff_control_plane"]
       interval: 2s
       timeout: 2s
       retries: 60
 
   control-plane-db-prepare:
-    <<: *plywo-image
+    <<: *rundiff-image
     depends_on:
       control-plane-postgres:
         condition: service_healthy
@@ -135,7 +135,7 @@ services:
       - lab-tls:/lab-tls:ro
 
   control-plane:
-    <<: *plywo-image
+    <<: *rundiff-image
     depends_on:
       control-plane-db-prepare:
         condition: service_completed_successfully
@@ -148,7 +148,7 @@ services:
       - lab-tls:/lab-tls:ro
 
   control-plane-worker:
-    <<: *plywo-image
+    <<: *rundiff-image
     depends_on:
       control-plane-db-prepare:
         condition: service_completed_successfully
@@ -176,15 +176,15 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: plywo_executor
+      POSTGRES_DB: rundiff_executor
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d plywo_executor"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rundiff_executor"]
       interval: 2s
       timeout: 2s
       retries: 60
 
   executor-db-prepare:
-    <<: *plywo-image
+    <<: *rundiff-image
     depends_on:
       executor-postgres:
         condition: service_healthy
@@ -196,7 +196,7 @@ services:
       - lab-tls:/lab-tls:ro
 
   executor:
-    <<: *plywo-image
+    <<: *rundiff-image
     depends_on:
       executor-db-prepare:
         condition: service_completed_successfully
@@ -219,7 +219,7 @@ services:
       - lab-tls:/lab-tls:ro
 
   driver:
-    <<: *plywo-image
+    <<: *rundiff-image
     depends_on:
       github-emulator:
         condition: service_healthy
@@ -233,11 +233,11 @@ services:
         condition: service_started
     environment:
       GITHUB_EMULATOR_URL: http://github-emulator:4001
-      PLYWO_LAB_CONTROL_PLANE_URL: https://control-plane-tls:4444
-      PLYWO_LAB_EXECUTOR_URL: https://executor-tls:4443
-      PLYWO_LAB_GITHUB_ADMIN_TOKEN: lab-admin-token
-      PLYWO_GITHUB_APP_CHECK_NAME: Plywo Lab / Behavioral Diff
-      PLYWO_LAB_TIMEOUT_SECONDS: "300"
+      RUNDIFF_LAB_CONTROL_PLANE_URL: https://control-plane-tls:4444
+      RUNDIFF_LAB_EXECUTOR_URL: https://executor-tls:4443
+      RUNDIFF_LAB_GITHUB_ADMIN_TOKEN: lab-admin-token
+      RUNDIFF_GITHUB_APP_CHECK_NAME: RunDiff Lab / Behavioral Diff
+      RUNDIFF_LAB_TIMEOUT_SECONDS: "300"
       SSL_CERT_FILE: /lab-tls/ca.pem
     command: ruby script/run_production_lab.rb
     volumes:

@@ -8,15 +8,15 @@ require "securerandom"
 require "time"
 require "uri"
 
-module PlywoProductionLab
+module RunDiffProductionLab
   EMULATOR_URL = ENV.fetch("GITHUB_EMULATOR_URL", "http://github-emulator:4001")
-  CONTROL_PLANE_URL = ENV.fetch("PLYWO_LAB_CONTROL_PLANE_URL", "https://control-plane-tls:4444")
-  EXECUTOR_URL = ENV.fetch("PLYWO_LAB_EXECUTOR_URL", "https://executor-tls:4443")
-  ADMIN_TOKEN = ENV.fetch("PLYWO_LAB_GITHUB_ADMIN_TOKEN", "lab-admin-token")
-  CHECK_NAME = ENV.fetch("PLYWO_GITHUB_APP_CHECK_NAME", "Plywo Lab / Behavioral Diff")
+  CONTROL_PLANE_URL = ENV.fetch("RUNDIFF_LAB_CONTROL_PLANE_URL", "https://control-plane-tls:4444")
+  EXECUTOR_URL = ENV.fetch("RUNDIFF_LAB_EXECUTOR_URL", "https://executor-tls:4443")
+  ADMIN_TOKEN = ENV.fetch("RUNDIFF_LAB_GITHUB_ADMIN_TOKEN", "lab-admin-token")
+  CHECK_NAME = ENV.fetch("RUNDIFF_GITHUB_APP_CHECK_NAME", "RunDiff Lab / Behavioral Diff")
   CUSTOMER_REPOSITORY = "admin/customer-rails"
   DISALLOWED_REPOSITORY = "admin/not-allowed"
-  TIMEOUT_SECONDS = Integer(ENV.fetch("PLYWO_LAB_TIMEOUT_SECONDS", "300"))
+  TIMEOUT_SECONDS = Integer(ENV.fetch("RUNDIFF_LAB_TIMEOUT_SECONDS", "300"))
 
   module_function
 
@@ -80,7 +80,7 @@ module PlywoProductionLab
         title:,
         head: branch,
         base: "main",
-        body: "Created by the hermetic Plywo production lab."
+        body: "Created by the hermetic RunDiff production lab."
       }
     )
   end
@@ -113,9 +113,9 @@ module PlywoProductionLab
       raise "Expected #{repository}##{number} Check Run to contain #{expected_text.inspect}: #{check_text}"
     end
 
-    comment = wait_for("Plywo comment for #{repository}##{number}") do
+    comment = wait_for("RunDiff comment for #{repository}##{number}") do
       github_json(:get, "/repos/#{repository}/issues/#{number}/comments").find do |item|
-        item.fetch("body", "").include?("<!-- plywo:behavioral-diff:v1 -->")
+        item.fetch("body", "").include?("<!-- rundiff:behavioral-diff:v1 -->")
       end
     end
 
@@ -154,8 +154,8 @@ module PlywoProductionLab
     checks = github_json(:get, "/repos/#{DISALLOWED_REPOSITORY}/commits/#{emulator_head_sha}/check-runs")
     comments = github_json(:get, "/repos/#{DISALLOWED_REPOSITORY}/issues/#{pull_request.fetch("number")}/comments")
 
-    raise "Disallowed repository unexpectedly received a Plywo Check Run" unless checks.fetch("check_runs", []).empty?
-    raise "Disallowed repository unexpectedly received a Plywo comment" if comments.any? { |item| item.fetch("body", "").include?("plywo:behavioral-diff") }
+    raise "Disallowed repository unexpectedly received a RunDiff Check Run" unless checks.fetch("check_runs", []).empty?
+    raise "Disallowed repository unexpectedly received a RunDiff comment" if comments.any? { |item| item.fetch("body", "").include?("rundiff:behavioral-diff") }
   end
 
   def assert_wrong_executor_token_is_rejected!
@@ -233,4 +233,4 @@ module PlywoProductionLab
   end
 end
 
-PlywoProductionLab.call
+RunDiffProductionLab.call

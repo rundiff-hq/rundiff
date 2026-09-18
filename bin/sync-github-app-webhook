@@ -30,23 +30,23 @@ esac
 ENV_FILE="tmp/github-app/${ENVIRONMENT}.env"
 [[ -f "$ENV_FILE" ]] || { printf 'Missing credentials: %s\n' "$ENV_FILE" >&2; exit 1; }
 
-SECRET_LINES="$(grep -Ec '^(export )?PLYWO_GITHUB_WEBHOOK_SECRET=' "$ENV_FILE" || true)"
+SECRET_LINES="$(grep -Ec '^(export )?RUNDIFF_GITHUB_WEBHOOK_SECRET=' "$ENV_FILE" || true)"
 [[ "$SECRET_LINES" == "1" ]] || {
-  printf 'Expected exactly one PLYWO_GITHUB_WEBHOOK_SECRET in %s, found %s\n' "$ENV_FILE" "$SECRET_LINES" >&2
+  printf 'Expected exactly one RUNDIFF_GITHUB_WEBHOOK_SECRET in %s, found %s\n' "$ENV_FILE" "$SECRET_LINES" >&2
   exit 1
 }
 
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-export PLYWO_PUBLIC_URL="${PLYWO_PUBLIC_URL:-$DEFAULT_PUBLIC_URL}"
+export RUNDIFF_PUBLIC_URL="${RUNDIFF_PUBLIC_URL:-$DEFAULT_PUBLIC_URL}"
 export RAILS_ENV="$RAILS_ENVIRONMENT"
 
 mise exec -- bin/rails runner '
-authentication = Plywo::Github::AppAuthentication.from_env(root: Rails.root)
+authentication = RunDiff::Github::AppAuthentication.from_env(root: Rails.root)
 result = authentication.sync_webhook!(
-  url: "#{ENV.fetch("PLYWO_PUBLIC_URL")}/github/webhooks",
-  secret: ENV.fetch("PLYWO_GITHUB_WEBHOOK_SECRET")
+  url: "#{ENV.fetch("RUNDIFF_PUBLIC_URL")}/github/webhooks",
+  secret: ENV.fetch("RUNDIFF_GITHUB_WEBHOOK_SECRET")
 )
 
 puts "GitHub App webhook synced"

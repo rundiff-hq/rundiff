@@ -1,4 +1,4 @@
-# Plywo docs
+# RunDiff docs
 
 Read in this order:
 

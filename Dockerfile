@@ -32,11 +32,11 @@ WORKDIR /app
 ENV BUNDLE_DEPLOYMENT=1 \
     BUNDLE_PATH=/usr/local/bundle \
     BUNDLE_WITHOUT=development \
-    PLYWO_EXECUTOR_CAPABILITIES_JSON="{\"runtimes\":{\"ruby\":\"${RUBY_VERSION}\",\"node\":\"${NODE_VERSION}\"},\"package_managers\":{\"npm\":\"${NPM_VERSION}\",\"pnpm\":\"${PNPM_VERSION}\",\"yarn\":\"${YARN_VERSION}\"}}" \
-    PLYWO_SUBJECT_UID="${SUBJECT_UID}" \
-    PLYWO_SUBJECT_GID="${SUBJECT_GID}" \
-    PLYWO_SUBJECT_HOME="/home/plywo-subject" \
-    PLYWO_SUBJECT_USER="plywo-subject"
+    RUNDIFF_EXECUTOR_CAPABILITIES_JSON="{\"runtimes\":{\"ruby\":\"${RUBY_VERSION}\",\"node\":\"${NODE_VERSION}\"},\"package_managers\":{\"npm\":\"${NPM_VERSION}\",\"pnpm\":\"${PNPM_VERSION}\",\"yarn\":\"${YARN_VERSION}\"}}" \
+    RUNDIFF_SUBJECT_UID="${SUBJECT_UID}" \
+    RUNDIFF_SUBJECT_GID="${SUBJECT_GID}" \
+    RUNDIFF_SUBJECT_HOME="/home/rundiff-subject" \
+    RUNDIFF_SUBJECT_USER="rundiff-subject"
 
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
@@ -45,8 +45,8 @@ RUN apt-get update -qq && \
       libpq-dev \
       libsqlite3-dev \
       pkg-config && \
-    groupadd --gid "${SUBJECT_GID}" plywo-subject && \
-    useradd --uid "${SUBJECT_UID}" --gid "${SUBJECT_GID}" --home-dir /home/plywo-subject --create-home --shell /usr/sbin/nologin plywo-subject && \
+    groupadd --gid "${SUBJECT_GID}" rundiff-subject && \
+    useradd --uid "${SUBJECT_UID}" --gid "${SUBJECT_GID}" --home-dir /home/rundiff-subject --create-home --shell /usr/sbin/nologin rundiff-subject && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node

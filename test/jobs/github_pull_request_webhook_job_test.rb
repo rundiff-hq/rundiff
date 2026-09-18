@@ -39,18 +39,18 @@ class GithubPullRequestWebhookJobTest < ActiveJob::TestCase
   test "authenticates the installation and queues a durable current execution" do
     delivery = create_delivery(action: "synchronize")
 
-    assert_difference("PlywoExecution.count", 1) do
+    assert_difference("RunDiffExecution.count", 1) do
       perform_job(delivery:, head_sha: "head-sha")
     end
 
-    execution = PlywoExecution.last
+    execution = RunDiffExecution.last
     assert_equal "completed", delivery.reload.status
     assert_nil delivery.failure
     assert_equal "queued", execution.status
     assert_equal "github_pull_request", execution.source
     assert_equal "base-sha", execution.baseline_sha
     assert_equal "head-sha", execution.candidate_sha
-    assert_equal "plywo/plywo", execution.context.fetch("repository")
+    assert_equal "rundiff/rundiff", execution.context.fetch("repository")
     assert_equal 19, execution.context.fetch("pull_request_number")
     assert_equal [ execution.id ], FakeExecutionJob.enqueued_ids
   end
@@ -62,7 +62,7 @@ class GithubPullRequestWebhookJobTest < ActiveJob::TestCase
     perform_job(delivery: first, head_sha: "head-sha")
     perform_job(delivery: second, head_sha: "head-sha")
 
-    assert_equal 1, PlywoExecution.count
+    assert_equal 1, RunDiffExecution.count
     assert_equal 2, FakeExecutionJob.enqueued_ids.length
     assert_equal "completed", second.reload.status
   end
@@ -100,7 +100,7 @@ class GithubPullRequestWebhookJobTest < ActiveJob::TestCase
       event: "pull_request",
       action:,
       installation_id: 158_885_061,
-      repository: "plywo/plywo",
+      repository: "rundiff/rundiff",
       pull_request_number: 19,
       base_sha: "base-sha",
       head_sha: "head-sha"
@@ -108,7 +108,7 @@ class GithubPullRequestWebhookJobTest < ActiveJob::TestCase
   end
 
   def fake_authentication
-    token = Plywo::Github::AppAuthentication::Token.new(
+    token = RunDiff::Github::AppAuthentication::Token.new(
       value: "installation-token",
       expires_at: Time.utc(2026, 9, 4, 18, 30, 0)
     )
@@ -125,7 +125,7 @@ class GithubPullRequestWebhookJobTest < ActiveJob::TestCase
   def fake_client(head_sha:)
     Object.new.tap do |client|
       client.define_singleton_method(:fetch) do |repository:, number:|
-        raise "unexpected repository" unless repository == "plywo/plywo"
+        raise "unexpected repository" unless repository == "rundiff/rundiff"
         raise "unexpected pull request" unless number == 19
 
         {
@@ -133,7 +133,7 @@ class GithubPullRequestWebhookJobTest < ActiveJob::TestCase
           "head" => {
             "ref" => "feature",
             "sha" => head_sha,
-            "repo" => { "full_name" => "plywo/plywo" }
+            "repo" => { "full_name" => "rundiff/rundiff" }
           }
         }
       end

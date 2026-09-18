@@ -10,7 +10,7 @@ module Demo
     }.freeze
 
     def create
-      profile = PROFILES.fetch(Current.plywo_subject.to_s, PROFILES.fetch("baseline"))
+      profile = PROFILES.fetch(Current.rundiff_subject.to_s, PROFILES.fetch("baseline"))
 
       ApplicationRecord.uncached do
         profile.fetch(:sql_queries).times do
@@ -23,20 +23,20 @@ module Demo
       end
 
       profile.fetch(:emails).times do
-        DemoMailer.notification(Current.plywo_execution_id).deliver_now
+        DemoMailer.notification(Current.rundiff_execution_id).deliver_now
       end
 
       profile.fetch(:http_requests).times do
-        Net::HTTP.get(URI.parse(Plywo::Demo::LoopbackHttpServer.url))
+        Net::HTTP.get(URI.parse(RunDiff::Demo::LoopbackHttpServer.url))
       end
 
       sleep(profile.fetch(:delay_ms) / 1000.0)
 
       render json: {
         ok: true,
-        run_id: Current.plywo_run_id,
-        execution_id: Current.plywo_execution_id,
-        subject: Current.plywo_subject
+        run_id: Current.rundiff_run_id,
+        execution_id: Current.rundiff_execution_id,
+        subject: Current.rundiff_subject
       }
     end
   end

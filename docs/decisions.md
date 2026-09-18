@@ -22,7 +22,7 @@ Use Playwright as the preferred first-party web driver, but never require it for
 
 Status: Accepted
 
-Use OpenTelemetry semantics and W3C Trace Context for distributed causality. Keep `plywo.execution.id` as execution-level correlation context in addition to trace/span IDs. Never use it as a metric dimension.
+Use OpenTelemetry semantics and W3C Trace Context for distributed causality. Keep `rundiff.execution.id` as execution-level correlation context in addition to trace/span IDs. Never use it as a metric dimension.
 
 ## ADR 0005 - Separate human and agent contracts
 

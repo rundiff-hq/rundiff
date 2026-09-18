@@ -1,5 +1,5 @@
 ActiveRecord::Schema[8.1].define(version: 2026_09_05_000001) do
-  create_table "plywo_evidence_events", force: :cascade do |t|
+  create_table "rundiff_evidence_events", force: :cascade do |t|
     t.string "confidence"
     t.datetime "created_at", null: false
     t.integer "end_line"
@@ -18,7 +18,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_000001) do
     t.index [ "execution_id", "signal" ]
   end
 
-  create_table "plywo_execution_work_items", force: :cascade do |t|
+  create_table "rundiff_execution_work_items", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "enqueued_at"
     t.string "error_class"

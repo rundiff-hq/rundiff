@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://plywo.com/schemas/execution-v1.schema.json",
-  "title": "Plywo Execution v1",
+  "$id": "https://rundiff.com/schemas/execution-v1.schema.json",
+  "title": "RunDiff Execution v1",
   "type": "object",
   "required": ["schema_version", "execution_id", "run_id", "scenario_id", "subject", "status"],
   "properties": {

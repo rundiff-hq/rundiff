@@ -36,7 +36,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_004000) do
     t.index ["status"], name: "index_github_webhook_deliveries_on_status"
   end
 
-  create_table "plywo_evidence_events", force: :cascade do |t|
+  create_table "rundiff_evidence_events", force: :cascade do |t|
     t.string "confidence"
     t.datetime "created_at", null: false
     t.integer "end_line"
@@ -52,11 +52,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_004000) do
     t.integer "start_line"
     t.string "subject"
     t.datetime "updated_at", null: false
-    t.index ["execution_id", "signal"], name: "index_plywo_evidence_events_on_execution_id_and_signal"
-    t.index ["execution_id"], name: "index_plywo_evidence_events_on_execution_id"
+    t.index ["execution_id", "signal"], name: "index_rundiff_evidence_events_on_execution_id_and_signal"
+    t.index ["execution_id"], name: "index_rundiff_evidence_events_on_execution_id"
   end
 
-  create_table "plywo_execution_work_items", force: :cascade do |t|
+  create_table "rundiff_execution_work_items", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "enqueued_at"
     t.string "error_class"
@@ -71,11 +71,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_004000) do
     t.string "subject"
     t.datetime "updated_at", null: false
     t.string "work_id", null: false
-    t.index ["execution_id", "kind", "work_id"], name: "index_plywo_work_items_on_execution_kind_work", unique: true
-    t.index ["execution_id", "status"], name: "index_plywo_execution_work_items_on_execution_id_and_status"
+    t.index ["execution_id", "kind", "work_id"], name: "index_rundiff_work_items_on_execution_kind_work", unique: true
+    t.index ["execution_id", "status"], name: "index_rundiff_execution_work_items_on_execution_id_and_status"
   end
 
-  create_table "plywo_executions", force: :cascade do |t|
+  create_table "rundiff_executions", force: :cascade do |t|
     t.string "baseline_sha", null: false
     t.string "candidate_sha", null: false
     t.jsonb "context", default: {}, null: false
@@ -96,13 +96,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_004000) do
     t.integer "attempt_count", default: 0, null: false
     t.datetime "cancelled_at"
     t.string "cancellation_reason"
-    t.index ["execution_id"], name: "index_plywo_executions_on_execution_id", unique: true
-    t.index ["outcome"], name: "index_plywo_executions_on_outcome"
-    t.index ["status", "lease_expires_at"], name: "index_plywo_executions_on_status_and_lease_expires_at"
-    t.index ["status"], name: "index_plywo_executions_on_status"
+    t.index ["execution_id"], name: "index_rundiff_executions_on_execution_id", unique: true
+    t.index ["outcome"], name: "index_rundiff_executions_on_outcome"
+    t.index ["status", "lease_expires_at"], name: "index_rundiff_executions_on_status_and_lease_expires_at"
+    t.index ["status"], name: "index_rundiff_executions_on_status"
   end
 
-  create_table "plywo_executor_requests", force: :cascade do |t|
+  create_table "rundiff_executor_requests", force: :cascade do |t|
     t.string "claim_token"
     t.datetime "created_at", null: false
     t.datetime "finished_at"
@@ -116,7 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_004000) do
     t.datetime "updated_at", null: false
     t.datetime "cancelled_at"
     t.string "cancellation_reason"
-    t.index ["idempotency_key"], name: "index_plywo_executor_requests_on_idempotency_key", unique: true
-    t.index ["status", "lease_expires_at"], name: "index_plywo_executor_requests_on_status_and_lease_expires_at"
+    t.index ["idempotency_key"], name: "index_rundiff_executor_requests_on_idempotency_key", unique: true
+    t.index ["status", "lease_expires_at"], name: "index_rundiff_executor_requests_on_status_and_lease_expires_at"
   end
 end

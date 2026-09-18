@@ -1,12 +1,12 @@
 # Subject environments
 
-Plywo's own control plane is intentionally Rails + PostgreSQL. Customer subject portability lives at a different boundary.
+RunDiff's own control plane is intentionally Rails + PostgreSQL. Customer subject portability lives at a different boundary.
 
 A subject environment prepares the software being measured and returns the runtime environment needed to capture baseline/candidate evidence. The local GitHub runner delegates these responsibilities instead of owning database-product setup directly.
 
 ## Lifecycle orchestration
 
-`Plywo::Subject::Lifecycle` owns the orchestration around one exact subject worktree:
+`RunDiff::Subject::Lifecycle` owns the orchestration around one exact subject worktree:
 
 ```text
 discover subject contract
@@ -78,7 +78,7 @@ Subject environment
 
 `Environment#capability?` checks an exact capability and `Environment#capabilities_for` queries one namespace.
 
-These declarations are execution-planning and discovery metadata inside the subject boundary. They are **not** fields in `Plywo::Executor::Request` or `Plywo::Executor::Result`, and they are not a promise that today's capability identifiers are a stable public wire protocol.
+These declarations are execution-planning and discovery metadata inside the subject boundary. They are **not** fields in `RunDiff::Executor::Request` or `RunDiff::Executor::Result`, and they are not a promise that today's capability identifiers are a stable public wire protocol.
 
 The important semantic guarantee is `state.isolated_comparable`: baseline and candidate receive state that can be compared safely. How that property is achieved belongs to the environment implementation, not the executor contract.
 
@@ -86,7 +86,7 @@ Capabilities describe what an adapter can actually prove. Unsupported signals mu
 
 ## Rails + PostgreSQL subjects
 
-`Plywo::Subject::RailsPostgresEnvironment` preserves Plywo's existing dogfood behavior and declares:
+`RunDiff::Subject::RailsPostgresEnvironment` preserves RunDiff's existing dogfood behavior and declares:
 
 ```text
 framework.rails
@@ -106,11 +106,11 @@ baseline  -> isolated PostgreSQL primary + queue databases
 candidate -> isolated PostgreSQL primary + queue databases
 ```
 
-`PLYWO_LOCAL_POSTGRES_URL` is therefore an implementation detail of that subject environment. It is not part of `Plywo::Executor::Request`, `Plywo::Executor::Result`, or the generic customer execution contract.
+`RUNDIFF_LOCAL_POSTGRES_URL` is therefore an implementation detail of that subject environment. It is not part of `RunDiff::Executor::Request`, `RunDiff::Executor::Result`, or the generic customer execution contract.
 
 ## Rails + SQLite subjects
 
-`Plywo::Subject::RailsSqliteEnvironment` proves that customer persistence does not inherit the control plane's PostgreSQL requirement and declares:
+`RunDiff::Subject::RailsSqliteEnvironment` proves that customer persistence does not inherit the control plane's PostgreSQL requirement and declares:
 
 ```text
 framework.rails
@@ -132,24 +132,24 @@ candidate -> ..._candidate.sqlite3
 
 The adapter removes stale database/WAL/SHM files before preparation and cleans them after execution. The built-in proof uses Active Job's test adapter, so it does not synthesize a second queue database just to imitate the PostgreSQL dogfood environment.
 
-The SQLite database path is passed through the adapter-private `PLYWO_SQLITE_DATABASE` environment variable. No `PLYWO_LOCAL_POSTGRES_URL`, PostgreSQL URL, or database-product field is added to the portable executor request/result schemas.
+The SQLite database path is passed through the adapter-private `RUNDIFF_SQLITE_DATABASE` environment variable. No `RUNDIFF_LOCAL_POSTGRES_URL`, PostgreSQL URL, or database-product field is added to the portable executor request/result schemas.
 
-`script/prove_rails_sqlite_subject.rb` builds a disposable Rails + SQLite Git subject, injects the same Plywo Rails instrumentation, creates baseline and candidate commits, and executes them through:
+`script/prove_rails_sqlite_subject.rb` builds a disposable Rails + SQLite Git subject, injects the same RunDiff Rails instrumentation, creates baseline and candidate commits, and executes them through:
 
 ```text
-Plywo::Executor::Request v1
+RunDiff::Executor::Request v1
   -> LocalAdapter
   -> LocalPullRequestRunner
   -> Subject::Lifecycle
   -> RailsSqliteEnvironment
-  -> script/plywo_capture_subject.rb
+  -> script/rundiff_capture_subject.rb
   -> ExecutionReducer / ExecutionPair
-  -> Plywo::Executor::Result v1
+  -> RunDiff::Executor::Result v1
 ```
 
 The candidate deliberately increases database query behavior so the proof returns real SQLite query evidence and a `DATABASE_QUERY_REGRESSION` through the same Behavioral Diff contract used for PostgreSQL dogfood.
 
-This is customer-subject adapter coverage. It does not make the Plywo service itself SQLite-compatible; Plywo's durable control plane remains PostgreSQL-only by design.
+This is customer-subject adapter coverage. It does not make the RunDiff service itself SQLite-compatible; RunDiff's durable control plane remains PostgreSQL-only by design.
 
 ## Portable and native evidence
 

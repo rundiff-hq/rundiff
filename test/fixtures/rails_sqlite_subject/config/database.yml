@@ -1,5 +1,5 @@
 test:
   adapter: sqlite3
-  database: <%= ENV.fetch("PLYWO_SQLITE_DATABASE") %>
+  database: <%= ENV.fetch("RUNDIFF_SQLITE_DATABASE") %>
   pool: 5
   timeout: 5000

@@ -7,11 +7,11 @@ require "tmpdir"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 
-require TOOL_ROOT.join("lib", "plywo", "subject", "runtime_capabilities").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "javascript_package_manager_detector").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "javascript_dependencies_bootstrap").to_s
-require TOOL_ROOT.join("lib", "plywo", "github", "local_pull_request_runner").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "runtime_capabilities").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "javascript_package_manager_detector").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "javascript_dependencies_bootstrap").to_s
+require TOOL_ROOT.join("lib", "rundiff", "github", "local_pull_request_runner").to_s
 
 module NodeNpmExecutorCapabilityProof
   EXPECTED_NODE_VERSION = "24.20.0"
@@ -20,10 +20,10 @@ module NodeNpmExecutorCapabilityProof
   module_function
 
   def call
-    capabilities = Plywo::Subject::RuntimeCapabilities.from_env
+    capabilities = RunDiff::Subject::RuntimeCapabilities.from_env
     assert_capabilities!(capabilities)
 
-    command_runner = Plywo::Github::LocalPullRequestRunner::CommandRunner.new
+    command_runner = RunDiff::Github::LocalPullRequestRunner::CommandRunner.new
     node_runtime = run_version!(command_runner, %w[node --version])
     npm_runtime = run_version!(command_runner, %w[npm --version])
 
@@ -34,16 +34,16 @@ module NodeNpmExecutorCapabilityProof
       raise "Declared npm capability does not match runtime: #{npm_runtime.inspect}"
     end
 
-    Dir.mktmpdir("plywo-node-npm-capability-") do |directory|
+    Dir.mktmpdir("rundiff-node-npm-capability-") do |directory|
       root = Pathname(directory)
       write_subject(root)
 
-      detection = Plywo::Subject::JavascriptPackageManagerDetector.new.call(root:)
+      detection = RunDiff::Subject::JavascriptPackageManagerDetector.new.call(root:)
       unless detection&.manager == "npm" && detection.lockfile == "package-lock.json"
         raise "Expected npm package-manager detection from package-lock.json"
       end
 
-      bootstrap = Plywo::Subject::JavascriptDependenciesBootstrap.new(command_runner:)
+      bootstrap = RunDiff::Subject::JavascriptDependenciesBootstrap.new(command_runner:)
       bootstrap.call(root:, step: detection.bootstrap_step)
 
       marker = root.join("npm-bootstrap-proof.txt")
@@ -84,7 +84,7 @@ module NodeNpmExecutorCapabilityProof
 
   def write_subject(root)
     package = {
-      "name" => "plywo-node-npm-capability-proof",
+      "name" => "rundiff-node-npm-capability-proof",
       "version" => "1.0.0",
       "private" => true,
       "scripts" => {

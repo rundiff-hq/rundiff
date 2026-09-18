@@ -1,34 +1,34 @@
 <main style="max-width: 920px; margin: 56px auto; padding: 0 24px; font-family: system-ui, sans-serif; line-height: 1.55; color: #161616;">
-  <p style="text-transform: uppercase; letter-spacing: .12em; opacity: .55; margin-bottom: 8px;">Plywo onboarding</p>
+  <p style="text-transform: uppercase; letter-spacing: .12em; opacity: .55; margin-bottom: 8px;">RunDiff onboarding</p>
   <h1 style="font-size: clamp(42px, 8vw, 72px); line-height: .98; margin: 0 0 20px;">Your first Behavioral Review in three steps.</h1>
   <p style="font-size: 20px; max-width: 760px; opacity: .8; margin-bottom: 28px;">
     Install the GitHub App, add one declarative scenario file, then open or update a pull request.
-    Plywo runs the same Rails request against the exact baseline and candidate revisions and publishes the behavioral diff back to GitHub.
+    RunDiff runs the same Rails request against the exact baseline and candidate revisions and publishes the behavioral diff back to GitHub.
   </p>
 
   <p style="margin: 32px 0 48px;">
     <a href="<%= @install_url %>" style="display: inline-block; background: #161616; color: white; text-decoration: none; font-weight: 700; padding: 14px 20px; border-radius: 10px;">
-      Install Plywo on GitHub
+      Install RunDiff on GitHub
     </a>
   </p>
 
   <section style="display: grid; gap: 28px;">
     <div>
       <h2>1. Choose repository access</h2>
-      <p>Install Plywo on the Rails repository you want to validate. Plywo currently requests read access to repository contents and write access to Checks and pull-request feedback.</p>
+      <p>Install RunDiff on the Rails repository you want to validate. RunDiff currently requests read access to repository contents and write access to Checks and pull-request feedback.</p>
     </div>
 
     <div>
-      <h2>2. Add <code>plywo.yml</code> in your candidate branch</h2>
+      <h2>2. Add <code>rundiff.yml</code> in your candidate branch</h2>
       <p>Point the first scenario at a normal Rails endpoint that is safe to replay in the validation environment.</p>
-      <pre id="plywo-config" style="position: relative; white-space: pre-wrap; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 10px; padding: 18px; overflow: auto;"><%= @configuration %></pre>
-      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('plywo-config').innerText)" style="padding: 9px 13px; cursor: pointer;">Copy configuration</button>
-      <p style="opacity: .7;">No Plywo gem, GitHub Action, middleware, initializer, or runtime files are required in the customer repository.</p>
+      <pre id="rundiff-config" style="position: relative; white-space: pre-wrap; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 10px; padding: 18px; overflow: auto;"><%= @configuration %></pre>
+      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('rundiff-config').innerText)" style="padding: 9px 13px; cursor: pointer;">Copy configuration</button>
+      <p style="opacity: .7;">No RunDiff gem, GitHub Action, middleware, initializer, or runtime files are required in the customer repository.</p>
     </div>
 
     <div>
       <h2>3. Open or update a pull request</h2>
-      <p>Plywo checks out the exact base and candidate commits, discovers Rails plus PostgreSQL or SQLite, executes the scenario on both sides, and publishes a GitHub Behavioral Review with an <strong>ALLOW</strong> or <strong>BLOCK</strong> recommendation.</p>
+      <p>RunDiff checks out the exact base and candidate commits, discovers Rails plus PostgreSQL or SQLite, executes the scenario on both sides, and publishes a GitHub Behavioral Review with an <strong>ALLOW</strong> or <strong>BLOCK</strong> recommendation.</p>
     </div>
   </section>
 
@@ -38,6 +38,6 @@
   </aside>
 
   <p style="margin-top: 36px; opacity: .65; font-size: 14px;">
-    GitHub may redirect back here with an <code>installation_id</code>. Plywo does not treat that query parameter as proof of installation ownership; this page is informational only.
+    GitHub may redirect back here with an <code>installation_id</code>. RunDiff does not treat that query parameter as proof of installation ownership; this page is informational only.
   </p>
 </main>

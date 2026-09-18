@@ -4,7 +4,7 @@ Rails.application.configure do
   config.consider_all_requests_local = true
   config.action_controller.perform_caching = false
 
-  if ENV["PLYWO_SOLID_QUEUE"] == "1"
+  if ENV["RUNDIFF_SOLID_QUEUE"] == "1"
     config.active_job.queue_adapter = :solid_queue
     config.solid_queue.connects_to = { database: { writing: :queue } }
     config.solid_queue.logger = ActiveSupport::Logger.new($stdout)

@@ -5,8 +5,8 @@ The concrete first production deployment contract lives in [`deploy/production/R
 It turns the runtime-role design in `docs/production-runtime.md` into a runnable two-host topology for #75:
 
 ```text
-app.plywo.com      -> control_plane web + Solid Queue worker
-executor.plywo.com -> executor_service + disposable-subject PostgreSQL authority
+app.rundiff.com      -> control_plane web + Solid Queue worker
+executor.rundiff.com -> executor_service + disposable-subject PostgreSQL authority
 ```
 
 Both roles deploy the same immutable GHCR SHA image. They use separate Cloudflare Tunnel credentials and separate Rails secrets. Only the control plane receives GitHub App credentials; only the executor receives the server side of the executor service token.

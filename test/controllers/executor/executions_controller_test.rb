@@ -3,8 +3,8 @@ require "test_helper"
 class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
   test "returns a durable completed executor result to an authenticated caller" do
     with_executor_service_env do
-      result = Plywo::Executor::Result.success(result_payload)
-      acquisition = PlywoExecutorRequest.acquire!(
+      result = RunDiff::Executor::Result.success(result_payload)
+      acquisition = RunDiffExecutorRequest.acquire!(
         idempotency_key: "github-123:1",
         request_payload: request_payload,
         lease_seconds: 60
@@ -59,7 +59,7 @@ class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
 
   test "returns conflict while an identical request is already processing" do
     with_executor_service_env do
-      PlywoExecutorRequest.acquire!(
+      RunDiffExecutorRequest.acquire!(
         idempotency_key: "github-123:1",
         request_payload: request_payload,
         lease_seconds: 60
@@ -79,7 +79,7 @@ class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
 
       assert_response :accepted
       assert_equal "cancelled", response.parsed_body.fetch("status")
-      record = PlywoExecutorRequest.find_by!(idempotency_key: "github-123:1")
+      record = RunDiffExecutorRequest.find_by!(idempotency_key: "github-123:1")
       assert_equal "cancelled", record.status
       assert_equal "superseded", record.cancellation_reason
 
@@ -92,12 +92,12 @@ class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
 
   test "accepts cancellation even when the worker adapter is disabled" do
     with_executor_service_env do
-      ENV["PLYWO_EXECUTOR_SERVICE_ADAPTER"] = "disabled"
+      ENV["RUNDIFF_EXECUTOR_SERVICE_ADAPTER"] = "disabled"
 
       post_cancel(reason: "shutdown")
 
       assert_response :accepted
-      record = PlywoExecutorRequest.find_by!(idempotency_key: "github-123:1")
+      record = RunDiffExecutorRequest.find_by!(idempotency_key: "github-123:1")
       assert_equal "cancelled", record.status
       assert_equal "shutdown", record.cancellation_reason
     end
@@ -110,9 +110,9 @@ class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
       post_cancel(reason: "second")
       assert_response :accepted
 
-      PlywoExecutorRequest.delete_all
-      result = Plywo::Executor::Result.success(result_payload)
-      acquisition = PlywoExecutorRequest.acquire!(
+      RunDiffExecutorRequest.delete_all
+      result = RunDiff::Executor::Result.success(result_payload)
+      acquisition = RunDiffExecutorRequest.acquire!(
         idempotency_key: "github-123:1",
         request_payload: request_payload,
         lease_seconds: 60
@@ -132,18 +132,18 @@ class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def with_executor_service_env
-    previous_token = ENV["PLYWO_EXECUTOR_SERVICE_TOKEN"]
-    previous_adapter = ENV["PLYWO_EXECUTOR_SERVICE_ADAPTER"]
-    previous_lease = ENV["PLYWO_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS"]
+    previous_token = ENV["RUNDIFF_EXECUTOR_SERVICE_TOKEN"]
+    previous_adapter = ENV["RUNDIFF_EXECUTOR_SERVICE_ADAPTER"]
+    previous_lease = ENV["RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS"]
 
-    ENV["PLYWO_EXECUTOR_SERVICE_TOKEN"] = "executor-secret"
-    ENV["PLYWO_EXECUTOR_SERVICE_ADAPTER"] = "local"
-    ENV["PLYWO_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS"] = "60"
+    ENV["RUNDIFF_EXECUTOR_SERVICE_TOKEN"] = "executor-secret"
+    ENV["RUNDIFF_EXECUTOR_SERVICE_ADAPTER"] = "local"
+    ENV["RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS"] = "60"
     yield
   ensure
-    ENV["PLYWO_EXECUTOR_SERVICE_TOKEN"] = previous_token
-    ENV["PLYWO_EXECUTOR_SERVICE_ADAPTER"] = previous_adapter
-    ENV["PLYWO_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS"] = previous_lease
+    ENV["RUNDIFF_EXECUTOR_SERVICE_TOKEN"] = previous_token
+    ENV["RUNDIFF_EXECUTOR_SERVICE_ADAPTER"] = previous_adapter
+    ENV["RUNDIFF_EXECUTOR_SERVICE_REQUEST_LEASE_SECONDS"] = previous_lease
   end
 
   def post_executor(payload, idempotency_key:)
@@ -174,11 +174,11 @@ class ExecutorExecutionsControllerTest < ActionDispatch::IntegrationTest
       "candidate_sha" => "head",
       "attempt_number" => 1,
       "context" => {
-        "repository" => "plywo/plywo",
+        "repository" => "rundiff/rundiff",
         "pull_request_number" => 40,
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "plywo/plywo"
+        "candidate_repository" => "rundiff/rundiff"
       }
     }
   end

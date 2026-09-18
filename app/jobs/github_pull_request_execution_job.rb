@@ -2,7 +2,7 @@ class GithubPullRequestExecutionJob < ApplicationJob
   queue_as :control
 
   def perform(execution_record_id)
-    execution = PlywoExecution.find(execution_record_id)
+    execution = RunDiffExecution.find(execution_record_id)
     return unless execution.claim!
 
     token = installation_token(execution:)
@@ -12,12 +12,12 @@ class GithubPullRequestExecutionJob < ApplicationJob
       return
     end
 
-    request = Plywo::Executor::Request.from_execution(execution)
+    request = RunDiff::Executor::Request.from_execution(execution)
     heartbeat_job_class.schedule(execution.execution_id, execution.attempt_count)
     executor_job_class.perform_later(request.to_h)
 
     Rails.logger.info(
-      "Plywo GitHub execution dispatched execution_id=#{execution.execution_id.inspect} " \
+      "RunDiff GitHub execution dispatched execution_id=#{execution.execution_id.inspect} " \
       "repository=#{execution.context.fetch("repository").inspect} " \
       "pr=#{execution.context.fetch("pull_request_number").inspect} " \
       "attempt=#{execution.attempt_count.inspect}"
@@ -54,7 +54,7 @@ class GithubPullRequestExecutionJob < ApplicationJob
   def ignore_stale!(execution:, reason:)
     execution.ignore!(reason)
     Rails.logger.info(
-      "Plywo GitHub execution ignored execution_id=#{execution.execution_id.inspect} reason=#{reason.inspect}"
+      "RunDiff GitHub execution ignored execution_id=#{execution.execution_id.inspect} reason=#{reason.inspect}"
     )
   end
 
@@ -65,27 +65,27 @@ class GithubPullRequestExecutionJob < ApplicationJob
 
     publication = execution_publisher(token: token.value).infra_failure(execution:, error:)
     Rails.logger.info(
-      "Plywo GitHub execution infra failure execution_id=#{execution.execution_id.inspect} " \
+      "RunDiff GitHub execution infra failure execution_id=#{execution.execution_id.inspect} " \
       "attempt=#{execution.attempt_count.inspect} check=#{publication.fetch(:check).inspect} " \
       "comment=#{publication.fetch(:comment).inspect}"
     )
   rescue StandardError => publication_error
     Rails.logger.error(
-      "Plywo GitHub infra failure publication failed execution_id=#{execution.execution_id.inspect} " \
+      "RunDiff GitHub infra failure publication failed execution_id=#{execution.execution_id.inspect} " \
       "error=#{publication_error.class}"
     )
   end
 
   def app_authentication
-    Plywo::Github::AppAuthentication.from_env(root: ::Rails.root)
+    RunDiff::Github::AppAuthentication.from_env(root: ::Rails.root)
   end
 
   def pull_request_client(token:)
-    Plywo::Github::PullRequestClient.new(token:)
+    RunDiff::Github::PullRequestClient.new(token:)
   end
 
   def executor_job_class
-    PlywoExecutorJob
+    RunDiffExecutorJob
   end
 
   def heartbeat_job_class
@@ -93,6 +93,6 @@ class GithubPullRequestExecutionJob < ApplicationJob
   end
 
   def execution_publisher(token:)
-    Plywo::Github::PullRequestExecutionPublisher.new(token:)
+    RunDiff::Github::PullRequestExecutionPublisher.new(token:)
   end
 end

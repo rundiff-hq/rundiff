@@ -1,13 +1,13 @@
 {
-  "name": "Plywo Development",
-  "description": "Development GitHub App for Plywo behavioral change validation.",
-  "url": "https://github.com/plywo/plywo",
+  "name": "RunDiff Development",
+  "description": "Development GitHub App for RunDiff behavioral change validation.",
+  "url": "https://github.com/rundiff-hq/rundiff",
   "hook_attributes": {
-    "url": "{{PLYWO_PUBLIC_URL}}/github/webhooks",
+    "url": "{{RUNDIFF_PUBLIC_URL}}/github/webhooks",
     "active": true
   },
-  "redirect_url": "{{PLYWO_PUBLIC_URL}}/github/app/manifest/callback",
-  "setup_url": "{{PLYWO_PUBLIC_URL}}/onboarding",
+  "redirect_url": "{{RUNDIFF_PUBLIC_URL}}/github/app/manifest/callback",
+  "setup_url": "{{RUNDIFF_PUBLIC_URL}}/onboarding",
   "public": false,
   "default_permissions": {
     "checks": "write",

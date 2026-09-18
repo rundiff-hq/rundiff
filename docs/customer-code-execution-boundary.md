@@ -1,6 +1,6 @@
 # Customer code execution boundary
 
-Plywo intentionally executes customer repository code only inside the executor trust boundary. The control plane authenticates GitHub events, owns durable execution state and policy, mints short-lived repository capabilities, and publishes results; it does not run customer code.
+RunDiff intentionally executes customer repository code only inside the executor trust boundary. The control plane authenticates GitHub events, owns durable execution state and policy, mints short-lived repository capabilities, and publishes results; it does not run customer code.
 
 ## Explicit process services
 
@@ -25,7 +25,7 @@ Adding another runtime must be implemented as another reviewed executor-owned pr
 
 The production executor retains its operating-system identity for executor-owned control operations such as Git/worktree management and installation of the selected Bundler tool version. Repository-controlled code does not execute with that identity.
 
-The production image declares an explicit subject identity (`PLYWO_SUBJECT_UID`, `PLYWO_SUBJECT_GID`, `PLYWO_SUBJECT_HOME`, and `PLYWO_SUBJECT_USER`) backed by the dedicated `plywo-subject` account. Plywo assigns each disposable checkout/state directory to that identity and uses it for every customer-controlled execution phase:
+The production image declares an explicit subject identity (`RUNDIFF_SUBJECT_UID`, `RUNDIFF_SUBJECT_GID`, `RUNDIFF_SUBJECT_HOME`, and `RUNDIFF_SUBJECT_USER`) backed by the dedicated `rundiff-subject` account. RunDiff assigns each disposable checkout/state directory to that identity and uses it for every customer-controlled execution phase:
 
 - Bundler evaluation/install of the customer Gemfile and locked dependencies
 - npm/pnpm/Yarn/Bun dependency installation and their lifecycle scripts
@@ -36,7 +36,7 @@ The production image declares an explicit subject identity (`PLYWO_SUBJECT_UID`,
 
 The only Bundler operation allowed to remain executor-owned is selecting/installing the **Bundler tool itself** from the exact `BUNDLED WITH` version. Customer Gemfile evaluation still occurs only through the subject runner.
 
-`USER` and `LOGNAME` are identity-owned and override repository/capture environment attempts to replace them. The declared account home is metadata for the OS account; customer execution instead receives a worktree-local `tmp/plywo/home`, also enforced after caller environment merging. Local development remains unchanged when no subject identity is declared. An enabled subject identity must use a positive UID different from the executor UID and an absolute account home path; a configuration that collapses the two identities fails closed.
+`USER` and `LOGNAME` are identity-owned and override repository/capture environment attempts to replace them. The declared account home is metadata for the OS account; customer execution instead receives a worktree-local `tmp/rundiff/home`, also enforced after caller environment merging. Local development remains unchanged when no subject identity is declared. An enabled subject identity must use a positive UID different from the executor UID and an absolute account home path; a configuration that collapses the two identities fails closed.
 
 Writable dependency state is isolated. When the production subject identity is enabled, Ruby bundle cache state and runtime `HOME` are worktree-local rather than mutable state shared by baseline and candidate. JavaScript dependency state is created inside each disposable worktree as well.
 
@@ -67,7 +67,7 @@ The host-capable Compose proof runs a real Redis image, waits for TCP readiness,
 
 The current remote production executor intentionally does **not** declare the Compose service-provider capability and does not contain the Docker CLI. Its container is not given `/var/run/docker.sock`.
 
-This is a security boundary, not a missing convenience flag. Giving customer code direct Docker daemon access would let it attempt to control the Docker host. Production Compose therefore remains fail-closed until Plywo has a separate isolated sandbox/service-provider boundary that can hold container-management authority without exposing it to the `plywo-subject` execution identity.
+This is a security boundary, not a missing convenience flag. Giving customer code direct Docker daemon access would let it attempt to control the Docker host. Production Compose therefore remains fail-closed until RunDiff has a separate isolated sandbox/service-provider boundary that can hold container-management authority without exposing it to the `rundiff-subject` execution identity.
 
 The production Docker build contains an invariant that fails if `service_providers.compose` is accidentally declared or the Docker CLI becomes available in the current executor image.
 
@@ -75,7 +75,7 @@ The production Docker build contains an invariant that fails if `service_provide
 
 A repository declaration does not prove that a runtime or service provider exists or authorize an executor to use it. `RuntimeCapabilities` is the executor-side authority. `SetupPlanCompiler` fails closed when a service requests a runtime or service provider that the current executor has not declared.
 
-The production image declares its Node version in `PLYWO_EXECUTOR_CAPABILITIES_JSON`. The Docker build proof compares that declaration with `node --version`, then runs a real Node HTTP service through `plywo.yml -> Configuration -> SetupPlanCompiler -> ServiceExecutor -> Lifecycle`, including dynamic port assignment, readiness, capture, process teardown, and state cleanup.
+The production image declares its Node version in `RUNDIFF_EXECUTOR_CAPABILITIES_JSON`. The Docker build proof compares that declaration with `node --version`, then runs a real Node HTTP service through `rundiff.yml -> Configuration -> SetupPlanCompiler -> ServiceExecutor -> Lifecycle`, including dynamic port assignment, readiness, capture, process teardown, and state cleanup.
 
 ## Credential and persistence boundary
 
@@ -85,6 +85,6 @@ Production Lab and the remote-executor topology proof exercise these boundaries,
 
 ## Static-analysis exception policy
 
-Brakeman reports each intentional `Process.spawn` provider boundary as an `Execute` command-injection warning even though the executable is executor-owned and no shell is involved. Plywo does not disable the `Execute` check. `config/brakeman.ignore` suppresses only the individually reviewed Ruby and Node warning fingerprints for `Plywo::Subject::ServiceExecutor#start_process`, with a threat-model note for each provider.
+Brakeman reports each intentional `Process.spawn` provider boundary as an `Execute` command-injection warning even though the executable is executor-owned and no shell is involved. RunDiff does not disable the `Execute` check. `config/brakeman.ignore` suppresses only the individually reviewed Ruby and Node warning fingerprints for `RunDiff::Subject::ServiceExecutor#start_process`, with a threat-model note for each provider.
 
 `config/brakeman.yml` requires every ignored warning to have a note and fails CI when an ignore entry becomes obsolete. A code change that alters either execution boundary therefore produces a new fingerprint or an obsolete suppression and requires explicit review instead of silently inheriting the exception.

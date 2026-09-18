@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-CONTROL_PLANE_URL="${1:-${PLYWO_CONTROL_PLANE_URL:-}}"
-EXECUTOR_URL="${2:-${PLYWO_EXECUTOR_URL:-}}"
+CONTROL_PLANE_URL="${1:-${RUNDIFF_CONTROL_PLANE_URL:-}}"
+EXECUTOR_URL="${2:-${RUNDIFF_EXECUTOR_URL:-}}"
 
 if [[ -z "$CONTROL_PLANE_URL" || -z "$EXECUTOR_URL" ]]; then
   echo "usage: bin/verify-production-topology https://app.example.com https://executor.example.com" >&2

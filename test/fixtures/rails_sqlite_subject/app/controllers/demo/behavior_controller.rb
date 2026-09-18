@@ -15,9 +15,9 @@ module Demo
 
       render json: {
         ok: true,
-        execution_id: Current.plywo_execution_id,
-        run_id: Current.plywo_run_id,
-        subject: Current.plywo_subject
+        execution_id: Current.rundiff_execution_id,
+        run_id: Current.rundiff_run_id,
+        subject: Current.rundiff_subject
       }
     end
   end

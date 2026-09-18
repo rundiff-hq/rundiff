@@ -1,6 +1,6 @@
 services:
   migrate:
-    image: ghcr.io/plywo/plywo:${PLYWO_IMAGE_TAG:?set PLYWO_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     env_file:
       - .env.control-plane
     volumes:
@@ -8,8 +8,8 @@ services:
     command: bin/rails db:prepare
     restart: "no"
 
-  plywo:
-    image: ghcr.io/plywo/plywo:${PLYWO_IMAGE_TAG:?set PLYWO_IMAGE_TAG to an immutable release or sha tag}
+  rundiff:
+    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     restart: unless-stopped
     env_file:
       - .env.control-plane
@@ -22,7 +22,7 @@ services:
       - "3000"
 
   worker:
-    image: ghcr.io/plywo/plywo:${PLYWO_IMAGE_TAG:?set PLYWO_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     restart: unless-stopped
     env_file:
       - .env.control-plane
@@ -34,10 +34,10 @@ services:
         condition: service_completed_successfully
 
   tunnel:
-    image: ${PLYWO_CLOUDFLARED_IMAGE:?set PLYWO_CLOUDFLARED_IMAGE to an immutable cloudflared image reference}
+    image: ${RUNDIFF_CLOUDFLARED_IMAGE:?set RUNDIFF_CLOUDFLARED_IMAGE to an immutable cloudflared image reference}
     restart: unless-stopped
     env_file:
       - .env.control-plane.tunnel
     command: tunnel --no-autoupdate run
     depends_on:
-      - plywo
+      - rundiff

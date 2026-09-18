@@ -5,11 +5,11 @@ import process from "node:process";
 
 const upstream = process.env.GITHUB_EMULATOR_URL ?? "http://github-emulator:4001";
 const controlPlaneWebhook =
-  process.env.PLYWO_CONTROL_PLANE_WEBHOOK_URL ?? "https://control-plane-tls:4444/github/webhooks";
-const webhookSecret = process.env.LAB_GITHUB_WEBHOOK_SECRET ?? "plywo-production-lab-webhook-secret";
-const adminToken = process.env.PLYWO_LAB_GITHUB_ADMIN_TOKEN ?? "lab-admin-token";
-const statePath = process.env.PLYWO_LAB_SHA_STATE ?? "/lab-state/shas.json";
-const tlsRoot = process.env.PLYWO_LAB_TLS_ROOT ?? "/lab-tls";
+  process.env.RUNDIFF_CONTROL_PLANE_WEBHOOK_URL ?? "https://control-plane-tls:4444/github/webhooks";
+const webhookSecret = process.env.LAB_GITHUB_WEBHOOK_SECRET ?? "rundiff-production-lab-webhook-secret";
+const adminToken = process.env.RUNDIFF_LAB_GITHUB_ADMIN_TOKEN ?? "lab-admin-token";
+const statePath = process.env.RUNDIFF_LAB_SHA_STATE ?? "/lab-state/shas.json";
+const tlsRoot = process.env.RUNDIFF_LAB_TLS_ROOT ?? "/lab-tls";
 const repository = "admin/customer-rails";
 
 const pullRequestMappings = new Map();
