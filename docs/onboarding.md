@@ -1,28 +1,28 @@
 # Rails repository onboarding
 
-Plywo v0.1 aims for a first Behavioral Review in a customer Rails pull request with minimal repository setup.
+RunDiff v0.1 aims for a first Behavioral Review in a customer Rails pull request with minimal repository setup.
 
 The repository-side path is now proven end to end on a separate Rails + SQLite sandbox: a deliberate SQL regression produced `DATABASE_QUERY_REGRESSION` / `BLOCK`, while a neutral candidate produced `ALLOW`. The next product surface is the hosted self-service onboarding page at `/onboarding`.
 
-The first onboarding slice keeps the configuration intentionally small. Plywo discovers the Rails runtime and supported persistence automatically, while the repository declares the HTTP scenario that should be replayed against baseline and candidate.
+The first onboarding slice keeps the configuration intentionally small. RunDiff discovers the Rails runtime and supported persistence automatically, while the repository declares the HTTP scenario that should be replayed against baseline and candidate.
 
 ## Hosted self-service flow
 
 The intended customer path is:
 
-1. Open the Plywo `/onboarding` page.
-2. Choose **Install Plywo on GitHub** and grant the GitHub App access to the Rails repository.
-3. Add a minimal `plywo.yml` in the candidate branch.
+1. Open the RunDiff `/onboarding` page.
+2. Choose **Install RunDiff on GitHub** and grant the GitHub App access to the Rails repository.
+3. Add a minimal `rundiff.yml` in the candidate branch.
 4. Open or update a pull request.
-5. Plywo checks out the exact baseline and candidate revisions, bootstraps the supported Rails runtime, discovers PostgreSQL or SQLite, runs the same scenario on both sides, and publishes the Behavioral Review as a GitHub Check plus durable PR feedback.
+5. RunDiff checks out the exact baseline and candidate revisions, bootstraps the supported Rails runtime, discovers PostgreSQL or SQLite, runs the same scenario on both sides, and publishes the Behavioral Review as a GitHub Check plus durable PR feedback.
 
-GitHub App manifests use `/onboarding` as their post-install setup URL and redirect there again when repository access is updated. The page is intentionally informational: GitHub may attach an `installation_id` query parameter, but Plywo does not treat that value as proof of installation ownership. A future authenticated installation dashboard must verify installation ownership through GitHub user authorization before exposing or mutating account-specific installation state.
+GitHub App manifests use `/onboarding` as their post-install setup URL and redirect there again when repository access is updated. The page is intentionally informational: GitHub may attach an `installation_id` query parameter, but RunDiff does not treat that value as proof of installation ownership. A future authenticated installation dashboard must verify installation ownership through GitHub user authorization before exposing or mutating account-specific installation state.
 
-The local `bin/setup-github-app` / manifest-registration flow remains a **Plywo developer/operator bootstrap**, not a customer onboarding step. Customers should never need the launcher, manifest registration URL, webhook secret, private key, executor token, or local tunnel setup.
+The local `bin/setup-github-app` / manifest-registration flow remains a **RunDiff developer/operator bootstrap**, not a customer onboarding step. Customers should never need the launcher, manifest registration URL, webhook secret, private key, executor token, or local tunnel setup.
 
 ## Minimal configuration
 
-Add `plywo.yml` to the repository:
+Add `rundiff.yml` to the repository:
 
 ```yaml
 version: 1
@@ -50,7 +50,7 @@ sqlite
 
 Unsupported or ambiguous persistence fails explicitly instead of silently falling back to PostgreSQL.
 
-## What Plywo discovers
+## What RunDiff discovers
 
 The local executor recognizes a Rails subject from the standard application boundary:
 
@@ -59,7 +59,7 @@ config/application.rb
 bin/rails
 ```
 
-Persistence is discovered from `config/database.yml` first. If the adapter is not declared there, Plywo falls back to Gemfile/Gemfile.lock evidence for `pg` or `sqlite3`.
+Persistence is discovered from `config/database.yml` first. If the adapter is not declared there, RunDiff falls back to Gemfile/Gemfile.lock evidence for `pg` or `sqlite3`.
 
 The result resolves to the existing subject environments:
 
@@ -72,19 +72,19 @@ The environment still owns preparation, isolated baseline/candidate state, runti
 
 ## A/B configuration ownership
 
-Plywo prepares exact baseline and candidate Git worktrees before resolving the run profile.
+RunDiff prepares exact baseline and candidate Git worktrees before resolving the run profile.
 
-`plywo.yml` is loaded from the candidate head once. Its scenario path is then applied to both executions:
+`rundiff.yml` is loaded from the candidate head once. Its scenario path is then applied to both executions:
 
 ```text
-candidate plywo.yml
+candidate rundiff.yml
        |
        +--> baseline scenario
        |
        +--> candidate scenario
 ```
 
-This preserves one comparison contract even when the baseline commit did not contain Plywo configuration yet. It also means adding `plywo.yml` in the pull request can onboard an existing repository without a prerequisite commit on the default branch.
+This preserves one comparison contract even when the baseline commit did not contain RunDiff configuration yet. It also means adding `rundiff.yml` in the pull request can onboard an existing repository without a prerequisite commit on the default branch.
 
 Persistence discovery remains per-worktree when `subject.persistence: auto` is used:
 
@@ -97,14 +97,18 @@ That avoids baking the candidate database implementation into the baseline execu
 
 ## Current five-minute shape
 
-The target remains one GitHub App installation plus one small declarative file. No Plywo gem, GitHub Action, middleware, initializer, or repository-owned runtime is required for the proven Rails + SQLite path.
+The target remains one GitHub App installation plus one small declarative file. No RunDiff gem, GitHub Action, middleware, initializer, or repository-owned runtime is required for the proven Rails + SQLite path.
 
-A fully public cross-account hosted onboarding still requires the production GitHub App to be deployed/registered and exercised from a different GitHub account or organization. The Development App remains private to the `plywo` owner and is only a proof environment.
+A fully public cross-account hosted onboarding still requires the production GitHub App to be deployed/registered and exercised from a different GitHub account or organization. The Development App remains private to the `rundiff-hq` owner and is only a proof environment.
 
 ## Deliberate limits
 
 This slice does not add arbitrary setup commands, shell hooks, customer secrets, containers, MySQL, Sidekiq, non-Rails runtimes, or a general-purpose configuration language.
 
-Those capabilities should be introduced from real onboarding requirements. In particular, customer-authored commands would require a separate trust and execution-policy design; `plywo.yml` currently carries declarative scenario and persistence metadata only.
+Those capabilities should be introduced from real onboarding requirements. In particular, customer-authored commands would require a separate trust and execution-policy design; `rundiff.yml` currently carries declarative scenario and persistence metadata only.
 
 See #73, #65, #57 and `docs/subject-environments.md`.
+
+## Rename compatibility
+
+`rundiff.yml` is now the canonical customer configuration name. The runtime should continue accepting legacy `plywo.yml` during the migration window so existing sandbox and customer branches do not fail abruptly.
