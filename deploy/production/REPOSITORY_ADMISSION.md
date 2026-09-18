@@ -7,7 +7,7 @@ Customer bootstrap and Rails execution can run repository-controlled code. Until
 Configure exact GitHub repository full names:
 
 ```text
-PLYWO_GITHUB_REPOSITORY_ALLOWLIST=external-owner/proof-repository,another-owner/another-repository
+RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST=external-owner/proof-repository,another-owner/another-repository
 ```
 
 Rules:

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: ${PLYWO_POSTGRES_IMAGE:?set PLYWO_POSTGRES_IMAGE to an immutable PostgreSQL image reference}
+    image: ${RUNDIFF_POSTGRES_IMAGE:?set RUNDIFF_POSTGRES_IMAGE to an immutable PostgreSQL image reference}
     restart: unless-stopped
     env_file:
       - .env.executor.postgres
@@ -13,7 +13,7 @@ services:
       retries: 20
 
   migrate:
-    image: ghcr.io/plywo/plywo:${PLYWO_IMAGE_TAG:?set PLYWO_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     env_file:
       - .env.executor
     command: bin/rails db:prepare
@@ -22,8 +22,8 @@ services:
       postgres:
         condition: service_healthy
 
-  plywo:
-    image: ghcr.io/plywo/plywo:${PLYWO_IMAGE_TAG:?set PLYWO_IMAGE_TAG to an immutable release or sha tag}
+  rundiff:
+    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     restart: unless-stopped
     env_file:
       - .env.executor
@@ -34,13 +34,13 @@ services:
       - "3000"
 
   tunnel:
-    image: ${PLYWO_CLOUDFLARED_IMAGE:?set PLYWO_CLOUDFLARED_IMAGE to an immutable cloudflared image reference}
+    image: ${RUNDIFF_CLOUDFLARED_IMAGE:?set RUNDIFF_CLOUDFLARED_IMAGE to an immutable cloudflared image reference}
     restart: unless-stopped
     env_file:
       - .env.executor.tunnel
     command: tunnel --no-autoupdate run
     depends_on:
-      - plywo
+      - rundiff
 
 volumes:
   executor-postgres:
