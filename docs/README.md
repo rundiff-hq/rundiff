@@ -18,4 +18,5 @@ Read in this order:
 14. `rfcs/0003-one-baseline-many-candidates.md`
 15. `rfcs/0004-compute-and-executor-strategy.md`
 16. `rfcs/0005-differential-mutation-evidence.md`
+17. `rfcs/0006-adaptive-paired-timing-sampling.md`
 17. `roadmap.md`
