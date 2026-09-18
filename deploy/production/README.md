@@ -1,16 +1,16 @@
-# Plywo production deployment
+# RunDiff production deployment
 
-This directory defines the first production-realistic deployment contract for Plywo.
+This directory defines the first production-realistic deployment contract for RunDiff.
 
 ## Topology
 
 ```text
 GitHub
-  -> https://app.plywo.com
+  -> https://app.rundiff.com
        -> Cloudflare Tunnel
        -> control_plane container
             -> durable PostgreSQL
-            -> https://executor.plywo.com
+            -> https://executor.rundiff.com
                  -> Cloudflare Tunnel
                  -> executor_service container
                       -> local PostgreSQL authority for executor ledger and disposable customer PostgreSQL subjects
@@ -84,7 +84,7 @@ If the GHCR package is private, authenticate each host with a read-only package 
 printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 ```
 
-Do not place `GHCR_TOKEN` in any Plywo application env file.
+Do not place `GHCR_TOKEN` in any RunDiff application env file.
 
 ## Host 1: control plane
 
@@ -111,7 +111,7 @@ Required external dependency:
 Required Cloudflare Tunnel route:
 
 ```text
-app.plywo.com -> http://plywo:3000
+app.rundiff.com -> http://plywo:3000
 ```
 
 Start or update:
@@ -142,7 +142,7 @@ The executor PostgreSQL password must match between `.env.executor.postgres`, `D
 Required Cloudflare Tunnel route:
 
 ```text
-executor.plywo.com -> http://plywo:3000
+executor.rundiff.com -> http://plywo:3000
 ```
 
 Start or update:
@@ -169,7 +169,7 @@ On the control plane:
 
 1. set `PLYWO_GITHUB_APP_MANIFEST_ENV=production`;
 2. set `PLYWO_ENABLE_GITHUB_APP_REGISTRATION=1`;
-3. set `PLYWO_PUBLIC_URL=https://app.plywo.com`;
+3. set `PLYWO_PUBLIC_URL=https://app.rundiff.com`;
 4. provide a valid `SECRET_KEY_BASE`, `DATABASE_URL`, remote executor URL/token, and the other non-App production settings;
 5. leave the not-yet-issued App id/webhook secret/private key absent;
 6. deploy:
@@ -189,10 +189,10 @@ GET /ready                    -> 503 (expected until App credentials and admissi
 Open:
 
 ```text
-https://app.plywo.com/github/app/register
+https://app.rundiff.com/github/app/register
 ```
 
-Register `Plywo` under the `plywo` organization. The production callback displays the one-time credentials; save them immediately to the control-plane secret store and write the private key to `deploy/production/.secrets/plywo-github-private-key.pem`.
+Register `RunDiff` under the `rundiff-hq` organization. The production callback displays the one-time credentials; save them immediately to the control-plane secret store and write the private key to `deploy/production/.secrets/plywo-github-private-key.pem`.
 
 The browser registration/organization-owner confirmation is the one intentionally manual step.
 
@@ -219,8 +219,8 @@ Redeploy the control plane and verify the complete topology:
 ```bash
 bash bin/deploy-production-role control-plane deploy
 bash bin/verify-production-topology \
-  https://app.plywo.com \
-  https://executor.plywo.com
+  https://app.rundiff.com \
+  https://executor.rundiff.com
 ```
 
 Expected readiness payloads:
@@ -251,7 +251,7 @@ The GitHub Actions publisher uses the repository `GITHUB_TOKEN` with `packages: 
 
 ## Cloudflare Tunnel
 
-Use two remotely-managed tunnels, one per host. Keep their tokens in separate `.env.*.tunnel` files so the tunnel credential is not injected into the Plywo application container.
+Use two remotely-managed tunnels, one per host. Keep their tokens in separate `.env.*.tunnel` files so the tunnel credential is not injected into the RunDiff application container.
 
 The first production proof intentionally uses Tunnel for stable HTTPS and avoids opening inbound application ports on either host.
 
@@ -276,7 +276,7 @@ The two Cloudflare Tunnel tokens and two Rails `SECRET_KEY_BASE` values must rem
 The production manifest points GitHub back to:
 
 ```text
-https://app.plywo.com/onboarding
+https://app.rundiff.com/onboarding
 ```
 
 After registration, verify that the public App installation page can be opened by an account outside `plywo` and that post-install setup lands on the onboarding page.
