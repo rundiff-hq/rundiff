@@ -47,7 +47,10 @@ The verifier fails closed unless:
 2. no pre-RunDiff environment-variable prefix is present in the invoking environment;
 3. both production roles report healthy readiness;
 4. the public onboarding page contains the RunDiff brand and no pre-RunDiff identity;
-5. the public GitHub App page is reachable and exposes RunDiff.
+5. the public GitHub App page is reachable and exposes RunDiff;
+6. the configured App credentials authenticate to the expected RunDiff App;
+7. the live App name, slug, owner, external URL, permissions and subscribed events match the canonical contract;
+8. the live App webhook points to `https://app.rundiff.com/github/webhooks`, uses JSON, and keeps TLS verification enabled.
 
 A successful result ends with:
 
@@ -55,7 +58,9 @@ A successful result ends with:
 production_identity=verified
 ```
 
-This command verifies what can be observed safely from outside. #121 remains the source of truth for settings that GitHub or Cloudflare do not expose through the application itself.
+The authenticated GitHub App portion uses the configured App ID and private key to call GitHub's App-level API. It never prints the JWT, private key, webhook secret, or installation token.
+
+GitHub does not expose every settings-page field through this API, so #121 remains the source of truth for any residual settings that still require an organization-owner browser check. Cloudflare live state remains a separate provider boundary.
 
 ## Cross-account proof evidence
 
@@ -92,3 +97,14 @@ repository hard rename
   -> proof evidence bundle (#123)
   -> broader public onboarding
 ```
+
+
+## One-command cutover
+
+For the final operator sequence, use `docs/production-cutover-runbook.md` and:
+
+```bash
+bin/verify-production-cutover --infra-repo ../infra
+```
+
+When the two cross-account proof PRs exist, add the proof arguments from that runbook so the same command also produces the final evidence bundle.

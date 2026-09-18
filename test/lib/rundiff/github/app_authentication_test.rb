@@ -21,6 +21,30 @@ class RunDiffGithubAppAuthenticationTest < ActiveSupport::TestCase
     end
   end
 
+  test "reads authenticated App metadata and webhook configuration with App JWT" do
+    rsa = OpenSSL::PKey::RSA.generate(2048)
+
+    Dir.mktmpdir do |directory|
+      key_path = File.join(directory, "app.pem")
+      File.write(key_path, rsa.to_pem)
+
+      authentication = FakeAuthentication.new(
+        response: { "slug" => "rundiff" },
+        app_id: 4_831_516,
+        private_key_path: key_path
+      )
+
+      assert_equal "rundiff", authentication.app.fetch("slug")
+      assert_equal "rundiff", authentication.webhook_configuration.fetch("slug")
+
+      assert_equal :get, authentication.calls.fetch(0).fetch(:method)
+      assert_equal "/app", authentication.calls.fetch(0).fetch(:path)
+      assert_equal :get, authentication.calls.fetch(1).fetch(:method)
+      assert_equal "/app/hook/config", authentication.calls.fetch(1).fetch(:path)
+      assert_match(/\ABearer /, authentication.calls.fetch(0).fetch(:authorization))
+    end
+  end
+
   test "signs an app JWT and exchanges it for an installation token" do
     now = Time.utc(2026, 9, 4, 17, 30, 0)
     rsa = OpenSSL::PKey::RSA.generate(2048)

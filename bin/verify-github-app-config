@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+require "json"
+require_relative "../config/environment"
+
+begin
+  result = RunDiff::Github::AppConfigurationVerifier.new.call
+
+  puts "github_app_configuration=verified"
+  puts "github_app_name=#{result.fetch("name")}"
+  puts "github_app_slug=#{result.fetch("slug")}"
+  puts "github_app_owner=#{result.fetch("owner")}"
+  puts "github_app_external_url=#{result.fetch("external_url")}"
+  puts "github_app_webhook_url=#{result.fetch("webhook_url")}"
+  puts "github_app_events=#{result.fetch("events").join(",")}"
+rescue RunDiff::Github::AppConfigurationVerifier::Error,
+  RunDiff::Github::AppAuthentication::Error,
+  KeyError,
+  ArgumentError => error
+  warn "GitHub App configuration verification failed: #{error.message}"
+  exit 1
+end
