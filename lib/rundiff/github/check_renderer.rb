@@ -1,7 +1,7 @@
 module RunDiff
   module Github
     class CheckRenderer
-      NAME = "RunDiff / Behavioral Diff".freeze
+      NAME = "RunDiff / Behavioral Review".freeze
       CONCLUSIONS = {
         "allow" => "success",
         "review" => "neutral",
@@ -207,8 +207,13 @@ module RunDiff
         recommendation = result.fetch("merge_recommendation").upcase
         return "**#{recommendation}** - no behavioral regression detected." if findings.empty?
 
-        label = findings.one? ? "regression" : "regressions"
-        "**#{recommendation}** - #{findings.size} behavioral #{label} detected."
+        primary = findings.first
+        signal = primary.fetch("signal")
+        label = SIGNAL_LABELS.fetch(signal, signal)
+        "**#{recommendation}** - tests passed, but runtime behavior changed. " \
+          "`#{primary.fetch("reason_code")}` · #{label} " \
+          "#{format_value(signal, primary.fetch("baseline"))} → #{format_value(signal, primary.fetch("candidate"))} " \
+          "(#{display_percent(primary.fetch("delta_percent"))})."
       end
 
       def format_value(signal, value)
