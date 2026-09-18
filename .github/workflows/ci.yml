@@ -83,7 +83,7 @@ jobs:
           git worktree add --detach /tmp/rundiff-candidate "${{ github.event.pull_request.head.sha }}"
 
       - name: Prepare isolated subject databases
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.git_subjects.outputs.ab_supported == 'true'
         env:
           BUNDLE_PATH: ${{ github.workspace }}/vendor/bundle
         run: |
@@ -101,7 +101,7 @@ jobs:
           )
 
       - name: Capture baseline subject
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.git_subjects.outputs.ab_supported == 'true'
         env:
           BUNDLE_PATH: ${{ github.workspace }}/vendor/bundle
           RUNDIFF_SOLID_QUEUE: "1"
@@ -120,7 +120,7 @@ jobs:
             bundle exec ruby "${GITHUB_WORKSPACE}/script/rundiff_capture_subject.rb"
 
       - name: Capture candidate subject
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.git_subjects.outputs.ab_supported == 'true'
         env:
           BUNDLE_PATH: ${{ github.workspace }}/vendor/bundle
           RUNDIFF_SOLID_QUEUE: "1"
@@ -139,7 +139,7 @@ jobs:
             bundle exec ruby "${GITHUB_WORKSPACE}/script/rundiff_capture_subject.rb"
 
       - name: Compare real Git subjects
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.git_subjects.outputs.ab_supported == 'true'
         env:
           RUNDIFF_BASELINE_INPUT: /tmp/rundiff-base.json
           RUNDIFF_CANDIDATE_INPUT: /tmp/rundiff-candidate.json
@@ -148,7 +148,7 @@ jobs:
         run: bin/rails rundiff:compare_executions
 
       - name: Publish RunDiff GitHub check
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'pull_request' && steps.git_subjects.outputs.ab_supported == 'true' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUNDIFF_INPUT: tmp/rundiff-git-comparison.json
@@ -158,7 +158,7 @@ jobs:
         run: bin/rails rundiff:github_check
 
       - name: Publish RunDiff GitHub feedback
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'pull_request' && steps.git_subjects.outputs.ab_supported == 'true' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUNDIFF_INPUT: tmp/rundiff-git-comparison.json
