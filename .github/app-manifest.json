@@ -1,7 +1,7 @@
 {
-  "name": "Plywo",
+  "name": "RunDiff",
   "description": "Behavioral change validation for pull requests.",
-  "url": "https://github.com/plywo/plywo",
+  "url": "https://github.com/rundiff-hq/rundiff",
   "hook_attributes": {
     "url": "{{PLYWO_PUBLIC_URL}}/github/webhooks",
     "active": true
