@@ -44,7 +44,7 @@ module Github
     end
 
     def registration_url(state)
-      owner = ENV.fetch("PLYWO_GITHUB_APP_OWNER", "plywo")
+      owner = ENV.fetch("PLYWO_GITHUB_APP_OWNER", "rundiff-hq")
       encoded_owner = CGI.escapeURIComponent(owner)
       encoded_state = CGI.escapeURIComponent(state)
       "https://github.com/organizations/#{encoded_owner}/settings/apps/new?state=#{encoded_state}"
