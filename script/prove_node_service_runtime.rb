@@ -10,23 +10,23 @@ require "uri"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 
-require TOOL_ROOT.join("lib", "plywo", "subject", "environment").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "configuration").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "runtime_capabilities").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "javascript_package_manager_detector").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "rails_setup_plan_detector").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "setup_plan_compiler").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "service_executor").to_s
-require TOOL_ROOT.join("lib", "plywo", "subject", "lifecycle").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "environment").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "configuration").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "runtime_capabilities").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "javascript_package_manager_detector").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "rails_setup_plan_detector").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "setup_plan_compiler").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "service_executor").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "lifecycle").to_s
 
 module NodeServiceRuntimeProof
-  class ProofEnvironment < Plywo::Subject::Environment
+  class ProofEnvironment < RunDiff::Subject::Environment
     attr_reader :state_dir
 
     def prepare(root:, execution:, role:)
-      @state_dir = Pathname(Dir.mktmpdir("plywo-node-subject-state-#{role}-"))
-      { "PLYWO_SUBJECT_STATE_DIR" => @state_dir.to_s }
+      @state_dir = Pathname(Dir.mktmpdir("rundiff-node-subject-state-#{role}-"))
+      { "RUNDIFF_SUBJECT_STATE_DIR" => @state_dir.to_s }
     end
 
     def env_for(root:, execution:, role:)
@@ -38,7 +38,7 @@ module NodeServiceRuntimeProof
     end
   end
 
-  class RecordingServiceExecutor < Plywo::Subject::ServiceExecutor
+  class RecordingServiceExecutor < RunDiff::Subject::ServiceExecutor
     attr_reader :last_pid, :last_state_dir
 
     def start(**arguments)
@@ -65,7 +65,7 @@ module NodeServiceRuntimeProof
   module_function
 
   def call
-    capabilities = Plywo::Subject::RuntimeCapabilities.from_env
+    capabilities = RunDiff::Subject::RuntimeCapabilities.from_env
     declared_node = capabilities.runtime_version("node")
     raise "Production executor does not declare Node runtime" unless declared_node
 
@@ -97,17 +97,17 @@ module NodeServiceRuntimeProof
   end
 
   def prove_capability_rejection
-    Dir.mktmpdir("plywo-node-capability-rejection-") do |directory|
+    Dir.mktmpdir("rundiff-node-capability-rejection-") do |directory|
       root = Pathname(directory)
       write_subject(root)
-      configuration = Plywo::Subject::Configuration.load(root:)
-      compiler = Plywo::Subject::SetupPlanCompiler.new(
-        runtime_capabilities: Plywo::Subject::RuntimeCapabilities.ruby_only
+      configuration = RunDiff::Subject::Configuration.load(root:)
+      compiler = RunDiff::Subject::SetupPlanCompiler.new(
+        runtime_capabilities: RunDiff::Subject::RuntimeCapabilities.ruby_only
       )
 
       begin
         compiler.call(root:, configuration:)
-      rescue Plywo::Subject::SetupPlanCompiler::Error => error
+      rescue RunDiff::Subject::SetupPlanCompiler::Error => error
         return if error.message.include?('requires executor runtime "node"')
 
         raise "Unexpected Node capability rejection: #{error.message}"
@@ -118,16 +118,16 @@ module NodeServiceRuntimeProof
   end
 
   def prove_node_service(capabilities:)
-    Dir.mktmpdir("plywo-node-service-proof-") do |directory|
+    Dir.mktmpdir("rundiff-node-service-proof-") do |directory|
       root = Pathname(directory)
       write_subject(root)
-      configuration = Plywo::Subject::Configuration.load(root:)
+      configuration = RunDiff::Subject::Configuration.load(root:)
       environment = ProofEnvironment.new
       service_executor = RecordingServiceExecutor.new
-      lifecycle = Plywo::Subject::Lifecycle.new(
+      lifecycle = RunDiff::Subject::Lifecycle.new(
         discovery: nil,
         environment:,
-        setup_plan_compiler: Plywo::Subject::SetupPlanCompiler.new(runtime_capabilities: capabilities),
+        setup_plan_compiler: RunDiff::Subject::SetupPlanCompiler.new(runtime_capabilities: capabilities),
         service_executor:
       )
       url = body = subject_state_dir = nil
@@ -146,7 +146,7 @@ module NodeServiceRuntimeProof
         raise "Expected Node service runtime" unless runtime == "node"
 
         url = session.env.fetch("NODE_API_URL")
-        subject_state_dir = Pathname(session.env.fetch("PLYWO_SUBJECT_STATE_DIR"))
+        subject_state_dir = Pathname(session.env.fetch("RUNDIFF_SUBJECT_STATE_DIR"))
         raise "Subject state must exist during capture" unless subject_state_dir.directory?
         raise "Service state must exist during capture" unless service_executor.last_state_dir.directory?
 
@@ -201,7 +201,7 @@ module NodeServiceRuntimeProof
       server.listen(port, "127.0.0.1");
     JAVASCRIPT
 
-    root.join("plywo.yml").write(<<~YAML)
+    root.join("rundiff.yml").write(<<~YAML)
       version: 1
       subject:
         services:

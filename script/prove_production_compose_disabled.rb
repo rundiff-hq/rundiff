@@ -3,9 +3,9 @@
 require "pathname"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
-require TOOL_ROOT.join("lib", "plywo", "subject", "runtime_capabilities").to_s
+require TOOL_ROOT.join("lib", "rundiff", "subject", "runtime_capabilities").to_s
 
-capabilities = Plywo::Subject::RuntimeCapabilities.from_env
+capabilities = RunDiff::Subject::RuntimeCapabilities.from_env
 if capabilities.service_provider?("compose")
   raise "Production executor must not declare Compose until it has an isolated service-provider boundary"
 end

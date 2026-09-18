@@ -4,25 +4,25 @@
 require "pathname"
 require "socket"
 require "tmpdir"
-require_relative "../lib/plywo/subject/execution_identity"
-require_relative "../lib/plywo/subject/isolated_compose_provider_client"
-require_relative "../lib/plywo/subject/runtime_capabilities"
-require_relative "../lib/plywo/subject/service_executor"
-require_relative "../lib/plywo/subject/setup_plan"
+require_relative "../lib/rundiff/subject/execution_identity"
+require_relative "../lib/rundiff/subject/isolated_compose_provider_client"
+require_relative "../lib/rundiff/subject/runtime_capabilities"
+require_relative "../lib/rundiff/subject/service_executor"
+require_relative "../lib/rundiff/subject/setup_plan"
 
-socket_path = ENV.fetch("PLYWO_COMPOSE_PROVIDER_SOCKET")
+socket_path = ENV.fetch("RUNDIFF_COMPOSE_PROVIDER_SOCKET")
 raise "executor must not receive Docker socket" if File.socket?("/var/run/docker.sock")
 
-client = Plywo::Subject::IsolatedComposeProviderClient.new(socket_path:).handshake!
+client = RunDiff::Subject::IsolatedComposeProviderClient.new(socket_path:).handshake!
 raise "unexpected provider version" unless client.provider_version == "1"
 
-base_capabilities = Plywo::Subject::RuntimeCapabilities.from_env
+base_capabilities = RunDiff::Subject::RuntimeCapabilities.from_env
 raise "production image must not statically declare Compose" if base_capabilities.service_provider?("compose")
 
 capabilities = base_capabilities.with_service_provider("compose", client.provider_version)
 raise "Compose capability handshake was not admitted" unless capabilities.service_provider?("compose")
 
-Dir.mktmpdir("plywo-isolated-compose-proof-") do |directory|
+Dir.mktmpdir("rundiff-isolated-compose-proof-") do |directory|
   root = Pathname(directory)
   root.join("compose.yml").write(<<~YAML)
     services:
@@ -30,7 +30,7 @@ Dir.mktmpdir("plywo-isolated-compose-proof-") do |directory|
         image: redis:7-alpine
   YAML
 
-  plan = Plywo::Subject::SetupPlan.new(
+  plan = RunDiff::Subject::SetupPlan.new(
     framework: "proof",
     steps: [
       {
@@ -68,9 +68,9 @@ Dir.mktmpdir("plywo-isolated-compose-proof-") do |directory|
     }
   )
 
-  executor = Plywo::Subject::ServiceExecutor.new(
+  executor = RunDiff::Subject::ServiceExecutor.new(
     compose_provider: client,
-    execution_identity: Plywo::Subject::ExecutionIdentity.from_env
+    execution_identity: RunDiff::Subject::ExecutionIdentity.from_env
   )
   result = executor.start(
     root:,
