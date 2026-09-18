@@ -28,8 +28,8 @@ module RunDiff
         CAPABILITIES
       end
 
-      def prepare(root:, execution:, role:)
-        env = env_for(root:, execution:, role:)
+      def prepare(root:, execution:, role:, sample_index: nil)
+        env = env_for(root:, execution:, role:, sample_index:)
         @command_runner.call(
           env:,
           command: [ root.join("bin", "rails").to_s, "db:prepare", "--trace" ],
@@ -38,12 +38,12 @@ module RunDiff
         env
       end
 
-      def env_for(root:, execution:, role:)
+      def env_for(root:, execution:, role:, sample_index: nil)
         @runtime_env.merge(
           "BUNDLE_GEMFILE" => root.join("Gemfile").to_s,
           "RAILS_ENV" => "test",
-          "DATABASE_URL" => database_url(execution:, role:),
-          "SOLID_QUEUE_DATABASE_URL" => database_url(execution:, role: "#{role}_queue"),
+          "DATABASE_URL" => database_url(execution:, role:, sample_index:),
+          "SOLID_QUEUE_DATABASE_URL" => database_url(execution:, role: "#{role}_queue", sample_index:),
           "RUNDIFF_SOLID_QUEUE" => "1",
           "RUNDIFF_ASYNC_TRANSPORT" => "solid_queue",
           "RUNDIFF_SOLID_QUEUE_DIAGNOSTICS" => "1",
@@ -56,8 +56,8 @@ module RunDiff
 
       private
 
-      def database_url(execution:, role:)
-        state = StateIdentity.for(execution:, role:)
+      def database_url(execution:, role:, sample_index: nil)
+        state = StateIdentity.for(execution:, role:, sample_index:)
         "#{@postgres_url}/rundiff_app_#{state.suffix}"
       end
     end
