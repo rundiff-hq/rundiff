@@ -167,7 +167,8 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
         "verify-production-identity",
         env: {
           "PATH" => "#{fake_bin}:#{ENV.fetch("PATH")}",
-          "RUNDIFF_GITHUB_APP_SLUG" => "rundiff"
+          "RUNDIFF_GITHUB_APP_SLUG" => "rundiff",
+          "RUNDIFF_SKIP_AUTHENTICATED_APP_CHECK" => "1"
         }
       )
 
