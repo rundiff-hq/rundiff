@@ -2,7 +2,7 @@ require "json"
 require "net/http"
 require "uri"
 
-module Plywo
+module RunDiff
   module Github
     class PullRequestClient
       Error = Class.new(StandardError)
@@ -25,7 +25,7 @@ module Plywo
         http_request["Authorization"] = "Bearer #{@token}"
         http_request["Accept"] = "application/vnd.github+json"
         http_request["X-GitHub-Api-Version"] = "2022-11-28"
-        http_request["User-Agent"] = "plywo-github-app"
+        http_request["User-Agent"] = "rundiff-github-app"
 
         response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
           http.request(http_request)

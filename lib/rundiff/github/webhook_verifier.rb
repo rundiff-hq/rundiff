@@ -1,7 +1,7 @@
 require "active_support/security_utils"
 require "openssl"
 
-module Plywo
+module RunDiff
   module Github
     class WebhookVerifier
       def valid?(payload:, signature:, secret:)

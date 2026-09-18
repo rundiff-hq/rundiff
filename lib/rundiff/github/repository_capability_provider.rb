@@ -1,9 +1,9 @@
-module Plywo
+module RunDiff
   module Github
     class RepositoryCapabilityProvider
       Error = Class.new(StandardError)
 
-      def initialize(root: ::Rails.root, execution_model: PlywoExecution, authentication: nil)
+      def initialize(root: ::Rails.root, execution_model: RunDiffExecution, authentication: nil)
         @root = root
         @execution_model = execution_model
         @authentication = authentication
@@ -29,7 +29,7 @@ module Plywo
           permissions: { contents: "read" }
         )
 
-        Plywo::Executor::RepositoryCapability.new(token: token.value)
+        RunDiff::Executor::RepositoryCapability.new(token: token.value)
       end
 
       private

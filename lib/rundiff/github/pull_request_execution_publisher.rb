@@ -1,14 +1,14 @@
-module Plywo
+module RunDiff
   module Github
     class PullRequestExecutionPublisher
-      DEFAULT_CHECK_NAME = "Plywo Development / Behavioral Diff".freeze
-      DEFAULT_BOT_LOGIN = "plywo-development[bot]".freeze
+      DEFAULT_CHECK_NAME = "RunDiff Development / Behavioral Diff".freeze
+      DEFAULT_BOT_LOGIN = "rundiff-development[bot]".freeze
 
       def initialize(
         token:,
         api_url: ENV.fetch("GITHUB_API_URL", "https://api.github.com"),
-        check_name: ENV.fetch("PLYWO_GITHUB_APP_CHECK_NAME", DEFAULT_CHECK_NAME),
-        bot_login: ENV.fetch("PLYWO_GITHUB_APP_BOT_LOGIN", DEFAULT_BOT_LOGIN)
+        check_name: ENV.fetch("RUNDIFF_GITHUB_APP_CHECK_NAME", DEFAULT_CHECK_NAME),
+        bot_login: ENV.fetch("RUNDIFF_GITHUB_APP_BOT_LOGIN", DEFAULT_BOT_LOGIN)
       )
         @token = token
         @api_url = api_url
@@ -58,7 +58,7 @@ module Plywo
         pr_number = Integer(context.fetch("pull_request_number"))
         run_url = "https://github.com/#{repository}/pull/#{pr_number}"
         summary = <<~MARKDOWN.strip
-          **INFRA_FAILURE** - Plywo could not complete this validation.
+          **INFRA_FAILURE** - RunDiff could not complete this validation.
 
           This is an execution infrastructure failure, **not a product regression**. It is safe to re-run the check after the infrastructure issue is resolved.
 
@@ -73,17 +73,17 @@ module Plywo
           external_id: execution.execution_id,
           details_url: run_url,
           conclusion: "failure",
-          title: "Plywo could not complete validation",
+          title: "RunDiff could not complete validation",
           summary:,
           annotations: []
         )
 
         markdown = <<~MARKDOWN
-          <!-- plywo:behavioral-diff:v1 -->
-          ## 🟣 Plywo · Execution Problem
+          <!-- rundiff:behavioral-diff:v1 -->
+          ## 🟣 RunDiff · Execution Problem
 
           > [!WARNING]
-          > **Plywo could not complete validation.** This is an **INFRA_FAILURE**, not a product regression.
+          > **RunDiff could not complete validation.** This is an **INFRA_FAILURE**, not a product regression.
 
           The check can be re-run after the execution infrastructure is healthy.
 
@@ -122,7 +122,7 @@ module Plywo
           candidate_label: execution.context.fetch("candidate_ref"),
           candidate_sha: execution.candidate_sha,
           bootstrap_baseline: nil,
-          execution_mode: "Plywo Development App - exact Git worktrees + isolated PostgreSQL + Solid Queue",
+          execution_mode: "RunDiff Development App - exact Git worktrees + isolated PostgreSQL + Solid Queue",
           run_url:
         }
       end

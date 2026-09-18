@@ -1,7 +1,7 @@
-module Plywo
+module RunDiff
   module Github
     class RepositoryAdmissionPolicy
-      ENV_NAME = "PLYWO_GITHUB_REPOSITORY_ALLOWLIST"
+      ENV_NAME = "RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST"
 
       def initialize(env: ENV, rails_env: ::Rails.env)
         @env = env
