@@ -40,6 +40,20 @@ class RunDiffGithubCheckRendererTest < ActiveSupport::TestCase
     assert_includes annotation.fetch("message"), "14 to 18"
   end
 
+  test "renders single-sample timing regression as neutral review with warning annotation" do
+    rendered = RunDiff::Github::CheckRenderer.call(payload: timing_regression_payload)
+    summary = rendered.fetch("summary")
+    annotation = rendered.fetch("annotations").first
+
+    assert_equal "neutral", rendered.fetch("conclusion")
+    assert_equal "Behavior changed - review required", rendered.fetch("title")
+    assert_includes summary, "**REVIEW**"
+    assert_includes summary, "Timing evidence is single-sample and review-only"
+    assert_includes summary, "single-sample timing evidence; review-only"
+    assert_equal "warning", annotation.fetch("annotation_level")
+    assert_includes annotation.fetch("message"), "review-only until repeated sampling confirms it"
+  end
+
   test "renders async regression attribution in the check summary" do
     rendered = RunDiff::Github::CheckRenderer.call(payload: async_regression_payload)
     summary = rendered.fetch("summary")
@@ -58,6 +72,32 @@ class RunDiffGithubCheckRendererTest < ActiveSupport::TestCase
       baseline: execution(sql_queries: 14),
       candidate: execution(sql_queries:).merge("attributions" => attributions),
       changed_paths:
+    )
+  end
+
+  def timing_regression_payload
+    RunDiff::ExecutionPair.call(
+      baseline: execution(sql_queries: 14).merge(
+        "measurements" => execution(sql_queries: 14).fetch("measurements").merge(
+          "duration_ms" => 70.0
+        )
+      ),
+      candidate: execution(sql_queries: 14).merge(
+        "measurements" => execution(sql_queries: 14).fetch("measurements").merge(
+          "duration_ms" => 93.7
+        ),
+        "attributions" => {
+          "duration_ms" => [
+            {
+              "path" => "app/controllers/demo/behavior_controller.rb",
+              "start_line" => 20,
+              "end_line" => 20,
+              "confidence" => "explicit"
+            }
+          ]
+        }
+      ),
+      changed_paths: [ "app/controllers/demo/behavior_controller.rb" ]
     )
   end
 
