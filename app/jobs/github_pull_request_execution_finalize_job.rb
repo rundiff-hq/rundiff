@@ -2,16 +2,16 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
   queue_as :control
 
   def perform(execution_id, result_payload)
-    execution = PlywoExecution.find_by!(execution_id:)
+    execution = RunDiffExecution.find_by!(execution_id:)
     unless execution.renew_lease!
       Rails.logger.info(
-        "Plywo GitHub executor result ignored execution_id=#{execution.execution_id.inspect} " \
+        "RunDiff GitHub executor result ignored execution_id=#{execution.execution_id.inspect} " \
         "reason=lease_expired_or_terminal"
       )
       return
     end
 
-    result = Plywo::Executor::Result.from_h(result_payload)
+    result = RunDiff::Executor::Result.from_h(result_payload)
     token = installation_token(execution:)
     pull_request = current_pull_request(execution:, token: token.value)
     if (reason = stale_reason(execution:, pull_request:))
@@ -21,7 +21,7 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
 
     unless execution.begin_finalization!(attempt_number: execution.attempt_count)
       Rails.logger.info(
-        "Plywo GitHub executor result ignored execution_id=#{execution.execution_id.inspect} " \
+        "RunDiff GitHub executor result ignored execution_id=#{execution.execution_id.inspect} " \
         "reason=cancelled_or_superseded_before_publish"
       )
       return
@@ -52,7 +52,7 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
     return unless execution.complete!(payload)
 
     Rails.logger.info(
-      "Plywo GitHub execution finalized execution_id=#{execution.execution_id.inspect} " \
+      "RunDiff GitHub execution finalized execution_id=#{execution.execution_id.inspect} " \
       "decision=#{execution.decision.inspect} outcome=#{execution.outcome.inspect} " \
       "attempt=#{execution.attempt_count.inspect} check=#{publication.fetch(:check).inspect} " \
       "comment=#{publication.fetch(:comment).inspect}"
@@ -68,7 +68,7 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
     )
 
     Rails.logger.info(
-      "Plywo GitHub execution infra failure finalized execution_id=#{execution.execution_id.inspect} " \
+      "RunDiff GitHub execution infra failure finalized execution_id=#{execution.execution_id.inspect} " \
       "attempt=#{execution.attempt_count.inspect} error_class=#{result.error_class.inspect} " \
       "check=#{publication.fetch(:check).inspect} comment=#{publication.fetch(:comment).inspect}"
     )
@@ -97,7 +97,7 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
   def ignore_stale!(execution:, reason:)
     execution.ignore!(reason)
     Rails.logger.info(
-      "Plywo GitHub execution ignored execution_id=#{execution.execution_id.inspect} reason=#{reason.inspect}"
+      "RunDiff GitHub execution ignored execution_id=#{execution.execution_id.inspect} reason=#{reason.inspect}"
     )
   end
 
@@ -109,20 +109,20 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
     execution_publisher(token: token.value).infra_failure(execution:, error:)
   rescue StandardError => publication_error
     Rails.logger.error(
-      "Plywo GitHub infra failure publication failed execution_id=#{execution.execution_id.inspect} " \
+      "RunDiff GitHub infra failure publication failed execution_id=#{execution.execution_id.inspect} " \
       "error=#{publication_error.class}"
     )
   end
 
   def app_authentication
-    Plywo::Github::AppAuthentication.from_env(root: ::Rails.root)
+    RunDiff::Github::AppAuthentication.from_env(root: ::Rails.root)
   end
 
   def pull_request_client(token:)
-    Plywo::Github::PullRequestClient.new(token:)
+    RunDiff::Github::PullRequestClient.new(token:)
   end
 
   def execution_publisher(token:)
-    Plywo::Github::PullRequestExecutionPublisher.new(token:)
+    RunDiff::Github::PullRequestExecutionPublisher.new(token:)
   end
 end

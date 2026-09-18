@@ -6,10 +6,10 @@ class GithubPullRequestExecutionHeartbeatJob < ApplicationJob
   end
 
   def self.interval_seconds
-    default = [ PlywoExecution.lease_seconds / 3, 1 ].max
-    interval = Integer(ENV.fetch("PLYWO_EXECUTION_HEARTBEAT_INTERVAL_SECONDS", default))
+    default = [ RunDiffExecution.lease_seconds / 3, 1 ].max
+    interval = Integer(ENV.fetch("RUNDIFF_EXECUTION_HEARTBEAT_INTERVAL_SECONDS", default))
     raise ArgumentError, "Execution heartbeat interval must be positive" unless interval.positive?
-    if interval >= PlywoExecution.lease_seconds
+    if interval >= RunDiffExecution.lease_seconds
       raise ArgumentError, "Execution heartbeat interval must be shorter than the execution lease"
     end
 
@@ -17,9 +17,9 @@ class GithubPullRequestExecutionHeartbeatJob < ApplicationJob
   end
 
   def perform(execution_id, attempt_number)
-    execution = PlywoExecution.find_by(execution_id:)
+    execution = RunDiffExecution.find_by(execution_id:)
     return unless execution
-    return unless PlywoExecution::LEASED_STATUSES.include?(execution.status)
+    return unless RunDiffExecution::LEASED_STATUSES.include?(execution.status)
     return unless execution.attempt_count == Integer(attempt_number)
     return unless execution.renew_lease!
 
