@@ -39,11 +39,20 @@ concurrency:
 
 jobs:
   production_lab:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Run hermetic production lab
-        run: bash bin/production-lab
+      - name: Run production topology lab
+        run: bin/lab run production --case topology
+
+      - name: Upload lab artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-topology-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/lab/production/topology
+          if-no-files-found: warn
+          retention-days: 7
