@@ -50,7 +50,7 @@ dump_failure_state() {
   echo "=== production lab application log ===" >&2
   "${COMPOSE[@]}" exec -T control-plane sh -lc '
     if [ -f log/production.log ]; then
-      grep -E "Plywo|GithubPullRequest|GithubWebhook|SolidQueue|ERROR|Error|exception|Exception" log/production.log | tail -n 240
+      grep -E "RunDiff|Plywo|GithubPullRequest|GithubWebhook|SolidQueue|ERROR|Error|exception|Exception" log/production.log | tail -n 240
     fi
   ' || true
 }
