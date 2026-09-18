@@ -120,9 +120,9 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
 
       assert status.success?, stderr
       calls = File.readlines(log, chomp: true)
-      assert_includes calls, "api repos/rundiff/rundiff/commits/main --jq .sha"
+      assert_includes calls, "api repos/rundiff-hq/rundiff/commits/main --jq .sha"
       assert_includes calls,
-        "workflow run release-image.yml --repo rundiff/rundiff --ref main -f release_sha=#{sha}"
+        "workflow run release-image.yml --repo rundiff-hq/rundiff --ref main -f release_sha=#{sha}"
       assert_includes stdout, "image tag:  sha-#{sha}"
     end
   end
