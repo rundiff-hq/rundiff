@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "plywo/cli"
+require "rundiff/cli"
 
-exit Plywo::CLI.new(ARGV).run
+exit RunDiff::CLI.new(ARGV).run
