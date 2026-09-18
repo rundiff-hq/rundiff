@@ -5,9 +5,9 @@ module Github
     def create
       payload = request.raw_post
       signature = request.headers["X-Hub-Signature-256"]
-      secret = ENV["PLYWO_GITHUB_WEBHOOK_SECRET"]
+      secret = ENV["RUNDIFF_GITHUB_WEBHOOK_SECRET"]
 
-      unless Plywo::Github::WebhookVerifier.new.valid?(payload:, signature:, secret:)
+      unless RunDiff::Github::WebhookVerifier.new.valid?(payload:, signature:, secret:)
         return head :unauthorized
       end
 
@@ -22,7 +22,7 @@ module Github
       enqueue_delivery!(delivery:, enqueue:, event:, action: body["action"])
 
       Rails.logger.info(
-        "Plywo GitHub webhook accepted event=#{event.inspect} delivery=#{delivery_id.inspect} " \
+        "RunDiff GitHub webhook accepted event=#{event.inspect} delivery=#{delivery_id.inspect} " \
         "action=#{body["action"].inspect} installation_id=#{body.dig("installation", "id").inspect} " \
         "repository=#{body.dig("repository", "full_name").inspect} pr=#{body["number"].inspect} " \
         "delivery_status=#{delivery.status.inspect}"
@@ -111,7 +111,7 @@ module Github
     end
 
     def repository_admission_policy
-      @repository_admission_policy ||= Plywo::Github::RepositoryAdmissionPolicy.new
+      @repository_admission_policy ||= RunDiff::Github::RepositoryAdmissionPolicy.new
     end
   end
 end

@@ -10,8 +10,8 @@ module Executor
       payload = JSON.parse(request.raw_post)
       return render_error("Executor request must be a JSON object", status: :unprocessable_entity) unless payload.is_a?(Hash)
 
-      repository_capability = Plywo::Executor::RepositoryCapability.from_header(
-        request.headers[Plywo::Executor::RepositoryCapability::HEADER]
+      repository_capability = RunDiff::Executor::RepositoryCapability.from_header(
+        request.headers[RunDiff::Executor::RepositoryCapability::HEADER]
       )
       result = executor_service.call(
         idempotency_key:,
@@ -23,17 +23,17 @@ module Executor
       render_error("Invalid JSON: #{error.message}", status: :bad_request)
     rescue KeyError, ArgumentError => error
       render_error(error.message, status: :unprocessable_entity)
-    rescue Plywo::Executor::Service::RequestConflict => error
+    rescue RunDiff::Executor::Service::RequestConflict => error
       render_error(error.message, status: :conflict)
-    rescue Plywo::Executor::Service::RequestCancelled => error
+    rescue RunDiff::Executor::Service::RequestCancelled => error
       render_error(error.message, status: :conflict)
-    rescue Plywo::Executor::Service::RequestInProgress => error
+    rescue RunDiff::Executor::Service::RequestInProgress => error
       response.set_header("Retry-After", "5")
       render_error(error.message, status: :conflict)
-    rescue Plywo::Executor::Service::ClaimLost => error
+    rescue RunDiff::Executor::Service::ClaimLost => error
       response.set_header("Retry-After", "5")
       render_error(error.message, status: :conflict)
-    rescue Plywo::Executor::ServiceResolver::Error => error
+    rescue RunDiff::Executor::ServiceResolver::Error => error
       render_error(error.message, status: :service_unavailable)
     end
 
@@ -69,7 +69,7 @@ module Executor
     end
 
     def authenticate_executor_service!
-      token = ENV["PLYWO_EXECUTOR_SERVICE_TOKEN"].to_s
+      token = ENV["RUNDIFF_EXECUTOR_SERVICE_TOKEN"].to_s
       if token.empty?
         render_error("Executor service token is not configured", status: :service_unavailable)
         return
@@ -84,15 +84,15 @@ module Executor
     end
 
     def executor_service
-      Plywo::Executor::Service.new(adapter: executor_service_adapter)
+      RunDiff::Executor::Service.new(adapter: executor_service_adapter)
     end
 
     def executor_cancellation_service
-      Plywo::Executor::Service.new(adapter: nil)
+      RunDiff::Executor::Service.new(adapter: nil)
     end
 
     def executor_service_adapter
-      Plywo::Executor::ServiceResolver.from_env(root: Rails.root)
+      RunDiff::Executor::ServiceResolver.from_env(root: Rails.root)
     end
 
     def render_error(message, status:)

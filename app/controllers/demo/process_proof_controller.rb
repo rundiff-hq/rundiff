@@ -7,9 +7,9 @@ module Demo
 
       render json: {
         ok: true,
-        run_id: Current.plywo_run_id,
-        execution_id: Current.plywo_execution_id,
-        subject: Current.plywo_subject,
+        run_id: Current.rundiff_run_id,
+        execution_id: Current.rundiff_execution_id,
+        subject: Current.rundiff_subject,
         job_id: job.job_id
       }
     end

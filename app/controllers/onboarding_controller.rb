@@ -1,8 +1,8 @@
 class OnboardingController < ApplicationController
   GITHUB_APP_SLUGS = {
-    "development" => "plywo-development",
-    "staging" => "plywo-staging",
-    "production" => "plywo"
+    "development" => "rundiff-development",
+    "staging" => "rundiff-staging",
+    "production" => "rundiff"
   }.freeze
 
   CONFIGURATION = <<~YAML.freeze
@@ -14,9 +14,9 @@ class OnboardingController < ApplicationController
   YAML
 
   def index
-    @github_app_slug = ENV.fetch("PLYWO_GITHUB_APP_SLUG") { default_github_app_slug }
+    @github_app_slug = ENV.fetch("RUNDIFF_GITHUB_APP_SLUG") { default_github_app_slug }
     unless /\A[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\z/.match?(@github_app_slug)
-      return render plain: "RunDiff GitHub App configuration error: invalid PLYWO_GITHUB_APP_SLUG\n",
+      return render plain: "RunDiff GitHub App configuration error: invalid RUNDIFF_GITHUB_APP_SLUG\n",
         status: :unprocessable_entity
     end
 
@@ -28,7 +28,7 @@ class OnboardingController < ApplicationController
 
   def default_github_app_slug
     environment = ENV.fetch(
-      "PLYWO_GITHUB_APP_MANIFEST_ENV",
+      "RUNDIFF_GITHUB_APP_MANIFEST_ENV",
       Rails.env.production? ? "production" : "development"
     )
 
