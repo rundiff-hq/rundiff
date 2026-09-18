@@ -21,10 +21,15 @@ class OnboardingController < ApplicationController
     end
 
     @install_url = "https://github.com/apps/#{@github_app_slug}/installations/new"
+    @post_install_return = post_install_return?
     @configuration = CONFIGURATION
   end
 
   private
+
+  def post_install_return?
+    params.key?(:installation_id) || %w[install update].include?(params[:setup_action])
+  end
 
   def default_github_app_slug
     environment = ENV.fetch(
