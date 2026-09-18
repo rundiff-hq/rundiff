@@ -51,3 +51,4 @@ rescue RunDiff::Github::ProductionProofBundle::Error,
   ArgumentError => error
   warn "production proof collection failed: #{error.message}"
   exit 1
+end
