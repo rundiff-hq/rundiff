@@ -36,7 +36,9 @@ module Plywo
       attr_reader :scenario_path, :persistence, :setup_mode, :services, :source_path
 
       def self.load(root:)
-        path = Pathname(root).join("plywo.yml")
+        canonical_path = Pathname(root).join("rundiff.yml")
+        legacy_path = Pathname(root).join("plywo.yml")
+        path = canonical_path.file? ? canonical_path : legacy_path
         return new(
           scenario_path: nil,
           persistence: DEFAULT_PERSISTENCE,
@@ -46,10 +48,10 @@ module Plywo
         ) unless path.file?
 
         payload = YAML.safe_load(path.read, permitted_classes: [], permitted_symbols: [], aliases: false) || {}
-        validate_mapping!(payload, name: "plywo.yml", allowed_keys: TOP_LEVEL_KEYS)
+        validate_mapping!(payload, name: path.basename.to_s, allowed_keys: TOP_LEVEL_KEYS)
 
-        version = payload.fetch("version") { raise Error, "plywo.yml must declare version: #{CURRENT_VERSION}" }
-        raise Error, "Unsupported plywo.yml version #{version.inspect}" unless version == CURRENT_VERSION
+        version = payload.fetch("version") { raise Error, "#{path.basename} must declare version: #{CURRENT_VERSION}" }
+        raise Error, "Unsupported #{path.basename} version #{version.inspect}" unless version == CURRENT_VERSION
 
         scenario = payload.fetch("scenario", {}) || {}
         subject = payload.fetch("subject", {}) || {}
@@ -75,7 +77,7 @@ module Plywo
 
         new(scenario_path:, persistence:, setup_mode:, services:, source_path: path)
       rescue Psych::Exception => error
-        raise Error, "Invalid plywo.yml: #{error.message}"
+        raise Error, "Invalid #{path.basename}: #{error.message}"
       end
 
       def initialize(scenario_path:, persistence:, source_path:, setup_mode: DEFAULT_SETUP_MODE, services: [])
