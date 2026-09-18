@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://plywo.com/schemas/plywo-result-v1.schema.json",
-  "title": "Plywo Result v1",
+  "$id": "https://rundiff.com/schemas/rundiff-result-v1.schema.json",
+  "title": "RunDiff Result v1",
   "type": "object",
   "required": ["schema_version", "status", "decision", "merge_recommendation", "findings"],
   "properties": {
