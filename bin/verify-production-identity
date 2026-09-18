@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PUBLIC_URL="${1:-${RUNDIFF_PUBLIC_URL:-https://app.rundiff.com}}"
+EXECUTOR_URL="${2:-${RUNDIFF_REMOTE_EXECUTOR_URL:-https://executor.rundiff.com}}"
+APP_SLUG="${3:-${RUNDIFF_GITHUB_APP_SLUG:-}}"
+EXPECTED_PUBLIC_URL="${RUNDIFF_EXPECTED_PUBLIC_URL:-https://app.rundiff.com}"
+EXPECTED_EXECUTOR_URL="${RUNDIFF_EXPECTED_EXECUTOR_URL:-https://executor.rundiff.com}"
+LEGACY_TOKEN="ply""wo"
+LEGACY_PREFIX="PLY""WO_"
+
+fail() {
+  printf 'production identity verification failed: %s\n' "$*" >&2
+  exit 1
+}
+
+PUBLIC_URL="${PUBLIC_URL%/}"
+EXECUTOR_URL="${EXECUTOR_URL%/}"
+
+[[ "$PUBLIC_URL" == "$EXPECTED_PUBLIC_URL" ]] ||
+  fail "control-plane URL is $PUBLIC_URL, expected $EXPECTED_PUBLIC_URL"
+
+[[ "$EXECUTOR_URL" == "$EXPECTED_EXECUTOR_URL" ]] ||
+  fail "executor URL is $EXECUTOR_URL, expected $EXPECTED_EXECUTOR_URL"
+
+[[ -n "$APP_SLUG" ]] ||
+  fail "RUNDIFF_GITHUB_APP_SLUG or third argument is required"
+
+if [[ "${APP_SLUG,,}" == *"$LEGACY_TOKEN"* ]]; then
+  fail "GitHub App slug still uses the pre-RunDiff identity"
+fi
+
+if env | grep -q "^$LEGACY_PREFIX"; then
+  fail "environment still contains pre-RunDiff variables"
+fi
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/verify-production-topology" "$PUBLIC_URL" "$EXECUTOR_URL"
+
+onboarding="$(curl -fsS "$PUBLIC_URL/onboarding")"
+grep -q "RunDiff" <<<"$onboarding" ||
+  fail "onboarding page does not contain the canonical RunDiff brand"
+
+if grep -qi "$LEGACY_TOKEN" <<<"$onboarding"; then
+  fail "onboarding page still exposes the pre-RunDiff identity"
+fi
+
+app_page="$(curl -fsS "https://github.com/apps/$APP_SLUG")"
+grep -q "RunDiff" <<<"$app_page" ||
+  fail "GitHub App page is reachable but does not expose the RunDiff brand"
+
+printf 'production_identity=verified\n'
+printf 'control_plane=%s\n' "$PUBLIC_URL"
+printf 'executor=%s\n' "$EXECUTOR_URL"
+printf 'github_app_slug=%s\n' "$APP_SLUG"

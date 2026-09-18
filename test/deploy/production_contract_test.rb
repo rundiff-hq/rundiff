@@ -4,6 +4,14 @@ require "yaml"
 class ProductionDeploymentContractTest < ActiveSupport::TestCase
   ROOT = Rails.root.join("deploy/production")
 
+  test "production compose files use the canonical RunDiff GHCR repository" do
+    %w[compose.control-plane.yml compose.executor.yml].each do |name|
+      compose = ROOT.join(name).read
+
+      assert_includes compose, "ghcr.io/rundiff-hq/rundiff:"
+    end
+  end
+
   test "control plane keeps application ports private and runs migrations plus Solid Queue worker" do
     compose = YAML.safe_load(ROOT.join("compose.control-plane.yml").read)
     services = compose.fetch("services")

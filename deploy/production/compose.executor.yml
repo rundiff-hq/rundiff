@@ -13,7 +13,7 @@ services:
       retries: 20
 
   migrate:
-    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff-hq/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     env_file:
       - .env.executor
     command: bin/rails db:prepare
@@ -23,7 +23,7 @@ services:
         condition: service_healthy
 
   rundiff:
-    image: ghcr.io/rundiff/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
+    image: ghcr.io/rundiff-hq/rundiff:${RUNDIFF_IMAGE_TAG:?set RUNDIFF_IMAGE_TAG to an immutable release or sha tag}
     restart: unless-stopped
     env_file:
       - .env.executor
