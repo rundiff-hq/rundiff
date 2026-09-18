@@ -108,7 +108,3 @@ This slice does not add arbitrary setup commands, shell hooks, customer secrets,
 Those capabilities should be introduced from real onboarding requirements. In particular, customer-authored commands would require a separate trust and execution-policy design; `rundiff.yml` currently carries declarative scenario and persistence metadata only.
 
 See #73, #65, #57 and `docs/subject-environments.md`.
-
-## Rename compatibility
-
-`rundiff.yml` is now the canonical customer configuration name. The runtime should continue accepting legacy `rundiff.yml` during the migration window so existing sandbox and customer branches do not fail abruptly.
