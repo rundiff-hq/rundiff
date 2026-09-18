@@ -37,8 +37,97 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
     result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
 
     assert result.fetch("signals").fetch("duration_ms").fetch("regression")
-    assert_equal "PERFORMANCE_REGRESSION", result.fetch("findings").first.fetch("reason_code")
+    finding = result.fetch("findings").first
+    assert_equal "PERFORMANCE_REGRESSION", finding.fetch("reason_code")
+    assert_not finding.fetch("blocking")
+    assert_equal "single_sample_timing", finding.fetch("confidence")
+    assert_equal "review", result.fetch("merge_recommendation")
+  end
+
+  test "keeps timing-only single-sample regressions review-only" do
+    baseline = {
+      duration_ms: 70.0,
+      dispatch_wait_ms: 162.4,
+      sql_queries: 17,
+      background_jobs: 1,
+      emails: 1,
+      http_requests: 1,
+      errors: 0
+    }
+    candidate = {
+      duration_ms: 93.7,
+      dispatch_wait_ms: 203.1,
+      sql_queries: 17,
+      background_jobs: 1,
+      emails: 1,
+      http_requests: 1,
+      errors: 0
+    }
+
+    result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
+
+    assert_equal "regression", result.fetch("decision")
+    assert_equal "review", result.fetch("merge_recommendation")
+    assert_equal(
+      %w[PERFORMANCE_REGRESSION DISPATCH_WAIT_REGRESSION],
+      result.fetch("findings").map { |finding| finding.fetch("reason_code") }
+    )
+    assert result.fetch("findings").all? { |finding| finding.fetch("blocking") == false }
+    assert(result.fetch("findings").all? do |finding|
+      finding.fetch("confidence") == "single_sample_timing"
+    end)
+  end
+
+  test "deterministic regression still blocks when timing is also noisy" do
+    baseline = {
+      duration_ms: 70.0,
+      dispatch_wait_ms: 162.4,
+      sql_queries: 17,
+      background_jobs: 1,
+      emails: 1,
+      http_requests: 1,
+      errors: 0
+    }
+    candidate = {
+      duration_ms: 93.7,
+      dispatch_wait_ms: 203.1,
+      sql_queries: 30,
+      background_jobs: 1,
+      emails: 1,
+      http_requests: 1,
+      errors: 0
+    }
+
+    result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
+
     assert_equal "block", result.fetch("merge_recommendation")
+    sql = result.fetch("findings").find { |finding| finding.fetch("signal") == "sql_queries" }
+    assert sql.fetch("blocking")
+    assert_equal "deterministic", sql.fetch("confidence")
+    assert_equal "DATABASE_QUERY_REGRESSION", result.dig("recommended_action", "reason_code")
+  end
+
+  test "marks every latency and CPU timing policy non-blocking until sampling exists" do
+    timing_signals = %w[
+      duration_ms
+      thread_cpu_ms
+      queue_wait_ms
+      dispatch_wait_ms
+      worker_wall_ms
+      worker_thread_cpu_ms
+    ]
+
+    timing_signals.each do |signal|
+      policy = RunDiff::BehavioralDiff::SIGNALS.fetch(signal)
+      assert_equal false, policy.fetch(:blocking), signal
+      assert_equal "single_sample_timing", policy.fetch(:confidence), signal
+    end
+
+    assert RunDiff::BehavioralDiff::SIGNALS.fetch("sql_queries").fetch(:blocking, true)
+    assert_equal(
+      "deterministic",
+      RunDiff::BehavioralDiff::SIGNALS.fetch("sql_queries").fetch(:confidence, "deterministic")
+    )
   end
 
   test "classifies low CPU ratio as wait bound" do
