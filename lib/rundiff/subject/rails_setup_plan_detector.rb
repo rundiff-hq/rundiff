@@ -1,6 +1,6 @@
 require "pathname"
 
-module Plywo
+module RunDiff
   module Subject
     class RailsSetupPlanDetector
       Error = Class.new(StandardError)

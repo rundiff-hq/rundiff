@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Subject
     class RailsPostgresEnvironment < Environment
       DEFAULT_POSTGRES_URL = "postgres://localhost".freeze
@@ -15,7 +15,7 @@ module Plywo
 
       def initialize(
         command_runner:,
-        postgres_url: ENV.fetch("PLYWO_LOCAL_POSTGRES_URL", DEFAULT_POSTGRES_URL),
+        postgres_url: ENV.fetch("RUNDIFF_LOCAL_POSTGRES_URL", DEFAULT_POSTGRES_URL),
         runtime_env: {}
       )
         @command_runner = command_runner
@@ -43,11 +43,11 @@ module Plywo
           "RAILS_ENV" => "test",
           "DATABASE_URL" => database_url(execution:, role:),
           "SOLID_QUEUE_DATABASE_URL" => database_url(execution:, role: "#{role}_queue"),
-          "PLYWO_SOLID_QUEUE" => "1",
-          "PLYWO_ASYNC_TRANSPORT" => "solid_queue",
-          "PLYWO_SOLID_QUEUE_DIAGNOSTICS" => "1",
-          "PLYWO_SOLID_QUEUE_START_TIMEOUT_SECONDS" => "30",
-          "PLYWO_QUIESCENCE_TIMEOUT_SECONDS" => "30",
+          "RUNDIFF_SOLID_QUEUE" => "1",
+          "RUNDIFF_ASYNC_TRANSPORT" => "solid_queue",
+          "RUNDIFF_SOLID_QUEUE_DIAGNOSTICS" => "1",
+          "RUNDIFF_SOLID_QUEUE_START_TIMEOUT_SECONDS" => "30",
+          "RUNDIFF_QUIESCENCE_TIMEOUT_SECONDS" => "30",
           "SOLID_QUEUE_SKIP_RECURRING" => "true",
           "SOLID_QUEUE_SUPERVISOR_MODE" => "async"
         )
@@ -57,7 +57,7 @@ module Plywo
 
       def database_url(execution:, role:)
         suffix = execution.execution_id.delete_prefix("github-")[0, 12]
-        "#{@postgres_url}/plywo_app_#{suffix}_#{role}"
+        "#{@postgres_url}/rundiff_app_#{suffix}_#{role}"
       end
     end
   end

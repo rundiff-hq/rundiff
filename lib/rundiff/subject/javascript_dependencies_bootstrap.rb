@@ -1,7 +1,7 @@
 require "digest"
 require "pathname"
 
-module Plywo
+module RunDiff
   module Subject
     class JavascriptDependenciesBootstrap
       Error = Class.new(StandardError)

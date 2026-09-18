@@ -8,7 +8,7 @@ require "tmpdir"
 require "uri"
 require_relative "execution_identity"
 
-module Plywo
+module RunDiff
   module Subject
     class ServiceExecutor
       Error = Class.new(StandardError)
@@ -62,7 +62,7 @@ module Plywo
         steps = setup_plan&.steps_for("start_services") || []
         return StartResult.new(session: nil, env: {}) if steps.empty?
 
-        state_dir = Pathname(Dir.mktmpdir("plywo-services-#{role}-"))
+        state_dir = Pathname(Dir.mktmpdir("rundiff-services-#{role}-"))
         running = []
         capture_env = {}
 

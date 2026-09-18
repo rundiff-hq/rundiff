@@ -4,14 +4,14 @@ require "pathname"
 require "rbconfig"
 require_relative "execution_identity"
 
-module Plywo
+module RunDiff
   module Subject
     class RailsBundleBootstrap
       Error = Class.new(StandardError)
 
       def initialize(
         command_runner:,
-        cache_root: ::Rails.root.join("tmp", "plywo", "bundles"),
+        cache_root: ::Rails.root.join("tmp", "rundiff", "bundles"),
         ruby_version: RUBY_VERSION,
         bundler_installer_command_runner: command_runner,
         execution_identity: ExecutionIdentity.new
@@ -52,7 +52,7 @@ module Plywo
 
         begin
           run!(env:, command: bundle_command + [ "check" ], chdir: root)
-        rescue Plywo::Github::LocalPullRequestRunner::Error
+        rescue RunDiff::Github::LocalPullRequestRunner::Error
           run!(
             env:,
             command: bundle_command + [ "install", "--jobs", "4", "--retry", "3" ],
@@ -66,8 +66,8 @@ module Plywo
         end
 
         env.merge(
-          "PLYWO_SUBJECT_RUBY_VERSION" => requested_ruby_version(root:, lockfile:) || @ruby_version,
-          "PLYWO_SUBJECT_BUNDLER_VERSION" => bundler_version || "default"
+          "RUNDIFF_SUBJECT_RUBY_VERSION" => requested_ruby_version(root:, lockfile:) || @ruby_version,
+          "RUNDIFF_SUBJECT_BUNDLER_VERSION" => bundler_version || "default"
         )
       end
 
@@ -86,7 +86,7 @@ module Plywo
 
         begin
           run_installer!(env: {}, command: [ "gem", "list", "-i", "bundler", "-v", version ], chdir:)
-        rescue Plywo::Github::LocalPullRequestRunner::Error
+        rescue RunDiff::Github::LocalPullRequestRunner::Error
           run_installer!(
             env: {},
             command: [ "gem", "install", "bundler", "-v", version, "--no-document" ],
@@ -144,7 +144,7 @@ module Plywo
       end
 
       def bundle_cache_root(root)
-        @cache_root || root.join("tmp", "plywo", "bundles")
+        @cache_root || root.join("tmp", "rundiff", "bundles")
       end
     end
   end

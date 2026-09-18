@@ -1,7 +1,7 @@
 require "json"
 require "pathname"
 
-module Plywo
+module RunDiff
   module Subject
     class JavascriptPackageManagerDetector
       Error = Class.new(StandardError)

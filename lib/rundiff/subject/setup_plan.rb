@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Subject
     class SetupPlan
       Error = Class.new(ArgumentError)

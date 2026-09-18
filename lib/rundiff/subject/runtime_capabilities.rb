@@ -1,10 +1,10 @@
 require "json"
 
-module Plywo
+module RunDiff
   module Subject
     class RuntimeCapabilities
       Error = Class.new(ArgumentError)
-      ENV_KEY = "PLYWO_EXECUTOR_CAPABILITIES_JSON"
+      ENV_KEY = "RUNDIFF_EXECUTOR_CAPABILITIES_JSON"
 
       attr_reader :runtimes, :package_managers, :service_providers
 

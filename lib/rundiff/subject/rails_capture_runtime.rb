@@ -1,14 +1,14 @@
 require "pathname"
 
-module Plywo
+module RunDiff
   module Subject
     class RailsCaptureRuntime
       SUBJECT_OWNED_MARKERS = [
-        "lib/plywo/rails/evidence_collector.rb",
-        "lib/plywo/rails/execution_quiescence.rb",
+        "lib/rundiff/rails/evidence_collector.rb",
+        "lib/rundiff/rails/execution_quiescence.rb",
         "app/models/current.rb",
-        "app/models/plywo_evidence_event.rb",
-        "app/models/plywo_execution_work_item.rb"
+        "app/models/rundiff_evidence_event.rb",
+        "app/models/rundiff_execution_work_item.rb"
       ].freeze
 
       def script_for(root:, tool_root:)
@@ -16,9 +16,9 @@ module Plywo
         tool_root = Pathname(tool_root).expand_path
 
         if subject_owned?(root)
-          tool_root.join("script", "plywo_capture_subject.rb")
+          tool_root.join("script", "rundiff_capture_subject.rb")
         else
-          tool_root.join("script", "plywo_capture_portable_rails.rb")
+          tool_root.join("script", "rundiff_capture_portable_rails.rb")
         end
       end
 

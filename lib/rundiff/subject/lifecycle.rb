@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Subject
     class Lifecycle
       Session = Data.define(:environment, :env, :setup_plan)
