@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+require "fileutils"
 require "json"
 require "optparse"
 require_relative "../config/environment"
@@ -29,19 +30,20 @@ if repository.to_s.empty? || !ARGV.empty? || !options[:regression_pr] || !option
   exit 64
 end
 
-bundle = RunDiff::Github::ProductionProofBundle.new(
-  repository:,
-  regression_pr: options.fetch(:regression_pr),
-  neutral_pr: options.fetch(:neutral_pr)
-).call
+begin
+  bundle = RunDiff::Github::ProductionProofBundle.new(
+    repository:,
+    regression_pr: options.fetch(:regression_pr),
+    neutral_pr: options.fetch(:neutral_pr)
+  ).call
 
-json = JSON.pretty_generate(bundle)
-puts json
+  json = JSON.pretty_generate(bundle)
+  puts json
 
-if options[:output]
-  FileUtils.mkdir_p(File.dirname(File.expand_path(options.fetch(:output))))
-  File.write(options.fetch(:output), "#{json}\n")
-end
+  if options[:output]
+    FileUtils.mkdir_p(File.dirname(File.expand_path(options.fetch(:output))))
+    File.write(options.fetch(:output), "#{json}\n")
+  end
 rescue RunDiff::Github::ProductionProofBundle::Error,
   RunDiff::Github::AppAuthentication::Error,
   RunDiff::Github::ProofEvidenceClient::Error,
