@@ -1,0 +1,140 @@
+name: Lab Group
+
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: "Lab group"
+        required: true
+        type: choice
+        default: smoke
+        options:
+          - smoke
+          - onboarding
+          - executor
+          - production
+      keep_going:
+        description: "Continue after a failed case"
+        required: true
+        type: boolean
+        default: false
+      pull_request_number:
+        description: "Required for the executor group remote-topology case"
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - ".github/workflows/lab-group.yml"
+      - "bin/lab"
+      - "lab/groups/**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: lab-group-${{ github.event_name == 'workflow_dispatch' && inputs.group || 'smoke' }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    env:
+      LAB_GROUP: ${{ github.event_name == 'workflow_dispatch' && inputs.group || 'smoke' }}
+      LAB_KEEP_GOING: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_going || false }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+
+      - name: Resolve executor proof context
+        if: env.LAB_GROUP == 'executor'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request_number }}
+        run: |
+          set -Eeuo pipefail
+
+          pull_request_number="$INPUT_PULL_REQUEST_NUMBER"
+          if [[ -z "$pull_request_number" ]]; then
+            echo "The executor group requires pull_request_number because remote-topology compares a real pull request." >&2
+            exit 64
+          fi
+
+          pull_request_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pull_request_number")"
+
+          repository="$(jq -r '.base.repo.full_name' <<<"$pull_request_json")"
+          head_repository="$(jq -r '.head.repo.full_name' <<<"$pull_request_json")"
+
+          if [[ "$repository" != "$GITHUB_REPOSITORY" || "$head_repository" != "$GITHUB_REPOSITORY" ]]; then
+            echo "The executor group currently requires a same-repository pull request." >&2
+            exit 64
+          fi
+
+          {
+            echo "RUNDIFF_PROOF_REPOSITORY=$repository"
+            echo "RUNDIFF_PROOF_PULL_REQUEST_NUMBER=$pull_request_number"
+            echo "RUNDIFF_PROOF_BASELINE_REF=$(jq -r '.base.ref' <<<"$pull_request_json")"
+            echo "RUNDIFF_PROOF_CANDIDATE_REF=$(jq -r '.head.ref' <<<"$pull_request_json")"
+            echo "RUNDIFF_PROOF_BASELINE_SHA=$(jq -r '.base.sha' <<<"$pull_request_json")"
+            echo "RUNDIFF_PROOF_CANDIDATE_SHA=$(jq -r '.head.sha' <<<"$pull_request_json")"
+            echo "RUNDIFF_PROOF_REPOSITORY_TOKEN=$GH_TOKEN"
+          } >> "$GITHUB_ENV"
+
+          echo "executor_proof_pull_request=$pull_request_number"
+
+      - name: Run lab group
+        run: |
+          set -Eeuo pipefail
+
+          args=(run-group "$LAB_GROUP")
+          if [[ "$LAB_KEEP_GOING" == "true" ]]; then
+            args+=(--keep-going)
+          fi
+
+          bin/lab "${args[@]}"
+
+      - name: Publish lab summary
+        if: always()
+        run: |
+          set -Eeuo pipefail
+
+          summary="tmp/lab/groups/$LAB_GROUP/summary.tsv"
+          result="tmp/lab/groups/$LAB_GROUP/result.env"
+
+          {
+            echo "## Lab group: $LAB_GROUP"
+            echo
+
+            if [[ -f "$summary" ]]; then
+              echo "<pre>"
+              cat "$summary"
+              echo "</pre>"
+            else
+              echo "No group summary was produced."
+            fi
+
+            if [[ -f "$result" ]]; then
+              echo
+              echo "<pre>"
+              cat "$result"
+              echo "</pre>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload lab artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-group-${{ env.LAB_GROUP }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/lab
+          if-no-files-found: warn
+          retention-days: 7
