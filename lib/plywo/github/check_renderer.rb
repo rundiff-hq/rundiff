@@ -1,7 +1,7 @@
 module Plywo
   module Github
     class CheckRenderer
-      NAME = "Plywo / Behavioral Diff".freeze
+      NAME = "RunDiff / Behavioral Diff".freeze
       CONCLUSIONS = {
         "allow" => "success",
         "review" => "neutral",
