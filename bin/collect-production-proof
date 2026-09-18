@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+require "json"
+require "optparse"
+require_relative "../config/environment"
+
+options = {}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/collect-production-proof OWNER/REPO --regression-pr N --neutral-pr N [--output FILE]"
+
+  opts.on("--regression-pr N", Integer, "PR expected to produce BLOCK") do |value|
+    options[:regression_pr] = value
+  end
+
+  opts.on("--neutral-pr N", Integer, "PR expected to produce ALLOW") do |value|
+    options[:neutral_pr] = value
+  end
+
+  opts.on("--output FILE", String, "Write the evidence bundle to FILE") do |value|
+    options[:output] = value
+  end
+end
+
+parser.parse!
+
+repository = ARGV.shift
+if repository.to_s.empty? || !ARGV.empty? || !options[:regression_pr] || !options[:neutral_pr]
+  warn parser
+  exit 64
+end
+
+bundle = RunDiff::Github::ProductionProofBundle.new(
+  repository:,
+  regression_pr: options.fetch(:regression_pr),
+  neutral_pr: options.fetch(:neutral_pr)
+).call
+
+json = JSON.pretty_generate(bundle)
+puts json
+
+if options[:output]
+  FileUtils.mkdir_p(File.dirname(File.expand_path(options.fetch(:output))))
+  File.write(options.fetch(:output), "#{json}\n")
+end
+rescue RunDiff::Github::ProductionProofBundle::Error,
+  RunDiff::Github::AppAuthentication::Error,
+  RunDiff::Github::ProofEvidenceClient::Error,
+  KeyError,
+  ArgumentError => error
+  warn "production proof collection failed: #{error.message}"
+  exit 1
