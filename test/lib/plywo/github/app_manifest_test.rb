@@ -7,7 +7,7 @@ class PlywoGithubAppManifestTest < ActiveSupport::TestCase
       public_url: "https://plywo-dev.example.test/"
     ).to_h
 
-    assert_equal "Plywo Development", manifest.fetch("name")
+    assert_equal "RunDiff Development", manifest.fetch("name")
     assert_equal "https://plywo-dev.example.test/github/webhooks", manifest.dig("hook_attributes", "url")
     assert_equal "https://plywo-dev.example.test/github/app/manifest/callback", manifest.fetch("redirect_url")
     assert_equal "https://plywo-dev.example.test/onboarding", manifest.fetch("setup_url")
@@ -24,7 +24,7 @@ class PlywoGithubAppManifestTest < ActiveSupport::TestCase
       public_url: "https://plywo-staging.example.test"
     ).to_h
 
-    assert_equal "Plywo Staging", manifest.fetch("name")
+    assert_equal "RunDiff Staging", manifest.fetch("name")
     assert_equal "https://plywo-staging.example.test/github/webhooks", manifest.dig("hook_attributes", "url")
     assert_equal "https://plywo-staging.example.test/github/app/manifest/callback", manifest.fetch("redirect_url")
     assert_equal "https://plywo-staging.example.test/onboarding", manifest.fetch("setup_url")
@@ -38,7 +38,7 @@ class PlywoGithubAppManifestTest < ActiveSupport::TestCase
       public_url: "https://plywo.example.test"
     ).to_h
 
-    assert_equal "Plywo", manifest.fetch("name")
+    assert_equal "RunDiff", manifest.fetch("name")
     assert_equal "https://plywo.example.test/github/webhooks", manifest.dig("hook_attributes", "url")
     assert_equal "https://plywo.example.test/onboarding", manifest.fetch("setup_url")
     assert manifest.fetch("setup_on_update")
