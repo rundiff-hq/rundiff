@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class RuntimeEvidenceBridge
       IGNORED_SQL_NAMES = %w[SCHEMA TRANSACTION CACHE].freeze
@@ -32,7 +32,7 @@ module Plywo
 
         def observe(signal)
           return if InternalOperation.active?
-          return if Current.plywo_execution_id.nil?
+          return if Current.rundiff_execution_id.nil?
 
           source = SourceLocator.call
           source = source&.merge(confidence: "runtime")

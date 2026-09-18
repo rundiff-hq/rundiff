@@ -2,7 +2,7 @@ require "fileutils"
 require "rbconfig"
 require "tmpdir"
 
-module Plywo
+module RunDiff
   module Rails
     class SolidQueueExecution
       DEFAULT_START_TIMEOUT_SECONDS = 10.0
@@ -36,7 +36,7 @@ module Plywo
       def start
         return self if started?
 
-        @directory = Dir.mktmpdir("plywo-solid-queue-execution")
+        @directory = Dir.mktmpdir("rundiff-solid-queue-execution")
         @log_path = File.join(@directory, "solid-queue.log")
 
         File.open(@log_path, "w") do |log|
@@ -105,7 +105,7 @@ module Plywo
                   :worker_pids
 
       def correlated_work_items
-        PlywoExecutionWorkItem.where(execution_id:, kind: "active_job").order(:id)
+        RunDiffExecutionWorkItem.where(execution_id:, kind: "active_job").order(:id)
       end
 
       def correlated_queue_jobs
@@ -118,7 +118,7 @@ module Plywo
       def validate_serialized_context!(jobs)
         jobs.each do |job|
           context = job.arguments.fetch(ActiveJobExecutionContext::CONTEXT_KEY)
-          raise "Solid Queue job #{job.active_job_id} lost execution id" unless context.fetch("plywo_execution_id").to_s == execution_id
+          raise "Solid Queue job #{job.active_job_id} lost execution id" unless context.fetch("rundiff_execution_id").to_s == execution_id
         end
       end
 
@@ -134,9 +134,9 @@ module Plywo
             "job_id" => job.active_job_id,
             "provider_job_id" => job.id,
             "queue_name" => job.queue_name,
-            "execution_id" => context.fetch("plywo_execution_id"),
-            "run_id" => context.fetch("plywo_run_id"),
-            "subject" => context.fetch("plywo_subject"),
+            "execution_id" => context.fetch("rundiff_execution_id"),
+            "run_id" => context.fetch("rundiff_run_id"),
+            "subject" => context.fetch("rundiff_subject"),
             "source" => "application_enqueue",
             "transport" => "solid_queue",
             "work_status" => work_item.status,
@@ -181,7 +181,7 @@ module Plywo
 
       def worker_environment
         {
-          "PLYWO_SOLID_QUEUE" => "1",
+          "RUNDIFF_SOLID_QUEUE" => "1",
           "SOLID_QUEUE_SKIP_RECURRING" => "true",
           "JOB_CONCURRENCY" => "1"
         }

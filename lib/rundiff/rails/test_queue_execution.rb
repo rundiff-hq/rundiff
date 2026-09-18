@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class TestQueueExecution
       DEFAULT_MAX_JOBS = 1_000
@@ -46,9 +46,9 @@ module Plywo
           "job_class" => serialized.fetch("job_class"),
           "job_id" => serialized.fetch("job_id"),
           "queue_name" => serialized.fetch("queue_name"),
-          "execution_id" => context["plywo_execution_id"],
-          "run_id" => context["plywo_run_id"],
-          "subject" => context["plywo_subject"],
+          "execution_id" => context["rundiff_execution_id"],
+          "run_id" => context["rundiff_run_id"],
+          "subject" => context["rundiff_subject"],
           "source" => "application_enqueue"
         }
       ensure
@@ -58,7 +58,7 @@ module Plywo
       def matching_jobs
         @adapter.enqueued_jobs.select do |job_data|
           context = serialized_job(job_data)[ActiveJobExecutionContext::CONTEXT_KEY]
-          context&.fetch("plywo_execution_id", nil).to_s == @execution_id
+          context&.fetch("rundiff_execution_id", nil).to_s == @execution_id
         end
       end
 

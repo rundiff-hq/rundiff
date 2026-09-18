@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class QueueTimingContext
       VERSION = 1

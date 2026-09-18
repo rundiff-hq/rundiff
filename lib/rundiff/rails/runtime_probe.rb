@@ -1,4 +1,4 @@
-module Plywo
+module RunDiff
   module Rails
     class RuntimeProbe
       CLOCKS = {

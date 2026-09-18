@@ -1,7 +1,7 @@
-module Plywo
+module RunDiff
   module Rails
     class SourceLocator
-      EXCLUDED_PREFIXES = %w[.bundle/ lib/plywo/ log/ storage/ tmp/ vendor/].freeze
+      EXCLUDED_PREFIXES = %w[.bundle/ lib/rundiff/ log/ storage/ tmp/ vendor/].freeze
 
       def self.call(locations: caller_locations(1, 100))
         new(locations:).call
