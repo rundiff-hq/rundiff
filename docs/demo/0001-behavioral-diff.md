@@ -1,6 +1,6 @@
 # Demo 0001: Behavioral Diff
 
-**The tests passed. Plywo found what got worse.**
+**The tests passed. RunDiff found what got worse.**
 
 Scenario:
 
@@ -12,7 +12,7 @@ The final product will run the exact same scenario against `main` and a PR. Both
 
 ## Current dogfood implementation
 
-For the first executable slice, Plywo runs two local-only Rails HTTP executions through its own middleware stack:
+For the first executable slice, RunDiff runs two local-only Rails HTTP executions through its own middleware stack:
 
 ```bash
 bin/rails db:prepare
@@ -33,7 +33,7 @@ This is deliberately not yet a fake PR checkout. The next slice replaces the dem
 GitHub headline:
 
 ```text
-Plywo / Behavioral Diff
+RunDiff / Behavioral Diff
 Tests passed on both versions, but behavior changed.
 ```
 
