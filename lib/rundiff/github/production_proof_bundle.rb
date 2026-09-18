@@ -4,7 +4,7 @@ module RunDiff
   module Github
     class ProductionProofBundle
       Error = Class.new(StandardError)
-      SCHEMA_VERSION = 1
+      SCHEMA_VERSION = "1"
       PROOFS = {
         "regression" => {
           outcome: "block",
