@@ -36,9 +36,7 @@ module RunDiff
       attr_reader :scenario_path, :persistence, :setup_mode, :services, :source_path
 
       def self.load(root:)
-        canonical_path = Pathname(root).join("rundiff.yml")
-        legacy_path = Pathname(root).join("rundiff.yml")
-        path = canonical_path.file? ? canonical_path : legacy_path
+        path = Pathname(root).join("rundiff.yml")
         return new(
           scenario_path: nil,
           persistence: DEFAULT_PERSISTENCE,
