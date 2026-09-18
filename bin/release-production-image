@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 REF="${1:-main}"
-REPOSITORY="${PLYWO_GITHUB_REPOSITORY:-plywo/plywo}"
+REPOSITORY="${RUNDIFF_GITHUB_REPOSITORY:-rundiff/rundiff}"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "GitHub CLI (gh) is required" >&2
