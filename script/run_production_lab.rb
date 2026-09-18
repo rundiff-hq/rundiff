@@ -21,6 +21,7 @@ module RunDiffProductionLab
   module_function
 
   def call
+    started_at = monotonic_now
     wait_until_ready!("#{EMULATOR_URL}/meta")
     wait_until_ready!("#{CONTROL_PLANE_URL}/ready")
     wait_until_ready!("#{EXECUTOR_URL}/ready")
@@ -51,6 +52,7 @@ module RunDiffProductionLab
     puts "production_lab_invalid_webhook_signature=rejected"
     puts "production_lab_disallowed_repository=ignored"
     puts "production_lab_wrong_executor_token=rejected"
+    puts "production_lab_elapsed_ms=#{elapsed_ms(started_at)}"
   end
 
   def create_pull_request!(repository:, branch:, title:)
@@ -86,6 +88,7 @@ module RunDiffProductionLab
   end
 
   def assert_behavioral_review!(pull_request:, expected_conclusion:, expected_text:)
+    started_at = monotonic_now
     repository = pull_request.dig("base", "repo", "full_name") || CUSTOMER_REPOSITORY
     number = pull_request.fetch("number")
     emulator_head_sha = pull_request.dig("head", "sha") || raise("Missing emulator head SHA")
@@ -123,7 +126,10 @@ module RunDiffProductionLab
       raise "Expected #{repository}##{number} comment to contain #{expected_text.inspect}: #{comment.fetch("body")}"
     end
 
-    puts "production_lab_pr=#{number} conclusion=#{check_run.fetch("conclusion")} expected=#{expected_text}"
+    puts "production_lab_pr=#{number} conclusion=#{check_run.fetch("conclusion")} expected=#{expected_text} elapsed_ms=#{elapsed_ms(started_at)}"
+  rescue StandardError
+    warn "production_lab_pr=#{number || "unknown"} status=error elapsed_ms=#{elapsed_ms(started_at)}"
+    raise
   end
 
   def assert_invalid_webhook_signature!
@@ -206,6 +212,14 @@ module RunDiffProductionLab
       raise "GitHub emulator request failed #{method.to_s.upcase} #{path}: HTTP #{response.code} #{response.body}"
     end
     response.body.to_s.empty? ? nil : JSON.parse(response.body)
+  end
+
+  def monotonic_now
+    Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  def elapsed_ms(started_at)
+    ((monotonic_now - started_at) * 1_000).round
   end
 
   def raw_request(method, url, headers: {}, body: nil)
