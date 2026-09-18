@@ -61,6 +61,26 @@ class RunDiffSubjectRailsSqliteEnvironmentTest < ActiveSupport::TestCase
     end
   end
 
+  test "uses distinct SQLite files for repeated samples of the same role" do
+    Dir.mktmpdir do |directory|
+      environment = RunDiff::Subject::RailsSqliteEnvironment.new(
+        command_runner: CommandRecorder.new,
+        state_root: directory
+      )
+      execution = Execution.new("github-abcdef1234567890")
+      root = Pathname("/tmp/customer-subject")
+
+      first = environment.env_for(root:, execution:, role: "base", sample_index: 1)
+        .fetch("RUNDIFF_SQLITE_DATABASE")
+      second = environment.env_for(root:, execution:, role: "base", sample_index: 2)
+        .fetch("RUNDIFF_SQLITE_DATABASE")
+
+      assert_match(/_base_s1\.sqlite3\z/, first)
+      assert_match(/_base_s2\.sqlite3\z/, second)
+      refute_equal first, second
+    end
+  end
+
   test "uses distinct SQLite files for baseline and candidate and cleans sidecars" do
     Dir.mktmpdir do |directory|
       environment = RunDiff::Subject::RailsSqliteEnvironment.new(
