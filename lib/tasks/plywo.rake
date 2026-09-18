@@ -1,10 +1,10 @@
 namespace :plywo do
-  desc "Run Plywo against its own Rails demo execution"
+  desc "Run RunDiff against its own Rails demo execution"
   task dogfood: :environment do
     payload = Plywo::Demo::DogfoodRunner.call
     result = payload.fetch("result")
 
-    puts "Plywo dogfood run: #{payload.fetch("run_id")}"
+    puts "RunDiff dogfood run: #{payload.fetch("run_id")}"
     puts "Scenario: #{payload.fetch("scenario_id")}"
     puts
     puts Plywo::ReportRenderer.markdown(result)
@@ -12,7 +12,7 @@ namespace :plywo do
     puts JSON.pretty_generate(payload) if ENV["PLYWO_JSON"] == "1"
     File.write(ENV.fetch("PLYWO_OUTPUT"), JSON.pretty_generate(payload)) if ENV["PLYWO_OUTPUT"]
 
-    abort "Plywo detected a behavioral regression" if ENV["FAIL_ON_REGRESSION"] == "1" && result.fetch("decision") == "regression"
+    abort "RunDiff detected a behavioral regression" if ENV["FAIL_ON_REGRESSION"] == "1" && result.fetch("decision") == "regression"
   end
 
   desc "Compose two captured executions into one behavioral comparison payload"
@@ -36,7 +36,7 @@ namespace :plywo do
     File.write(ENV.fetch("PLYWO_OUTPUT"), JSON.pretty_generate(payload)) if ENV["PLYWO_OUTPUT"]
   end
 
-  desc "Render and optionally publish the durable Plywo GitHub PR comment"
+  desc "Render and optionally publish the durable RunDiff GitHub PR comment"
   task github_comment: :environment do
     payload = JSON.parse(File.read(ENV.fetch("PLYWO_INPUT")))
     event = if ENV["GITHUB_EVENT_PATH"] && File.exist?(ENV["GITHUB_EVENT_PATH"])
@@ -75,10 +75,10 @@ namespace :plywo do
       author: ENV["PLYWO_COMMENT_AUTHOR"],
       expected_head_sha: context.fetch(:candidate_sha)
     )
-    puts "Plywo GitHub comment #{action}."
+    puts "RunDiff GitHub comment #{action}."
   end
 
-  desc "Publish the Plywo behavioral decision as a GitHub Check Run"
+  desc "Publish the RunDiff behavioral decision as a GitHub Check Run"
   task github_check: :environment do
     payload = JSON.parse(File.read(ENV.fetch("PLYWO_INPUT")))
     rendered = Plywo::Github::CheckRenderer.call(payload:, run_url: ENV["PLYWO_RUN_URL"])
@@ -103,6 +103,6 @@ namespace :plywo do
       summary: rendered.fetch("summary"),
       annotations: rendered.fetch("annotations")
     )
-    puts "Plywo GitHub check #{action}."
+    puts "RunDiff GitHub check #{action}."
   end
 end
