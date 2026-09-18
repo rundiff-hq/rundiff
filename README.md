@@ -93,7 +93,3 @@ See `docs/onboarding.md` for the current five-minute onboarding shape and delibe
 ## Current status
 
 The GitHub App execution path, durable executor boundary, exact Git A/B worktrees, Rails runtime evidence, PostgreSQL and SQLite customer subject environments, and GitHub Check/PR feedback loop are real and exercised in CI and in a separate live customer-like sandbox. The current productization target is a public hosted GitHub App that turns `/onboarding` into a cross-account install-to-first-review path without operator intervention.
-
-## Rename compatibility
-
-RunDiff is the canonical product and repository name. During the rename window, the implementation keeps the legacy `RunDiff::*` Ruby namespace, `RUNDIFF_*` environment variables, and database table names for compatibility. New customer configuration should use `rundiff.yml`; legacy `rundiff.yml` remains temporarily supported.
