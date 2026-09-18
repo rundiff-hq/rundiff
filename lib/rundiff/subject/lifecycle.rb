@@ -17,7 +17,14 @@ module RunDiff
         @service_executor = service_executor || ServiceExecutor.new
       end
 
-      def open(root:, execution:, role:, configuration:, setup_configuration: configuration)
+      def open(
+        root:,
+        execution:,
+        role:,
+        configuration:,
+        setup_configuration: configuration,
+        sample_index: nil
+      )
         setup_plan = compile_setup_plan(root:, configuration: setup_configuration)
         runtime_env = bootstrap(root:, setup_plan:)
         environment = resolve_environment(root:, configuration: setup_configuration, runtime_env:)
@@ -26,7 +33,13 @@ module RunDiff
         service_session = nil
 
         begin
-          capture_env = environment.prepare(root:, execution:, role:).merge(configuration.capture_env)
+          capture_env = prepare_environment(
+            environment:,
+            root:,
+            execution:,
+            role:,
+            sample_index:
+          ).merge(configuration.capture_env)
           service_result = @service_executor.start(
             root:,
             execution:,
@@ -64,13 +77,31 @@ module RunDiff
                 session: service_session
               ) if service_session
             ensure
-              environment.cleanup(root:, execution:, role:)
+              cleanup_environment(
+                environment:,
+                root:,
+                execution:,
+                role:,
+                sample_index:
+              )
             end
           end
         end
       end
 
       private
+
+      def prepare_environment(environment:, root:, execution:, role:, sample_index:)
+        return environment.prepare(root:, execution:, role:) unless sample_index
+
+        environment.prepare(root:, execution:, role:, sample_index:)
+      end
+
+      def cleanup_environment(environment:, root:, execution:, role:, sample_index:)
+        return environment.cleanup(root:, execution:, role:) unless sample_index
+
+        environment.cleanup(root:, execution:, role:, sample_index:)
+      end
 
       def compile_setup_plan(root:, configuration:)
         return unless @setup_plan_compiler
