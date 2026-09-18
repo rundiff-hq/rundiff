@@ -57,11 +57,38 @@ production_identity=verified
 
 This command verifies what can be observed safely from outside. #121 remains the source of truth for settings that GitHub or Cloudflare do not expose through the application itself.
 
+## Cross-account proof evidence
+
+After the production App is installed and #75 has one deliberate regression PR plus one neutral PR, collect the durable evidence bundle from the production control plane:
+
+```bash
+bin/collect-production-proof external-owner/proof-repo \
+  --regression-pr 12 \
+  --neutral-pr 13 \
+  --output tmp/production-proof.json
+```
+
+The command uses the RunDiff App credentials already configured on the control plane. It mints installation-scoped GitHub tokens internally; no operator PAT is required and no token is written to the bundle.
+
+It fails closed unless:
+
+- the proof repository is owned outside `rundiff-hq`;
+- the durable execution is completed;
+- current GitHub base/head SHAs exactly match the recorded execution;
+- the regression PR is `BLOCK` with a failing RunDiff Check;
+- the neutral PR is `ALLOW` with a successful RunDiff Check;
+- one exact Check Run matches the RunDiff execution id;
+- one durable RunDiff PR comment exists;
+- the webhook delivery matches installation/repository/PR/base/head.
+
+The output contract is `schemas/production-proof-v1.schema.json` and is tracked by #123.
+
 ## Productization sequence
 
 ```text
 repository hard rename
   -> external identity cutover (#121)
   -> production GitHub App + cross-account proof (#75)
+  -> proof evidence bundle (#123)
   -> broader public onboarding
 ```
