@@ -10,9 +10,9 @@ class GithubAppManifestsControllerTest < ActionDispatch::IntegrationTest
     get github_app_register_url
 
     assert_response :success
-    assert_includes response.body, "Plywo Development"
+    assert_includes response.body, "RunDiff Development"
     assert_includes response.body, "https://plywo-dev.example.test/github/webhooks"
-    assert_includes response.body, "github.com/organizations/plywo/settings/apps/new"
+    assert_includes response.body, "github.com/organizations/rundiff-hq/settings/apps/new"
   ensure
     ENV["PLYWO_PUBLIC_URL"] = previous_public_url
     ENV["PLYWO_GITHUB_APP_MANIFEST_ENV"] = previous_environment
