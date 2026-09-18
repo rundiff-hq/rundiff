@@ -2,8 +2,22 @@ name: Compose Service Proof
 
 on:
   pull_request:
+    paths:
+      - "lib/**"
+      - "script/prove_compose_service_provider.rb"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".ruby-version"
+      - ".github/workflows/compose-service-proof.yml"
   push:
     branches: [main]
+    paths:
+      - "lib/**"
+      - "script/prove_compose_service_provider.rb"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".ruby-version"
+      - ".github/workflows/compose-service-proof.yml"
 
 permissions:
   contents: read
@@ -15,9 +29,10 @@ concurrency:
 jobs:
   compose_service_proof:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ruby/setup-ruby@v1
         with:
