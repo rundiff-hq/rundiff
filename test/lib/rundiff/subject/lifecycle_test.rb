@@ -37,6 +37,25 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
     end
   end
 
+  class SampleAwareEnvironment < RecordingEnvironment
+    attr_reader :sample_indexes
+
+    def initialize(events:)
+      super(events:)
+      @sample_indexes = []
+    end
+
+    def prepare(root:, execution:, role:, sample_index:)
+      sample_indexes << [ :prepare, sample_index ]
+      super(root:, execution:, role:)
+    end
+
+    def cleanup(root:, execution:, role:, sample_index:)
+      sample_indexes << [ :cleanup, sample_index ]
+      super(root:, execution:, role:)
+    end
+  end
+
   class RecordingDiscovery
     attr_reader :configuration
 
@@ -147,6 +166,24 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
       :stop_services,
       :cleanup
     ], events
+  end
+
+  test "passes sample index only to sample-aware state preparation and cleanup" do
+    events = []
+    environment = SampleAwareEnvironment.new(events:)
+    lifecycle = lifecycle_for(events:, environment:)
+
+    lifecycle.open(
+      root: Pathname("/tmp/subject"),
+      execution: Object.new,
+      role: "base",
+      sample_index: 2,
+      configuration: Configuration.new(capture_env: {})
+    ) do
+      events << :capture
+    end
+
+    assert_equal [ [ :prepare, 2 ], [ :cleanup, 2 ] ], environment.sample_indexes
   end
 
   test "stops services and cleans up when readiness fails" do
