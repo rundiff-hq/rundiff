@@ -151,3 +151,40 @@ tmp/lab/groups/<group>/result.env
 The TSV records each executed case, pass/fail status, and wall-clock seconds. `result.env` records total cases, passed/failed counts, total elapsed time, and final group status.
 
 The `executor` group includes `executor/remote-topology`, so it inherits that case's required `RUNDIFF_PROOF_*` inputs. The `smoke` group intentionally remains zero-configuration and fast enough for regular CI.
+
+
+## Remote lab control
+
+`.github/workflows/lab-group.yml` is the generic remote entry point. It runs the same `bin/lab run-group` command on an ephemeral GitHub-hosted Ubuntu runner and always uploads `tmp/lab` as an artifact.
+
+From the GitHub Actions UI choose **Lab Group** and select one of `smoke`, `onboarding`, `executor`, or `production`.
+
+The same interface is available through GitHub CLI:
+
+```bash
+gh workflow run lab-group.yml \
+  --repo rundiff-hq/rundiff \
+  --ref main \
+  -f group=smoke
+```
+
+Other zero-configuration groups:
+
+```bash
+gh workflow run lab-group.yml --repo rundiff-hq/rundiff --ref main -f group=onboarding
+gh workflow run lab-group.yml --repo rundiff-hq/rundiff --ref main -f group=production
+```
+
+The full executor group contains `executor/remote-topology`, so it needs a same-repository pull request as the behavioral subject:
+
+```bash
+gh workflow run lab-group.yml \
+  --repo rundiff-hq/rundiff \
+  --ref main \
+  -f group=executor \
+  -f pull_request_number=145
+```
+
+Use `-f keep_going=true` for a diagnostic sweep. The default remains fail-fast.
+
+The workflow resolves only GitHub-specific pull-request context. Lab execution remains inside `bin/lab`, and the executor proof still receives only generic `RUNDIFF_PROOF_*` inputs. This keeps GitHub Actions as a remote runner/control surface rather than a second implementation of the laboratory.
