@@ -1,4 +1,5 @@
 class RunDiffExecution < ApplicationRecord
+  self.table_name = "rundiff_executions"
   ACTIVE_STATUSES = %w[queued running finalizing].freeze
   CANCELLABLE_STATUSES = %w[queued running].freeze
   LEASED_STATUSES = %w[running finalizing].freeze
