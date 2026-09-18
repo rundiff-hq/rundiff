@@ -6,6 +6,7 @@ require "json"
 require "openssl"
 require "open3"
 require "pathname"
+require_relative "../lib/rundiff/subject/rails_bundle_bootstrap"
 
 TOOL_ROOT = Pathname(__dir__).join("..").expand_path.freeze
 FIXTURE_ROOT = TOOL_ROOT.join("test", "fixtures", "rails_sqlite_subject").freeze
@@ -13,6 +14,7 @@ GIT_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_GIT_ROOT", "/lab-git")).expand_path.f
 STATE_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_STATE_ROOT", "/lab-state")).expand_path.freeze
 TLS_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_TLS_ROOT", "/lab-tls")).expand_path.freeze
 WORK_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_WORK_ROOT", "/tmp/rundiff-production-lab")).expand_path.freeze
+BUNDLE_SEED_ROOT = Pathname(ENV.fetch("RUNDIFF_LAB_BUNDLE_SEED_ROOT", "/lab-bundle-seed")).expand_path.freeze
 
 module RunDiffProductionLabPrepare
   module_function
@@ -29,7 +31,8 @@ module RunDiffProductionLabPrepare
     FileUtils.rm_rf(GIT_ROOT)
     FileUtils.rm_rf(STATE_ROOT)
     FileUtils.rm_rf(TLS_ROOT)
-    [ WORK_ROOT, GIT_ROOT, STATE_ROOT, TLS_ROOT ].each { |path| FileUtils.mkdir_p(path) }
+    FileUtils.rm_rf(BUNDLE_SEED_ROOT)
+    [ WORK_ROOT, GIT_ROOT, STATE_ROOT, TLS_ROOT, BUNDLE_SEED_ROOT ].each { |path| FileUtils.mkdir_p(path) }
   end
 
   def prepare_customer_repository!
@@ -45,6 +48,7 @@ module RunDiffProductionLabPrepare
     work.join(".ruby-version").write("3.4.10\n")
     write_behavior(work, 1)
     create_lockfile(work)
+    prepare_bundle_seed!(work)
 
     run!(%w[git init -q -b main], chdir: work)
     run!([ "git", "config", "user.email", "production-lab@rundiff.local" ], chdir: work)
@@ -180,6 +184,37 @@ module RunDiffProductionLabPrepare
     end
   end
 
+  def prepare_bundle_seed!(root)
+    lockfile = root.join("Gemfile.lock")
+    cache_key = RunDiff::Subject::RailsBundleBootstrap.cache_key_for(
+      lockfile:,
+      ruby_version: RUBY_VERSION
+    )
+    destination = BUNDLE_SEED_ROOT.join(cache_key)
+    FileUtils.mkdir_p(destination)
+
+    bundler_version = lockfile.read[/^BUNDLED WITH\n\s+([^\s]+)\s*$/m, 1]
+    command = [ "bundle" ]
+    command << "_#{bundler_version}_" if bundler_version
+    command.concat([ "install", "--jobs", "4", "--retry", "3" ])
+
+    Bundler.with_unbundled_env do
+      run!(
+        command,
+        chdir: root,
+        env: {
+          "BUNDLE_GEMFILE" => root.join("Gemfile").to_s,
+          "BUNDLE_PATH" => destination.join("gems").to_s,
+          "BUNDLE_APP_CONFIG" => destination.join("config").to_s,
+          "BUNDLE_DEPLOYMENT" => "true",
+          "BUNDLE_FROZEN" => "true"
+        }
+      )
+    end
+
+    puts "production_lab_bundle_seed=#{cache_key}"
+  end
+
   def commit!(root, message)
     run!(%w[git add --all], chdir: root)
     run!([ "git", "commit", "-q", "-m", message ], chdir: root)
@@ -239,8 +274,8 @@ module RunDiffProductionLabPrepare
     File.chmod(0o600, TLS_ROOT.join("#{host}.key"))
   end
 
-  def run!(command, chdir:)
-    stdout, stderr, status = Open3.capture3(*command, chdir: chdir.to_s)
+  def run!(command, chdir:, env: {})
+    stdout, stderr, status = Open3.capture3(env, *command, chdir: chdir.to_s)
     return stdout if status.success?
 
     raise "Command failed (#{command.join(" ")}): #{stderr.empty? ? stdout : stderr}"

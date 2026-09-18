@@ -9,18 +9,28 @@ module RunDiff
     class RailsBundleBootstrap
       Error = Class.new(StandardError)
 
+      def self.cache_key_for(lockfile:, ruby_version:)
+        lock_digest = Digest::SHA256.file(lockfile).hexdigest
+        match = ruby_version.to_s.match(/\A(\d+)\.(\d+)/)
+        raise Error, "Unsupported Ruby version declaration #{ruby_version.inspect}" unless match
+
+        "ruby-#{match[1]}.#{match[2]}-#{lock_digest[0, 20]}"
+      end
+
       def initialize(
         command_runner:,
         cache_root: ::Rails.root.join("tmp", "rundiff", "bundles"),
         ruby_version: RUBY_VERSION,
         bundler_installer_command_runner: command_runner,
-        execution_identity: ExecutionIdentity.new
+        execution_identity: ExecutionIdentity.new,
+        seed_root: nil
       )
         @command_runner = command_runner
         @bundler_installer_command_runner = bundler_installer_command_runner
         @cache_root = cache_root && Pathname(cache_root).expand_path
         @ruby_version = ruby_version.to_s
         @execution_identity = execution_identity
+        @seed_root = seed_root && Pathname(seed_root).expand_path
       end
 
       def call(root:)
@@ -32,8 +42,9 @@ module RunDiff
         raise Error, "Rails subject must commit Gemfile.lock for reproducible execution" unless lockfile.file?
 
         assert_ruby_compatible!(root:, lockfile:)
-        lock_digest = Digest::SHA256.file(lockfile).hexdigest
-        bundle_root = bundle_cache_root(root).join(cache_key(lock_digest))
+        cache_key = self.class.cache_key_for(lockfile:, ruby_version: @ruby_version)
+        bundle_root = bundle_cache_root(root).join(cache_key)
+        seed_hit = hydrate_from_seed!(bundle_root:, cache_key:)
         FileUtils.mkdir_p(bundle_root)
         @execution_identity.prepare_tree(bundle_root)
 
@@ -67,11 +78,30 @@ module RunDiff
 
         env.merge(
           "RUNDIFF_SUBJECT_RUBY_VERSION" => requested_ruby_version(root:, lockfile:) || @ruby_version,
-          "RUNDIFF_SUBJECT_BUNDLER_VERSION" => bundler_version || "default"
+          "RUNDIFF_SUBJECT_BUNDLER_VERSION" => bundler_version || "default",
+          "RUNDIFF_SUBJECT_BUNDLE_SEED" => seed_hit ? "hit" : "miss"
         )
       end
 
       private
+
+      def hydrate_from_seed!(bundle_root:, cache_key:)
+        return false unless @seed_root
+
+        seed = @seed_root.join(cache_key)
+        seed_gems = seed.join("gems")
+        return false unless seed_gems.directory?
+
+        FileUtils.rm_rf(bundle_root)
+        local_gems = bundle_root.join("gems")
+        FileUtils.mkdir_p(local_gems)
+        Dir.children(seed_gems).each do |entry|
+          FileUtils.cp_r(seed_gems.join(entry), local_gems.join(entry), preserve: true)
+        end
+        true
+      rescue Errno::EACCES, Errno::EPERM, Errno::ENOENT => error
+        raise Error, "Could not hydrate bundle seed #{seed}: #{error.message}"
+      end
 
       def run!(env:, command:, chdir:)
         @command_runner.call(env:, command:, chdir: chdir.to_s)
@@ -136,11 +166,6 @@ module RunDiff
         raise Error, "Unsupported Ruby version declaration #{version.inspect}" unless match
 
         [ match[1], match[2] ]
-      end
-
-      def cache_key(lock_digest)
-        ruby_line = major_minor(@ruby_version).join(".")
-        "ruby-#{ruby_line}-#{lock_digest[0, 20]}"
       end
 
       def bundle_cache_root(root)
