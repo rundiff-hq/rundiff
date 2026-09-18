@@ -78,7 +78,8 @@ module RunDiff
         runtime_capabilities: nil,
         execution_identity: nil,
         subject_command_runner: nil,
-        service_executor: nil
+        service_executor: nil,
+        stage_timer: RunDiff::ExecutionStageTimer.new
       )
         @root = Pathname(root).expand_path
         @tool_root = Pathname(tool_root).expand_path
@@ -99,7 +100,8 @@ module RunDiff
           bootstrap: subject_bootstrap,
           environment: subject_environment,
           setup_plan_compiler:,
-          service_executor:
+          service_executor:,
+          stage_timer:
         )
         @capture_runtime = capture_runtime || RunDiff::Subject::RailsCaptureRuntime.new
       end
