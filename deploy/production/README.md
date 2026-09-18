@@ -17,7 +17,7 @@ GitHub
                       -> disposable Git clone/worktrees
 ```
 
-The two roles use the same immutable `ghcr.io/rundiff/rundiff` image but must run on separate hosts or otherwise separate trust domains.
+The two roles use the same immutable `ghcr.io/rundiff-hq/rundiff` image but must run on separate hosts or otherwise separate trust domains.
 
 The control plane owns GitHub credentials and must use `RUNDIFF_EXECUTOR=remote`.
 The executor must never receive the GitHub App private key, webhook secret, or remote-executor credentials.
@@ -279,11 +279,11 @@ The production manifest points GitHub back to:
 https://app.rundiff.com/onboarding
 ```
 
-After registration, verify that the public App installation page can be opened by an account outside `rundiff` and that post-install setup lands on the onboarding page.
+After registration, verify that the public App installation page can be opened by an account outside `rundiff-hq` and that post-install setup lands on the onboarding page.
 
 ## Cross-account acceptance
 
-The deployment is not considered product-proven until #75 is completed from a repository owned outside the `rundiff` GitHub account/org and both outcomes are observed:
+The deployment is not considered product-proven until #75 is completed from a repository owned outside the `rundiff-hq` GitHub organization and both outcomes are observed:
 
 ```text
 deliberate SQL regression -> DATABASE_QUERY_REGRESSION -> BLOCK
