@@ -19,11 +19,11 @@ module RunDiff
         end
       end
 
-      def prepare(root:, execution:, role:)
+      def prepare(root:, execution:, role:, sample_index: nil)
         raise NotImplementedError
       end
 
-      def env_for(root:, execution:, role:)
+      def env_for(root:, execution:, role:, sample_index: nil)
         raise NotImplementedError
       end
 
@@ -39,7 +39,7 @@ module RunDiff
         nil
       end
 
-      def cleanup(root:, execution:, role:)
+      def cleanup(root:, execution:, role:, sample_index: nil)
         nil
       end
     end
