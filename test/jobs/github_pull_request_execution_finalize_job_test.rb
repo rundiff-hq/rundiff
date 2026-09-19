@@ -60,6 +60,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
     assert_equal "RuntimeError: worker unavailable", execution.failure
     assert execution.rerunnable?
     assert_equal [ "RuntimeError" ], publisher.failure_classes
+    assert_equal [ "worker unavailable" ], publisher.failure_messages
   end
 
   test "marks an old result stale before publication" do
@@ -201,7 +202,7 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
   end
 
   def counting_publisher
-    Struct.new(:calls, :infra_calls, :failure_classes) do
+    Struct.new(:calls, :infra_calls, :failure_classes, :failure_messages) do
       def call(execution:, payload:)
         raise "missing execution" unless execution
         raise "missing payload" unless payload
@@ -210,13 +211,14 @@ class GithubPullRequestExecutionFinalizeJobTest < ActiveJob::TestCase
         { check: :created, comment: :created }
       end
 
-      def infra_failure(execution:, error: nil, error_class: nil)
+      def infra_failure(execution:, error: nil, error_class: nil, error_message: nil)
         raise "missing execution" unless execution
 
         self.infra_calls += 1
         failure_classes << (error_class || error.class.to_s)
+        failure_messages << (error_message || error&.message)
         { check: :created, comment: :created }
       end
-    end.new(0, 0, [])
+    end.new(0, 0, [], [])
   end
 end
