@@ -135,14 +135,16 @@ module RunDiffProductionLab
     raise
   end
 
-  def assert_operator_replay!(pull_request:, expected_text:)
+  def assert_github_app_demo!(regression:, neutral:)
     started_at = monotonic_now
-    number = pull_request.fetch("number")
     root = File.expand_path("..", __dir__)
     command = [
-      File.join(root, "bin", "replay-github-pr"),
+      File.join(root, "bin", "prove-github-app-demo"),
       CUSTOMER_REPOSITORY,
-      number.to_s,
+      "--regression-pr",
+      regression.fetch("number").to_s,
+      "--neutral-pr",
+      neutral.fetch("number").to_s,
       "--wait",
       "60",
       "--color",
@@ -151,22 +153,17 @@ module RunDiffProductionLab
 
     stdout, stderr, status = Open3.capture3(*command, chdir: root)
     unless status.success?
-      raise "Operator PR replay failed for #{CUSTOMER_REPOSITORY}##{number}: #{stderr.empty? ? stdout : stderr}"
+      raise "GitHub App demo proof failed: #{stderr.empty? ? stdout : stderr}"
     end
 
-    unless stdout.include?("review_delivery=accepted")
-      raise "Operator PR replay did not accept a signed delivery: #{stdout}"
-    end
-    unless stdout.include?("execution_status=completed")
-      raise "Operator PR replay did not resolve the durable execution: #{stdout}"
-    end
-    unless stdout.include?(expected_text)
-      raise "Operator PR replay did not render #{expected_text.inspect}: #{stdout}"
-    end
+    raise "GitHub App demo did not verify BLOCK" unless stdout.include?("github_app_demo_regression=BLOCK")
+    raise "GitHub App demo did not verify ALLOW" unless stdout.include?("github_app_demo_neutral=ALLOW")
+    raise "GitHub App demo did not pass" unless stdout.include?("github_app_demo=passed")
+    raise "GitHub App demo omitted regression finding" unless stdout.include?("DATABASE_QUERY_REGRESSION")
 
-    puts "production_lab_operator_replay=verified pr=#{number} elapsed_ms=#{elapsed_ms(started_at)}"
+    puts "production_lab_github_app_demo=verified elapsed_ms=#{elapsed_ms(started_at)}"
   rescue StandardError
-    warn "production_lab_operator_replay=error pr=#{number || "unknown"} elapsed_ms=#{elapsed_ms(started_at)}"
+    warn "production_lab_github_app_demo=error elapsed_ms=#{elapsed_ms(started_at)}"
     raise
   end
 
