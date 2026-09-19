@@ -156,6 +156,19 @@ GitHub emulator PR event
 
 `bin/replay-github-pr` remains an operator/recovery tool and an additional same-org proof. The Production Lab does not depend on replay to prove that an ordinary PR event can trigger a Behavioral Review.
 
+The hermetic acceptance also proves the customer-shaped correction loop on one pull request:
+
+```text
+open PR
+  -> emulator-originated pull_request webhook
+  -> BLOCK / DATABASE_QUERY_REGRESSION
+push fix to the same PR branch
+  -> emulator-originated pull_request synchronize webhook
+  -> ALLOW
+```
+
+The second review must be attached to the new head of the same PR. No replay command or manually synthesized webhook drives this transition.
+
 ## Read-only installed-App preflight
 
 Before re-driving the sandbox PRs, verify that the target repository is actually ready for the hosted flow:
