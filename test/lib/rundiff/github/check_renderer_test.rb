@@ -7,7 +7,7 @@ class RunDiffGithubCheckRendererTest < ActiveSupport::TestCase
       run_url: "https://github.com/rundiff-hq/rundiff/actions/runs/1"
     )
 
-    assert_equal "RunDiff / Behavioral Diff", rendered.fetch("name")
+    assert_equal "RunDiff / Behavioral Review", rendered.fetch("name")
     assert_equal "success", rendered.fetch("conclusion")
     assert_equal "No behavioral regression detected", rendered.fetch("title")
     assert_includes rendered.fetch("summary"), "**ALLOW**"
@@ -34,6 +34,8 @@ class RunDiffGithubCheckRendererTest < ActiveSupport::TestCase
     annotation = rendered.fetch("annotations").first
 
     assert_equal "failure", rendered.fetch("conclusion")
+    assert_includes rendered.fetch("summary"), "**BLOCK** - tests passed, but runtime behavior changed."
+    assert_includes rendered.fetch("summary"), "`DATABASE_QUERY_REGRESSION`"
     assert_equal "app/controllers/demo/behavior_controller.rb", annotation.fetch("path")
     assert_equal 20, annotation.fetch("start_line")
     assert_equal "failure", annotation.fetch("annotation_level")
