@@ -243,7 +243,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
       write_executable(proof, <<~BASH)
         #!/usr/bin/env bash
         printf 'proof %s\\n' "$*" >> "$CUTOVER_LOG"
-        printf '%s\\n' '{"schema_version":"1"}' > "$7"
+        printf '%s\\n' '{"schema_version":"2"}' > "$5"
       BASH
 
       stdout, stderr, status = run_script(
