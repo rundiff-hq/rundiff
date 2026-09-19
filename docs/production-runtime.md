@@ -195,4 +195,4 @@ The deployable image and separate-process executor path are now proven. Remainin
 - fork PR multi-repository capabilities
 - arbitrary customer setup shell hooks and secret injection policy
 - non-Rails subject runtimes
-- concrete production hosting/IaC and public control-plane deployment
+- first live production infrastructure apply, public control-plane/executor deployment, and external identity cutover (#92/#121/#75)
