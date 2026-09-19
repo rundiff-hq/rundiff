@@ -46,6 +46,13 @@ module RunDiffProductionLab
     assert_github_app_demo_preflight!(regression:, neutral:)
     assert_github_app_demo!(regression:, neutral:)
 
+    fixed_regression = fix_regression_pull_request!(regression)
+    assert_behavioral_review!(
+      pull_request: fixed_regression,
+      expected_conclusion: "success",
+      expected_text: "ALLOW"
+    )
+
     assert_invalid_webhook_signature!
     assert_disallowed_repository_is_ignored!
     assert_wrong_executor_token_is_rejected!
@@ -56,6 +63,7 @@ module RunDiffProductionLab
     puts "production_lab_emulator_originated_github_flow=verified"
     puts "production_lab_github_app_demo_preflight=verified"
     puts "production_lab_github_app_demo=BLOCK+ALLOW"
+    puts "production_lab_regression_transition=BLOCK->ALLOW"
     puts "production_lab_invalid_webhook_signature=rejected"
     puts "production_lab_disallowed_repository=ignored"
     puts "production_lab_wrong_executor_token=rejected"
@@ -104,6 +112,36 @@ module RunDiffProductionLab
     )
   end
 
+  def fix_regression_pull_request!(pull_request)
+    repository = pull_request.dig("base", "repo", "full_name") || CUSTOMER_REPOSITORY
+    number = pull_request.fetch("number")
+    branch = pull_request.dig("head", "ref") || raise("Missing regression branch")
+    previous_head_sha = pull_request.dig("head", "sha") || raise("Missing regression head SHA")
+
+    github_json(
+      :put,
+      "/repos/#{repository}/contents/regression-fix.txt",
+      body: {
+        message: "Fix SQL regression",
+        content: Base64.strict_encode64("fixed\n"),
+        branch:
+      }
+    )
+
+    updated = wait_for("synchronized pull request #{repository}##{number}") do
+      current = github_json(:get, "/repos/#{repository}/pulls/#{number}")
+      current_head_sha = current.dig("head", "sha")
+      current if current_head_sha.present? && current_head_sha != previous_head_sha
+    end
+
+    unless updated.fetch("number") == number
+      raise "Expected the fix to stay on PR ##{number}, got ##{updated.fetch("number")}"
+    end
+
+    puts "production_lab_regression_fix_pushed pr=#{number}"
+    updated
+  end
+
   def assert_behavioral_review!(pull_request:, expected_conclusion:, expected_text:)
     started_at = monotonic_now
     repository = pull_request.dig("base", "repo", "full_name") || CUSTOMER_REPOSITORY
@@ -135,7 +173,8 @@ module RunDiffProductionLab
 
     comment = wait_for("RunDiff comment for #{repository}##{number}") do
       github_json(:get, "/repos/#{repository}/issues/#{number}/comments").find do |item|
-        item.fetch("body", "").include?("<!-- rundiff:behavioral-diff:v1 -->")
+        body = item.fetch("body", "")
+        body.include?("<!-- rundiff:behavioral-diff:v1 -->") && body.include?(expected_text)
       end
     end
 
