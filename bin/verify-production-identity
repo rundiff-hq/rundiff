@@ -41,6 +41,12 @@ onboarding="$(curl -fsS "$PUBLIC_URL/onboarding")"
 grep -q "RunDiff" <<<"$onboarding" ||
   fail "onboarding page does not contain the canonical RunDiff brand"
 
+grep -Fq "Tests passed. Behavior changed." <<<"$onboarding" ||
+  fail "onboarding page does not expose the Behavioral Review product promise"
+
+grep -Fq "RunDiff / Behavioral Review" <<<"$onboarding" ||
+  fail "onboarding page does not expose the Behavioral Review preview"
+
 if grep -qi "$LEGACY_TOKEN" <<<"$onboarding"; then
   fail "onboarding page still exposes the pre-RunDiff identity"
 fi

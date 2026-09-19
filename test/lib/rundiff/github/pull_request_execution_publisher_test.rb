@@ -43,6 +43,13 @@ class RunDiffGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
 
   Execution = Data.define(:context, :candidate_sha, :execution_id)
 
+  test "uses the product-facing Behavioral Review check name by default" do
+    assert_equal(
+      "RunDiff / Behavioral Review",
+      RunDiff::Github::PullRequestExecutionPublisher::DEFAULT_CHECK_NAME
+    )
+  end
+
   test "publishes infrastructure failure as a failed rerunnable check" do
     check = CheckRecorder.new
     comment = CommentRecorder.new

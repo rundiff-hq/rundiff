@@ -1,7 +1,7 @@
 module RunDiff
   module Github
     class PullRequestExecutionPublisher
-      DEFAULT_CHECK_NAME = "RunDiff Development / Behavioral Diff".freeze
+      DEFAULT_CHECK_NAME = "RunDiff / Behavioral Review".freeze
       DEFAULT_BOT_LOGIN = "rundiff-development[bot]".freeze
 
       def initialize(
@@ -80,7 +80,7 @@ module RunDiff
 
         markdown = <<~MARKDOWN
           <!-- rundiff:behavioral-diff:v1 -->
-          ## 🟣 RunDiff · Execution Problem
+          ## 🟣 RunDiff Execution Problem
 
           > [!WARNING]
           > **RunDiff could not complete validation.** This is an **INFRA_FAILURE**, not a product regression.
@@ -122,7 +122,7 @@ module RunDiff
           candidate_label: execution.context.fetch("candidate_ref"),
           candidate_sha: execution.candidate_sha,
           bootstrap_baseline: nil,
-          execution_mode: "RunDiff Development App - exact Git worktrees + isolated PostgreSQL + Solid Queue",
+          execution_mode: "RunDiff GitHub App - exact Git worktrees + isolated subject state",
           run_url:
         }
       end
