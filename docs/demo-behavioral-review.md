@@ -140,6 +140,22 @@ gh workflow run lab-group.yml \
 
 Then inspect the `lab-group-onboarding-...` artifact.
 
+## Hermetic GitHub App proof
+
+The Production Lab uses Vercel Labs `emulate` as the GitHub system of record for its customer-shaped integration proof. The driver creates branches, candidate-only `rundiff.yml`, and pull requests through the emulator's GitHub API. The emulator originates the `pull_request` webhook, RunDiff receives it through the normal signed webhook boundary, executes through the remote executor, and publishes the resulting Check Run and durable PR comment back through the App API.
+
+This is the canonical automated GitHub integration path:
+
+```text
+GitHub emulator PR event
+  -> emulator-originated signed webhook
+  -> RunDiff control plane
+  -> remote executor
+  -> GitHub Check + PR comment
+```
+
+`bin/replay-github-pr` remains an operator/recovery tool and an additional same-org proof. The Production Lab does not depend on replay to prove that an ordinary PR event can trigger a Behavioral Review.
+
 ## Read-only installed-App preflight
 
 Before re-driving the sandbox PRs, verify that the target repository is actually ready for the hosted flow:
