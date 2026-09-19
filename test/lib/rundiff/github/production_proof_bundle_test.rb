@@ -2,10 +2,15 @@ require "test_helper"
 
 class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
   FakeToken = Data.define(:value)
-  FakeAuthentication = Struct.new(:calls) do
+  FakeAuthentication = Struct.new(:calls, :deliveries) do
     def installation_token(installation_id:, repositories:)
       calls << { installation_id:, repositories: }
       FakeToken.new("installation-secret-that-must-not-leak")
+    end
+
+    def webhook_deliveries
+      calls << { webhook_deliveries: true }
+      deliveries || []
     end
   end
 
@@ -84,7 +89,23 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
         ]
       }
     )
-    authentication = FakeAuthentication.new([])
+    authentication = FakeAuthentication.new(
+      [],
+      [
+        github_delivery(
+          id: 701,
+          guid: "delivery-block",
+          action: "opened",
+          delivered_at: installed_at + 9
+        ),
+        github_delivery(
+          id: 702,
+          guid: "delivery-allow",
+          action: "synchronize",
+          delivered_at: installed_at + 49
+        )
+      ]
+    )
 
     bundle = build_bundle(authentication:, client:, clock: -> { installed_at + 120 })
 
@@ -108,6 +129,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
     assert_equal "delivery-block", block_proof.fetch("webhook_delivery_id")
     assert_equal "github-block-proof", block_proof.fetch("execution_id")
     assert_equal 501, block_proof.dig("check_run", "id")
+    assert_equal 701, block_proof.dig("github_delivery", "id")
 
     allow_proof = bundle.dig("proofs", "allow")
     assert_equal "allow", allow_proof.fetch("outcome")
@@ -115,12 +137,13 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
     assert_equal "delivery-allow", allow_proof.fetch("webhook_delivery_id")
     assert_equal "github-allow-proof", allow_proof.fetch("execution_id")
     assert_equal 502, allow_proof.dig("check_run", "id")
+    assert_equal 702, allow_proof.dig("github_delivery", "id")
 
     durable_comment = bundle.fetch("durable_comment")
     assert_equal 601, durable_comment.fetch("id")
     assert_equal "ALLOW", durable_comment.fetch("current_recommendation")
 
-    assert_equal 1, authentication.calls.length
+    assert_equal 2, authentication.calls.length
     refute_includes JSON.generate(bundle), "installation-secret-that-must-not-leak"
   end
 
@@ -154,7 +177,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
     )
 
     error = assert_raises(RunDiff::Github::ProductionProofBundle::Error) do
-      build_bundle(authentication: FakeAuthentication.new([]), client:)
+      build_bundle(authentication: FakeAuthentication.new([], []), client:)
     end
 
     assert_includes error.message, "current PR head/base does not match final ALLOW execution"
@@ -182,21 +205,12 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
 
     client = FakeClient.new(
       pull_requests: { [ REPOSITORY, PR_NUMBER ] => pull_request(allow) },
-      checks: {
-        [ REPOSITORY, "b" * 40, CHECK_NAME ] => [
-          check_run(
-            RunDiffExecution.find_by!(execution_id: "github-block-proof"),
-            id: 501,
-            conclusion: "failure",
-            completed_at: Time.utc(2026, 9, 19, 10, 0, 35)
-          )
-        ]
-      },
+      checks: {},
       comments: {}
     )
 
     error = assert_raises(RunDiff::Github::ProductionProofBundle::Error) do
-      build_bundle(authentication: FakeAuthentication.new([]), client:)
+      build_bundle(authentication: FakeAuthentication.new([], []), client:)
     end
 
     assert_includes error.message, "cannot use an operator replay delivery"
@@ -226,7 +240,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
 
     error = assert_raises(RunDiff::Github::ProductionProofBundle::Error) do
       build_bundle(
-        authentication: FakeAuthentication.new([]),
+        authentication: FakeAuthentication.new([], []),
         client: FakeClient.new(pull_requests: {}, checks: {}, comments: {})
       )
     end
@@ -238,7 +252,7 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
     bundle = RunDiff::Github::ProductionProofBundle.new(
       repository: "rundiff-hq/rundiff",
       pull_request: 1,
-      authentication: FakeAuthentication.new([]),
+      authentication: FakeAuthentication.new([], []),
       client_factory: ->(**) { flunk("client should not be created for invalid repository") },
       app_slug: "rundiff",
       clock: -> { Time.utc(2026, 9, 19) }
@@ -337,7 +351,10 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
   def pull_request(execution)
     {
       "html_url" => "https://github.com/#{REPOSITORY}/pull/#{PR_NUMBER}",
-      "base" => { "sha" => execution.baseline_sha },
+      "base" => {
+        "sha" => execution.baseline_sha,
+        "repo" => { "id" => 9001 }
+      },
       "head" => { "sha" => execution.candidate_sha }
     }
   end
@@ -351,6 +368,20 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
       "conclusion" => conclusion,
       "html_url" => "https://github.com/#{REPOSITORY}/runs/#{id}",
       "completed_at" => completed_at.iso8601
+    }
+  end
+
+  def github_delivery(id:, guid:, action:, delivered_at:)
+    {
+      "id" => id,
+      "guid" => guid,
+      "delivered_at" => delivered_at.iso8601,
+      "redelivery" => false,
+      "status_code" => 202,
+      "event" => "pull_request",
+      "action" => action,
+      "installation_id" => INSTALLATION_ID,
+      "repository_id" => 9001
     }
   end
 
