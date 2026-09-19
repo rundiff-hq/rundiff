@@ -2,7 +2,7 @@
 
 RunDiff v0.1 aims for a first Behavioral Review in a customer Rails pull request with minimal repository setup.
 
-The repository-side path is now proven end to end on a separate Rails + SQLite sandbox: a deliberate SQL regression produced `DATABASE_QUERY_REGRESSION` / `BLOCK`, while a neutral candidate produced `ALLOW`. The next product surface is the hosted self-service onboarding page at `/onboarding`.
+The repository-side path is proven end to end on a separate Rails + SQLite sandbox: a deliberate SQL regression produced `DATABASE_QUERY_REGRESSION` / `BLOCK`, while a neutral candidate produced `ALLOW`. That two-fixture sandbox remains a preproduction detector proof. Canonical production acceptance is stricter: one external PR must transition from GitHub-originated `BLOCK` to `ALLOW` after a normal fix push. The next live product boundary is the public hosted onboarding path at `/onboarding`.
 
 The first onboarding slice keeps the configuration intentionally small. RunDiff discovers the Rails runtime and supported persistence automatically, while the repository declares the HTTP scenario that should be replayed against baseline and candidate.
 

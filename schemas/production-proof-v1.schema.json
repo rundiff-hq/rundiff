@@ -17,26 +17,70 @@
     "proofs"
   ],
   "properties": {
-    "schema_version": {"const": "1"},
-    "generated_at": {"type": "string", "format": "date-time"},
-    "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
-    "control_plane_url": {"type": "string", "format": "uri"},
-    "executor_url": {"type": "string", "format": "uri"},
-    "github_app_slug": {"type": "string", "minLength": 1},
+    "schema_version": {
+      "const": "1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+$"
+    },
+    "control_plane_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "executor_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "github_app_slug": {
+      "type": "string",
+      "minLength": 1
+    },
     "installation_ids": {
       "type": "array",
       "minItems": 1,
-      "items": {"type": "integer"}
+      "items": {
+        "type": "integer"
+      }
     },
-    "installation_received_at": {"type": ["string", "null"], "format": "date-time"},
-    "first_review_at": {"type": ["string", "null"], "format": "date-time"},
-    "install_to_first_review_ms": {"type": ["integer", "null"], "minimum": 0},
+    "installation_received_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "first_review_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "install_to_first_review_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
     "proofs": {
       "type": "object",
-      "required": ["regression", "neutral"],
+      "required": [
+        "regression",
+        "neutral"
+      ],
       "properties": {
-        "regression": {"$ref": "#/$defs/proof"},
-        "neutral": {"$ref": "#/$defs/proof"}
+        "regression": {
+          "$ref": "#/$defs/proof"
+        },
+        "neutral": {
+          "$ref": "#/$defs/proof"
+        }
       },
       "additionalProperties": false
     }
@@ -61,44 +105,143 @@
         "first_review_at"
       ],
       "properties": {
-        "pull_request_number": {"type": "integer", "minimum": 1},
-        "pull_request_url": {"type": "string", "format": "uri"},
-        "baseline_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "installation_id": {"type": "integer"},
-        "webhook_delivery_id": {"type": "string", "minLength": 1},
-        "execution_id": {"type": "string", "minLength": 1},
-        "execution_status": {"const": "completed"},
-        "outcome": {"enum": ["allow", "block"]},
+        "pull_request_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pull_request_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "baseline_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "candidate_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "installation_id": {
+          "type": "integer"
+        },
+        "webhook_delivery_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_status": {
+          "const": "completed"
+        },
+        "outcome": {
+          "enum": [
+            "allow",
+            "block"
+          ]
+        },
         "check_run": {
           "type": "object",
-          "required": ["id", "name", "conclusion", "url", "completed_at"],
+          "required": [
+            "id",
+            "name",
+            "conclusion",
+            "url",
+            "completed_at"
+          ],
           "properties": {
-            "id": {"type": "integer"},
-            "name": {"type": "string"},
-            "conclusion": {"enum": ["success", "failure"]},
-            "url": {"type": ["string", "null"], "format": "uri"},
-            "completed_at": {"type": ["string", "null"], "format": "date-time"}
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "conclusion": {
+              "enum": [
+                "success",
+                "failure"
+              ]
+            },
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "completed_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
           },
           "additionalProperties": false
         },
         "comment": {
           "type": "object",
-          "required": ["id", "url", "created_at", "updated_at"],
+          "required": [
+            "id",
+            "url",
+            "created_at",
+            "updated_at"
+          ],
           "properties": {
-            "id": {"type": "integer"},
-            "url": {"type": ["string", "null"], "format": "uri"},
-            "created_at": {"type": ["string", "null"], "format": "date-time"},
-            "updated_at": {"type": ["string", "null"], "format": "date-time"}
+            "id": {
+              "type": "integer"
+            },
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "created_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
           },
           "additionalProperties": false
         },
-        "execution_created_at": {"type": ["string", "null"], "format": "date-time"},
-        "execution_finished_at": {"type": ["string", "null"], "format": "date-time"},
-        "first_review_at": {"type": ["string", "null"], "format": "date-time"}
+        "execution_created_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "execution_finished_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "first_review_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
       },
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "deprecated": true,
+  "description": "Historical Production Proof v1 contract. Current external acceptance uses Production Proof v2 (schemas/production-proof-v2.schema.json) with one PR transitioning BLOCK -> ALLOW and GitHub-authenticated webhook provenance."
 }

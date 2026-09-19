@@ -111,3 +111,5 @@ See `docs/onboarding.md` for the current five-minute onboarding shape and delibe
 ## Current status
 
 The GitHub App execution path, durable executor boundary, exact Git A/B worktrees, Rails runtime evidence, PostgreSQL and SQLite customer subject environments, and GitHub Check/PR feedback loop are real and exercised in CI and in a separate live customer-like sandbox. The current productization target is a public hosted GitHub App that turns `/onboarding` into a cross-account install-to-first-review path without operator intervention.
+
+See `docs/current-state.md` for the canonical snapshot of what is already proven, what is still blocked on live production state, which older assumptions are superseded, and which architectural/history records are intentionally retained.
