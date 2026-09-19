@@ -59,6 +59,8 @@ module RunDiffProductionLabPrepare
     write_behavior(work, 8)
     write_configuration(work)
     regression_sha = commit!(work, "Introduce SQL regression")
+    write_behavior(work, 1)
+    regression_fixed_sha = commit!(work, "Fix SQL regression")
 
     run!(%w[git checkout -q main], chdir: work)
     run!(%w[git checkout -q -b neutral], chdir: work)
@@ -70,6 +72,7 @@ module RunDiffProductionLabPrepare
     run!([ "git", "clone", "-q", "--bare", work.to_s, bare.to_s ], chdir: WORK_ROOT)
     run!([ "git", "update-ref", "refs/heads/main", baseline_sha ], chdir: bare)
     run!([ "git", "update-ref", "refs/heads/regression", regression_sha ], chdir: bare)
+    run!([ "git", "update-ref", "refs/heads/regression-fixed", regression_fixed_sha ], chdir: bare)
     run!([ "git", "update-ref", "refs/heads/neutral", neutral_sha ], chdir: bare)
     run!([ "git", "update-ref", "refs/pull/1/head", regression_sha ], chdir: bare)
     run!([ "git", "update-ref", "refs/pull/2/head", neutral_sha ], chdir: bare)
@@ -78,7 +81,12 @@ module RunDiffProductionLabPrepare
     state = {
       "repository" => "admin/customer-rails",
       "pull_requests" => {
-        "1" => { "base_sha" => baseline_sha, "head_sha" => regression_sha, "kind" => "regression" },
+        "1" => {
+          "base_sha" => baseline_sha,
+          "head_sha" => regression_sha,
+          "fixed_sha" => regression_fixed_sha,
+          "kind" => "regression"
+        },
         "2" => { "base_sha" => baseline_sha, "head_sha" => neutral_sha, "kind" => "neutral" }
       }
     }
@@ -86,6 +94,7 @@ module RunDiffProductionLabPrepare
 
     puts "production_lab_baseline_sha=#{baseline_sha}"
     puts "production_lab_regression_sha=#{regression_sha}"
+    puts "production_lab_regression_fixed_sha=#{regression_fixed_sha}"
     puts "production_lab_neutral_sha=#{neutral_sha}"
   end
 
