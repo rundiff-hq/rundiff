@@ -140,6 +140,43 @@ gh workflow run lab-group.yml \
 
 Then inspect the `lab-group-onboarding-...` artifact.
 
+## Hermetic GitHub App proof
+
+The Production Lab uses Vercel Labs `emulate` as the GitHub system of record for its customer-shaped integration proof. The driver creates branches, candidate-only `rundiff.yml`, and pull requests through the emulator's GitHub API. The emulator originates the `pull_request` webhook, RunDiff receives it through the normal signed webhook boundary, executes through the remote executor, and publishes the resulting Check Run and durable PR comment back through the App API.
+
+This is the canonical automated GitHub integration path:
+
+```text
+GitHub emulator PR event
+  -> emulator-originated signed webhook
+  -> RunDiff control plane
+  -> remote executor
+  -> GitHub Check + PR comment
+```
+
+`bin/replay-github-pr` remains an operator/recovery tool and an additional same-org proof. The Production Lab does not depend on replay to prove that an ordinary PR event can trigger a Behavioral Review.
+
+## Read-only installed-App preflight
+
+Before re-driving the sandbox PRs, verify that the target repository is actually ready for the hosted flow:
+
+```bash
+bin/verify-github-app-demo \
+  rundiff-hq/customer-rails-sandbox \
+  --regression-pr 4 \
+  --neutral-pr 5
+```
+
+The preflight is read-only. It verifies the repository allowlist, App authentication, actual repository installation, remote executor mode, both current open PRs, a shared baseline, and candidate-only `rundiff.yml` on both candidates.
+
+Expected final markers:
+
+```text
+github_app_demo_preflight=passed
+executor_mode=remote
+candidate_only_rundiff_config=verified
+```
+
 ## Prove BLOCK + ALLOW with one installed-App command
 
 For the canonical customer-like sandbox, run both proof PRs through the installed GitHub App with one command:

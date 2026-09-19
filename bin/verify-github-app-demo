@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+
+require "optparse"
+require_relative "../config/environment"
+
+options = {}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/verify-github-app-demo OWNER/REPO --regression-pr N --neutral-pr N"
+
+  opts.on("--regression-pr N", Integer, "PR expected to produce BLOCK") do |value|
+    options[:regression_pr] = value
+  end
+
+  opts.on("--neutral-pr N", Integer, "PR expected to produce ALLOW") do |value|
+    options[:neutral_pr] = value
+  end
+end
+
+parser.parse!
+
+repository = ARGV.shift
+if repository.to_s.empty? || !ARGV.empty? || !options[:regression_pr] || !options[:neutral_pr]
+  warn parser
+  exit 64
+end
+
+begin
+  result = RunDiff::Github::AppDemoPreflight.new.call(
+    repository:,
+    regression_pr: options.fetch(:regression_pr),
+    neutral_pr: options.fetch(:neutral_pr)
+  )
+
+  puts "github_app_demo_preflight=passed"
+  puts "repository=#{result.repository}"
+  puts "github_app_name=#{result.app_name}"
+  puts "github_app_slug=#{result.app_slug}"
+  puts "installation_id=#{result.installation_id}"
+  puts "executor_mode=#{result.executor_mode}"
+  puts "check_name=#{result.check_name}"
+  puts "baseline_sha=#{result.baseline_sha}"
+  puts "regression_pr=#{result.regression_pr}"
+  puts "regression_sha=#{result.regression_sha}"
+  puts "neutral_pr=#{result.neutral_pr}"
+  puts "neutral_sha=#{result.neutral_sha}"
+  puts "candidate_only_rundiff_config=verified"
+rescue RunDiff::Github::AppDemoPreflight::Error,
+  RunDiff::Github::AppAuthentication::Error,
+  RunDiff::Github::PullRequestClient::Error,
+  RunDiff::Github::RepositoryContentClient::Error,
+  OptionParser::ParseError => error
+  warn "GitHub App demo preflight failed: #{error.message}"
+  exit 1
+end

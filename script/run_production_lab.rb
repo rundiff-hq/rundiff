@@ -42,6 +42,8 @@ module RunDiffProductionLab
     )
     raise "Expected neutral PR #2, got ##{neutral.fetch("number")}" unless neutral.fetch("number") == 2
     assert_behavioral_review!(pull_request: neutral, expected_conclusion: "success", expected_text: "ALLOW")
+    puts "production_lab_emulator_originated_github_flow=verified"
+    assert_github_app_demo_preflight!(regression:, neutral:)
     assert_github_app_demo!(regression:, neutral:)
 
     assert_invalid_webhook_signature!
@@ -51,6 +53,8 @@ module RunDiffProductionLab
     puts "production_lab=ok"
     puts "production_lab_regression=BLOCK:DATABASE_QUERY_REGRESSION"
     puts "production_lab_neutral=ALLOW"
+    puts "production_lab_emulator_originated_github_flow=verified"
+    puts "production_lab_github_app_demo_preflight=verified"
     puts "production_lab_github_app_demo=BLOCK+ALLOW"
     puts "production_lab_invalid_webhook_signature=rejected"
     puts "production_lab_disallowed_repository=ignored"
@@ -74,6 +78,16 @@ module RunDiffProductionLab
       body: {
         message: "Create #{branch} candidate",
         content: Base64.strict_encode64("#{branch}\n"),
+        branch:
+      }
+    )
+
+    github_json(
+      :put,
+      "/repos/#{repository}/contents/rundiff.yml",
+      body: {
+        message: "Configure RunDiff candidate",
+        content: Base64.strict_encode64("version: 1\nscenario:\n  path: /__rundiff/demo/behavior\nsubject:\n  persistence: auto\n"),
         branch:
       }
     )
@@ -132,6 +146,33 @@ module RunDiffProductionLab
     puts "production_lab_pr=#{number} conclusion=#{check_run.fetch("conclusion")} expected=#{expected_text} elapsed_ms=#{elapsed_ms(started_at)}"
   rescue StandardError
     warn "production_lab_pr=#{number || "unknown"} status=error elapsed_ms=#{elapsed_ms(started_at)}"
+    raise
+  end
+
+  def assert_github_app_demo_preflight!(regression:, neutral:)
+    started_at = monotonic_now
+    root = File.expand_path("..", __dir__)
+    command = [
+      File.join(root, "bin", "verify-github-app-demo"),
+      CUSTOMER_REPOSITORY,
+      "--regression-pr",
+      regression.fetch("number").to_s,
+      "--neutral-pr",
+      neutral.fetch("number").to_s
+    ]
+
+    stdout, stderr, status = Open3.capture3(*command, chdir: root)
+    unless status.success?
+      raise "GitHub App demo preflight failed: #{stderr.empty? ? stdout : stderr}"
+    end
+
+    raise "GitHub App demo preflight did not pass" unless stdout.include?("github_app_demo_preflight=passed")
+    raise "GitHub App demo preflight did not verify candidate config" unless stdout.include?("candidate_only_rundiff_config=verified")
+    raise "GitHub App demo preflight did not verify remote executor" unless stdout.include?("executor_mode=remote")
+
+    puts "production_lab_github_app_demo_preflight=verified elapsed_ms=#{elapsed_ms(started_at)}"
+  rescue StandardError
+    warn "production_lab_github_app_demo_preflight=error elapsed_ms=#{elapsed_ms(started_at)}"
     raise
   end
 
