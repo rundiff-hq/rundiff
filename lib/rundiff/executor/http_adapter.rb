@@ -11,6 +11,16 @@ module RunDiff
       DEFAULT_OPEN_TIMEOUT_SECONDS = 5
       DEFAULT_READ_TIMEOUT_SECONDS = 2_100
       DEFAULT_CONTROL_READ_TIMEOUT_SECONDS = 30
+      DEFAULT_RETRY_ATTEMPTS = 5
+      DEFAULT_RETRY_BASE_DELAY_SECONDS = 2
+      TRANSIENT_HTTP_STATUSES = [ 502, 503, 504 ].freeze
+      TRANSIENT_CONNECT_ERRORS = [
+        Net::OpenTimeout,
+        Errno::ECONNREFUSED,
+        Errno::ECONNRESET,
+        EOFError,
+        SocketError
+      ].freeze
 
       class NetHttpTransport
         def call(uri:, headers:, body:, open_timeout:, read_timeout:)
@@ -37,6 +47,9 @@ module RunDiff
         token:,
         open_timeout: DEFAULT_OPEN_TIMEOUT_SECONDS,
         read_timeout: DEFAULT_READ_TIMEOUT_SECONDS,
+        retry_attempts: DEFAULT_RETRY_ATTEMPTS,
+        retry_base_delay: DEFAULT_RETRY_BASE_DELAY_SECONDS,
+        sleeper: ->(seconds) { sleep(seconds) },
         transport: NetHttpTransport.new,
         repository_capability_provider: nil
       )
@@ -44,6 +57,9 @@ module RunDiff
         @token = token.to_s
         @open_timeout = Integer(open_timeout)
         @read_timeout = Integer(read_timeout)
+        @retry_attempts = Integer(retry_attempts)
+        @retry_base_delay = Float(retry_base_delay)
+        @sleeper = sleeper
         @transport = transport
         @repository_capability_provider = repository_capability_provider
 
@@ -52,13 +68,15 @@ module RunDiff
 
       def call(request:)
         repository_capability = @repository_capability_provider&.call(request:)
-        response = @transport.call(
-          uri: @uri,
-          headers: execution_headers(request:, repository_capability:),
-          body: JSON.generate(request.to_h),
-          open_timeout: @open_timeout,
-          read_timeout: @read_timeout
-        )
+        response = with_transient_retries do
+          @transport.call(
+            uri: @uri,
+            headers: execution_headers(request:, repository_capability:),
+            body: JSON.generate(request.to_h),
+            open_timeout: @open_timeout,
+            read_timeout: @read_timeout
+          )
+        end
 
         unless response.status.between?(200, 299)
           raise Error, "Remote executor returned HTTP #{response.status}"
@@ -76,6 +94,10 @@ module RunDiff
         raise Error,
           "Remote executor timeout execution_id=#{request.execution_id.inspect} " \
           "phase=remote_executor_wait error_class=#{error.class.name}"
+      rescue *TRANSIENT_CONNECT_ERRORS => error
+        raise Error,
+          "Remote executor connection failed execution_id=#{request.execution_id.inspect} " \
+          "phase=remote_executor_connect error_class=#{error.class.name}"
       rescue JSON::ParserError => error
         raise Error, "Remote executor returned invalid JSON: #{error.message}"
       rescue KeyError, ArgumentError => error
@@ -106,6 +128,32 @@ module RunDiff
         raise Error, "Remote executor token is required" if @token.empty?
         raise Error, "Remote executor open timeout must be positive" unless @open_timeout.positive?
         raise Error, "Remote executor read timeout must be positive" unless @read_timeout.positive?
+        raise Error, "Remote executor retry attempts must be positive" unless @retry_attempts.positive?
+        raise Error, "Remote executor retry base delay must not be negative" if @retry_base_delay.negative?
+      end
+
+      def with_transient_retries
+        attempt = 1
+
+        loop do
+          begin
+            response = yield
+            return response unless transient_http_status?(response.status) && attempt < @retry_attempts
+          rescue *TRANSIENT_CONNECT_ERRORS
+            raise if attempt >= @retry_attempts
+          end
+
+          @sleeper.call(retry_delay(attempt))
+          attempt += 1
+        end
+      end
+
+      def transient_http_status?(status)
+        TRANSIENT_HTTP_STATUSES.include?(Integer(status))
+      end
+
+      def retry_delay(attempt)
+        @retry_base_delay * (2**(attempt - 1))
       end
 
       def execution_headers(request:, repository_capability:)
