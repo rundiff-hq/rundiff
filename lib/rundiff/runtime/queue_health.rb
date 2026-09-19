@@ -33,6 +33,7 @@ module RunDiff
           "status" => "available",
           "adapter" => "solid_queue",
           "heartbeat_window_seconds" => HEARTBEAT_WINDOW.to_i,
+          "live_process_count" => live_processes.length,
           "live_processes" => live_processes.map do |kind, name, last_heartbeat_at|
             {
               "kind" => kind,
