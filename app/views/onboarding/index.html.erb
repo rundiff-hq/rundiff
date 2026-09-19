@@ -1,52 +1,479 @@
-<main style="max-width: 920px; margin: 56px auto; padding: 0 24px; font-family: system-ui, sans-serif; line-height: 1.55; color: #161616;">
-  <p style="text-transform: uppercase; letter-spacing: .12em; opacity: .55; margin-bottom: 8px;">RunDiff onboarding</p>
-  <h1 style="font-size: clamp(42px, 8vw, 72px); line-height: .98; margin: 0 0 20px;">Your first Behavioral Review in three steps.</h1>
-  <p style="font-size: 20px; max-width: 760px; opacity: .8; margin-bottom: 28px;">
-    Install the GitHub App, add one declarative scenario file, then open or update a pull request.
-    RunDiff runs the same Rails request against the exact baseline and candidate revisions and publishes the behavioral diff back to GitHub.
-  </p>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #08090a;
+    --panel: #0f1113;
+    --panel-2: #14171a;
+    --line: #272b30;
+    --muted: #8e959d;
+    --text: #f5f7f9;
+    --accent: #b7ff5a;
+    --danger: #ff5f6d;
+    --danger-soft: rgba(255, 95, 109, .10);
+    --code: #0b0d0f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 82% 6%, rgba(183, 255, 90, .07), transparent 30rem),
+      radial-gradient(circle at 10% 38%, rgba(128, 105, 255, .08), transparent 28rem),
+      var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .rd-shell {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 72px;
+  }
+
+  .rd-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 48px;
+  }
+
+  .rd-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 760;
+    letter-spacing: -.025em;
+  }
+
+  .rd-mark {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #3a4046;
+    font: 700 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-chip {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 11px;
+    color: var(--muted);
+    font: 600 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(400px, .95fr);
+    gap: 64px;
+    align-items: center;
+    padding: 34px 0 78px;
+  }
+
+  .rd-kicker {
+    color: var(--accent);
+    font: 650 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 14px 0 22px;
+    max-width: 760px;
+    font-size: clamp(52px, 7vw, 92px);
+    line-height: .91;
+    letter-spacing: -.065em;
+  }
+
+  .rd-lede {
+    max-width: 650px;
+    margin: 0;
+    color: #c4c9cf;
+    font-size: clamp(18px, 2vw, 22px);
+    line-height: 1.55;
+  }
+
+  .rd-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .rd-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 18px;
+    border: 1px solid #dfe4e9;
+    background: #f5f7f9;
+    color: #08090a;
+    text-decoration: none;
+    font-weight: 760;
+    border-radius: 8px;
+  }
+
+  .rd-proof {
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, #111417, #0c0e10);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, .34);
+  }
+
+  .rd-proof-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font: 600 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-proof-body { padding: 20px; }
+
+  .rd-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--danger);
+    font: 800 15px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-alert {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 95, 109, .34);
+    background: var(--danger-soft);
+    border-radius: 9px;
+    line-height: 1.45;
+  }
+
+  .rd-metric {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+    align-items: end;
+    margin-top: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rd-metric-label {
+    color: var(--muted);
+    font: 600 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-metric-value {
+    margin-top: 7px;
+    font: 750 30px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: -.04em;
+  }
+
+  .rd-delta {
+    color: var(--danger);
+    font: 700 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-finding {
+    padding-top: 18px;
+    color: #c9ced4;
+    font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-finding strong { color: var(--text); }
+
+  .rd-return {
+    margin: -34px 0 54px;
+    padding: 18px 20px;
+    border: 1px solid #35402a;
+    border-radius: 10px;
+    background: rgba(183, 255, 90, .06);
+  }
+
+  .rd-return p { margin: 7px 0 0; color: #c7ccd1; }
+
+  .rd-section {
+    padding: 72px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .rd-section-title {
+    margin: 0 0 12px;
+    font-size: clamp(34px, 4vw, 52px);
+    letter-spacing: -.045em;
+  }
+
+  .rd-section-copy {
+    max-width: 720px;
+    margin: 0 0 38px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  .rd-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .rd-step {
+    min-height: 260px;
+    padding: 22px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 12px;
+  }
+
+  .rd-step-number {
+    color: var(--accent);
+    font: 700 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-step h2 {
+    margin: 28px 0 12px;
+    font-size: 22px;
+    letter-spacing: -.025em;
+  }
+
+  .rd-step p {
+    margin: 0;
+    color: #aeb4bb;
+    line-height: 1.6;
+  }
+
+  .rd-config {
+    position: relative;
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    background: var(--code);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .rd-config pre {
+    margin: 0;
+    padding: 18px;
+    white-space: pre-wrap;
+    color: #d9dee3;
+    overflow: auto;
+    font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .rd-copy {
+    margin: 0 18px 18px;
+    padding: 8px 11px;
+    border: 1px solid #3c4248;
+    border-radius: 7px;
+    background: #16191c;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .rd-zero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .rd-zero-card {
+    padding: 22px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 12px;
+  }
+
+  .rd-zero-card h3 { margin: 0 0 14px; font-size: 18px; }
+
+  .rd-zero-list {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: #bec4ca;
+  }
+
+  .rd-zero-list li::before {
+    content: "✓";
+    color: var(--accent);
+    margin-right: 10px;
+  }
+
+  .rd-limit {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .rd-footer {
+    padding-top: 30px;
+    border-top: 1px solid var(--line);
+    color: #747c84;
+    font-size: 13px;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  @media (max-width: 900px) {
+    .rd-hero, .rd-zero { grid-template-columns: 1fr; }
+    .rd-hero { gap: 42px; }
+    .rd-steps { grid-template-columns: 1fr; }
+    .rd-step { min-height: auto; }
+  }
+
+  @media (max-width: 560px) {
+    .rd-shell { width: min(100% - 22px, 1180px); }
+    .rd-nav { padding-bottom: 22px; }
+    .rd-chip { display: none; }
+    .rd-hero { padding-top: 24px; }
+    h1 { font-size: clamp(48px, 16vw, 70px); }
+  }
+</style>
+
+<main class="rd-shell">
+  <nav class="rd-nav" aria-label="RunDiff">
+    <a class="rd-brand" href="/onboarding">
+      <span class="rd-mark">R</span>
+      <span>RunDiff</span>
+    </a>
+    <span class="rd-chip">Rails behavioral review</span>
+  </nav>
+
+  <section class="rd-hero">
+    <div>
+      <div class="rd-kicker">Tests passed. Behavior changed.</div>
+      <h1>Your first Behavioral Review in three steps.</h1>
+      <p class="rd-lede">
+        RunDiff runs the same Rails scenario against the exact baseline and candidate revisions,
+        captures runtime evidence, and tells you what changed before the change reaches production.
+      </p>
+      <div class="rd-actions">
+        <a class="rd-button" href="<%= @install_url %>">Install RunDiff on GitHub</a>
+      </div>
+    </div>
+
+    <article class="rd-proof" aria-label="Example RunDiff Behavioral Review">
+      <div class="rd-proof-head">
+        <span>RunDiff / Behavioral Review</span>
+        <span>PR #149</span>
+      </div>
+      <div class="rd-proof-body">
+        <div class="rd-block">✕ BLOCK</div>
+        <div class="rd-alert">
+          <strong>Tests passed, but runtime behavior changed.</strong><br>
+          The functional Rails request still succeeds.
+        </div>
+        <div class="rd-metric">
+          <div>
+            <div class="rd-metric-label">SQL queries</div>
+            <div class="rd-metric-value">17 → 31</div>
+          </div>
+          <div class="rd-delta">+82.4%</div>
+        </div>
+        <div class="rd-finding">
+          <strong>DATABASE_QUERY_REGRESSION</strong><br>
+          Candidate executed 14 additional SQL queries while the functional scenario still passed.
+        </div>
+      </div>
+    </article>
+  </section>
 
   <% if @post_install_return %>
-    <aside style="margin: 28px 0 36px; padding: 18px 20px; border: 1px solid #d0d7de; border-radius: 12px; background: #f6f8fa;">
+    <aside class="rd-return">
       <strong>GitHub setup returned here. Continue with your repository.</strong>
-      <p style="margin: 8px 0 0;">
-        Add <code>rundiff.yml</code> in a candidate branch, then open or update a pull request. RunDiff will use the signed GitHub webhook and installation-scoped access to decide what it is authorized to execute.
+      <p>
+        Add <code>rundiff.yml</code> in a candidate branch, then open or update a pull request.
+        RunDiff will use the signed GitHub webhook and installation-scoped access to decide what it is authorized to execute.
       </p>
     </aside>
   <% end %>
 
-  <p style="margin: 32px 0 48px;">
-    <a href="<%= @install_url %>" style="display: inline-block; background: #161616; color: white; text-decoration: none; font-weight: 700; padding: 14px 20px; border-radius: 10px;">
-      Install RunDiff on GitHub
-    </a>
-  </p>
+  <section class="rd-section">
+    <h2 class="rd-section-title">Install once. Add one small file. Open a PR.</h2>
+    <p class="rd-section-copy">
+      The first slice is deliberately narrow: a normal Rails endpoint, PostgreSQL or SQLite,
+      and an exact baseline-versus-candidate comparison.
+    </p>
 
-  <section style="display: grid; gap: 28px;">
-    <div>
-      <h2>1. Choose repository access</h2>
-      <p>Install RunDiff on the Rails repository you want to validate. RunDiff currently requests read access to repository contents and write access to Checks and pull-request feedback.</p>
-    </div>
+    <div class="rd-steps">
+      <article class="rd-step">
+        <div class="rd-step-number">01 / INSTALL</div>
+        <h2>Choose repository access</h2>
+        <p>
+          Install RunDiff on the Rails repository you want to validate. Repository contents are read,
+          while Checks and pull-request feedback are used to publish the Behavioral Review.
+        </p>
+      </article>
 
-    <div>
-      <h2>2. Add <code>rundiff.yml</code> in your candidate branch</h2>
-      <p>Point the first scenario at a normal Rails endpoint that is safe to replay in the validation environment.</p>
-      <pre id="rundiff-config" style="position: relative; white-space: pre-wrap; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 10px; padding: 18px; overflow: auto;"><%= @configuration %></pre>
-      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('rundiff-config').innerText)" style="padding: 9px 13px; cursor: pointer;">Copy configuration</button>
-      <p style="opacity: .7;">No RunDiff gem, GitHub Action, middleware, initializer, or runtime files are required in the customer repository.</p>
-    </div>
+      <article class="rd-step">
+        <div class="rd-step-number">02 / DECLARE</div>
+        <h2>Add <code>rundiff.yml</code></h2>
+        <p>Point the first scenario at a normal Rails endpoint that is safe to replay in the validation environment.</p>
+        <div class="rd-config">
+          <pre id="rundiff-config"><%= @configuration %></pre>
+          <button class="rd-copy" type="button" onclick="navigator.clipboard.writeText(document.getElementById('rundiff-config').innerText)">
+            Copy configuration
+          </button>
+        </div>
+      </article>
 
-    <div>
-      <h2>3. Open or update a pull request</h2>
-      <p>RunDiff checks out the exact base and candidate commits, discovers Rails plus PostgreSQL or SQLite, executes the scenario on both sides, and publishes a GitHub Behavioral Review with an <strong>ALLOW</strong> or <strong>BLOCK</strong> recommendation.</p>
+      <article class="rd-step">
+        <div class="rd-step-number">03 / REVIEW</div>
+        <h2>Open or update a PR</h2>
+        <p>
+          RunDiff checks out the exact base and candidate commits, discovers Rails plus PostgreSQL or SQLite,
+          executes the same scenario on both sides, then publishes an <strong>ALLOW</strong>,
+          <strong>REVIEW</strong>, or <strong>BLOCK</strong> result.
+        </p>
+      </article>
     </div>
   </section>
 
-  <aside style="margin-top: 44px; padding: 20px; border-left: 4px solid #d0d7de; background: #f6f8fa;">
-    <strong>Current v0.1 scope.</strong>
-    Rails repositories using PostgreSQL or SQLite. Configuration is intentionally declarative: arbitrary setup commands, shell hooks, customer secrets, MySQL, non-Rails runtimes, and general-purpose execution hooks are not part of this onboarding slice yet.
-  </aside>
+  <section class="rd-section rd-zero">
+    <div>
+      <div class="rd-kicker">Repository footprint</div>
+      <h2 class="rd-section-title">No RunDiff runtime in your app.</h2>
+      <p class="rd-section-copy">
+        RunDiff owns the comparison machinery. Your repository only declares the scenario.
+      </p>
+    </div>
 
-  <p style="margin-top: 36px; opacity: .65; font-size: 14px;">
-    GitHub may redirect back here with setup query parameters. They only change this page's navigation guidance. RunDiff never treats them as proof of installation ownership and never exposes installation-specific data from them.
-  </p>
+    <div class="rd-zero-card">
+      <h3>You do not add</h3>
+      <ul class="rd-zero-list">
+        <li>RunDiff gem</li>
+        <li>GitHub Action</li>
+        <li>middleware or initializer</li>
+        <li>Docker configuration</li>
+        <li>executor configuration</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="rd-section">
+    <div class="rd-zero-card">
+      <div class="rd-kicker">v0.1 boundary</div>
+      <h3>Rails + PostgreSQL or SQLite.</h3>
+      <p class="rd-limit">
+        Configuration stays declarative. Arbitrary setup commands, shell hooks, customer secrets,
+        MySQL, and general-purpose execution hooks are intentionally outside this onboarding slice.
+      </p>
+    </div>
+  </section>
+
+  <footer class="rd-footer">
+    GitHub may redirect back here with setup query parameters. They only change this page's navigation guidance.
+    RunDiff never treats them as proof of installation ownership and never exposes installation-specific data from them.
+  </footer>
 </main>
