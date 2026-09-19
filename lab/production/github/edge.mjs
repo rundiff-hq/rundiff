@@ -32,15 +32,29 @@ function rememberPullRequest(number, payload) {
   const real = readRealMapping(number);
   if (!real) return null;
 
+  const key = Number(number);
+  const previous = pullRequestMappings.get(key) ?? null;
+  const emulatorHeadSha = payload.pull_request?.head?.sha;
+  let realHeadSha = previous?.realHeadSha ?? real.head_sha;
+
+  if (
+    real.fixed_sha &&
+    previous?.emulatorHeadSha &&
+    emulatorHeadSha &&
+    previous.emulatorHeadSha !== emulatorHeadSha
+  ) {
+    realHeadSha = real.fixed_sha;
+  }
+
   const mapping = {
-    number: Number(number),
+    number: key,
     emulatorBaseSha: payload.pull_request?.base?.sha,
-    emulatorHeadSha: payload.pull_request?.head?.sha,
+    emulatorHeadSha,
     realBaseSha: real.base_sha,
-    realHeadSha: real.head_sha,
+    realHeadSha,
     kind: real.kind,
   };
-  pullRequestMappings.set(Number(number), mapping);
+  pullRequestMappings.set(key, mapping);
   return mapping;
 }
 
@@ -167,7 +181,6 @@ function rewriteApiPath(pathname) {
   return pathname.replace(match[1], encodeURIComponent(emulatorSha));
 }
 
-
 function rewriteApiSearch(pathname, search) {
   if (!pathname.startsWith("/repos/admin/customer-rails/contents/")) return search;
 
@@ -182,6 +195,7 @@ function rewriteApiSearch(pathname, search) {
   const encoded = params.toString();
   return encoded ? `?${encoded}` : "";
 }
+
 function rewriteRequestBody(method, pathname, rawBody) {
   if (method !== "POST" || pathname !== "/repos/admin/customer-rails/check-runs" || rawBody.length === 0) {
     return rawBody;
