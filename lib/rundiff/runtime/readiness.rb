@@ -19,6 +19,7 @@ module RunDiff
 
       EXECUTOR_FORBIDDEN_SECRETS = %w[
         RUNDIFF_GITHUB_PRIVATE_KEY_PATH
+        RUNDIFF_GITHUB_PRIVATE_KEY_PEM
         RUNDIFF_GITHUB_WEBHOOK_SECRET
       ].freeze
 
@@ -76,7 +77,7 @@ module RunDiff
         require_https!(errors, "RUNDIFF_PUBLIC_URL")
         require_value!(errors, "RUNDIFF_GITHUB_APP_ID")
         require_value!(errors, "RUNDIFF_GITHUB_WEBHOOK_SECRET")
-        require_readable_file!(errors, "RUNDIFF_GITHUB_PRIVATE_KEY_PATH")
+        require_private_key!(errors)
         validate_repository_admission!(errors)
 
         unless @env["RUNDIFF_EXECUTOR"].to_s == "remote"
@@ -131,15 +132,17 @@ module RunDiff
         end
       end
 
-      def require_readable_file!(errors, name)
-        value = @env[name].to_s
-        unless configured?(name)
-          errors << "#{name} is required"
+      def require_private_key!(errors)
+        return if configured?("RUNDIFF_GITHUB_PRIVATE_KEY_PEM")
+
+        value = @env["RUNDIFF_GITHUB_PRIVATE_KEY_PATH"].to_s
+        if value.empty?
+          errors << "RUNDIFF_GITHUB_PRIVATE_KEY_PEM or RUNDIFF_GITHUB_PRIVATE_KEY_PATH is required"
           return
         end
 
         path = File.expand_path(value, @root.to_s)
-        errors << "#{name} must point to a readable file" unless File.file?(path) && File.readable?(path)
+        errors << "RUNDIFF_GITHUB_PRIVATE_KEY_PATH must point to a readable file" unless File.file?(path) && File.readable?(path)
       end
 
       def configured?(name)
