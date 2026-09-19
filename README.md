@@ -58,6 +58,18 @@ bin/rundiff diff \
   --format json
 ```
 
+## Behavioral Review
+
+A complete A/B execution payload can be rendered through the same product-facing review surface used by GitHub:
+
+```bash
+bin/rundiff review --input tmp/demo/block.json
+bin/rundiff review --input tmp/demo/block.json --format markdown
+bin/rundiff review --input tmp/demo/block.json --format json
+```
+
+See `docs/demo-behavioral-review.md` for the local, Lab, and remote GitHub Actions demo runbook.
+
 ## Rails repository onboarding
 
 The first v0.1 onboarding contract is intentionally small. A customer Rails repository may add:
