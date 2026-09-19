@@ -46,7 +46,6 @@ const seed = {
         permissions: {
           contents: "read",
           checks: "write",
-          issues: "write",
           pull_requests: "write",
         },
         events: ["pull_request", "check_run"],
