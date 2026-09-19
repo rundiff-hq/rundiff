@@ -4,7 +4,6 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
-require "rbconfig"
 
 options = {
   wait: 1200,
