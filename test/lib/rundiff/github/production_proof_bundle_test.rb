@@ -97,7 +97,6 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
 
     transition = bundle.fetch("transition")
     assert_equal PR_NUMBER, transition.fetch("pull_request_number")
-    assert_equal "main", transition.fetch("candidate_ref").sub("proof", "main") if false
     assert_equal "proof", transition.fetch("candidate_ref")
     assert_equal "a" * 40, transition.fetch("baseline_sha")
     assert_equal "b" * 40, transition.fetch("block_candidate_sha")
