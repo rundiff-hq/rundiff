@@ -140,6 +140,32 @@ gh workflow run lab-group.yml \
 
 Then inspect the `lab-group-onboarding-...` artifact.
 
+## Prove BLOCK + ALLOW with one installed-App command
+
+For the canonical customer-like sandbox, run both proof PRs through the installed GitHub App with one command:
+
+```bash
+bin/prove-github-app-demo \
+  rundiff-hq/customer-rails-sandbox \
+  --regression-pr 4 \
+  --neutral-pr 5 \
+  --wait 1200 \
+  --color always \
+  --output tmp/github-app-demo.json
+```
+
+The command replays both current PRs through the signed webhook boundary, waits for their durable executions, renders both Behavioral Reviews, requires the first outcome to be `BLOCK` and the second to be `ALLOW`, and optionally persists a small machine-readable proof bundle.
+
+Expected final markers:
+
+```text
+github_app_demo_regression=BLOCK
+github_app_demo_neutral=ALLOW
+github_app_demo=passed
+```
+
+This is the preferred same-org preproduction demo. The external-account acceptance still uses the stricter production proof bundle and remains a separate criterion.
+
 ## GitHub App demo target
 
 The customer-facing repository should contain only the candidate-side RunDiff configuration:
