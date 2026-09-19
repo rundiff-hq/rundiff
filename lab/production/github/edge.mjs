@@ -167,6 +167,21 @@ function rewriteApiPath(pathname) {
   return pathname.replace(match[1], encodeURIComponent(emulatorSha));
 }
 
+
+function rewriteApiSearch(pathname, search) {
+  if (!pathname.startsWith("/repos/admin/customer-rails/contents/")) return search;
+
+  const params = new URLSearchParams(search);
+  const ref = params.get("ref");
+  if (!ref) return search;
+
+  const emulatorRef = emulatorShaForRealSha(ref);
+  if (emulatorRef === ref) return search;
+
+  params.set("ref", emulatorRef);
+  const encoded = params.toString();
+  return encoded ? `?${encoded}` : "";
+}
 function rewriteRequestBody(method, pathname, rawBody) {
   if (method !== "POST" || pathname !== "/repos/admin/customer-rails/check-runs" || rawBody.length === 0) {
     return rawBody;
@@ -222,7 +237,8 @@ async function handleWebhook(request, response, rawBody) {
 async function handleProxy(request, response, rawBody) {
   const incoming = new URL(request.url, "https://github-edge:4002");
   const rewrittenPath = rewriteApiPath(incoming.pathname);
-  const target = new URL(`${rewrittenPath}${incoming.search}`, upstream);
+  const rewrittenSearch = rewriteApiSearch(incoming.pathname, incoming.search);
+  const target = new URL(`${rewrittenPath}${rewrittenSearch}`, upstream);
   const body = rewriteRequestBody(request.method, incoming.pathname, rawBody);
   const headers = copyHeaders(request.headers);
 
