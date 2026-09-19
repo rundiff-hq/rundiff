@@ -111,6 +111,7 @@ services:
         condition: service_healthy
     command: node edge.mjs
     environment:
+      <<: *control-plane-environment
       GITHUB_EMULATOR_URL: http://github-emulator:4001
       RUNDIFF_CONTROL_PLANE_WEBHOOK_URL: https://control-plane-tls:4444/github/webhooks
       LAB_GITHUB_WEBHOOK_SECRET: rundiff-production-lab-webhook-secret
@@ -254,6 +255,7 @@ services:
       SSL_CERT_FILE: /lab-tls/ca.pem
     command: ruby script/run_production_lab.rb
     volumes:
+      - lab-state:/lab-state:ro
       - lab-tls:/lab-tls:ro
 
 volumes:
