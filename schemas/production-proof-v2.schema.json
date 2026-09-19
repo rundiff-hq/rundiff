@@ -87,6 +87,7 @@
         "installation_id",
         "webhook_delivery_id",
         "webhook_action",
+        "github_delivery",
         "execution_id",
         "execution_status",
         "outcome",
@@ -102,6 +103,18 @@
         "installation_id": {"type": "integer"},
         "webhook_delivery_id": {"type": "string", "minLength": 1},
         "webhook_action": {"enum": ["opened", "synchronize"]},
+        "github_delivery": {
+          "type": "object",
+          "required": ["id", "guid", "delivered_at", "redelivery", "status_code"],
+          "properties": {
+            "id": {"type": "integer"},
+            "guid": {"type": "string", "minLength": 1},
+            "delivered_at": {"type": ["string", "null"], "format": "date-time"},
+            "redelivery": {"type": "boolean"},
+            "status_code": {"type": "integer", "minimum": 200, "maximum": 399}
+          },
+          "additionalProperties": false
+        },
         "execution_id": {"type": "string", "minLength": 1},
         "execution_status": {"const": "completed"},
         "outcome": {"enum": ["allow", "block"]},
