@@ -140,6 +140,27 @@ gh workflow run lab-group.yml \
 
 Then inspect the `lab-group-onboarding-...` artifact.
 
+## Read-only installed-App preflight
+
+Before re-driving the sandbox PRs, verify that the target repository is actually ready for the hosted flow:
+
+```bash
+bin/verify-github-app-demo \
+  rundiff-hq/customer-rails-sandbox \
+  --regression-pr 4 \
+  --neutral-pr 5
+```
+
+The preflight is read-only. It verifies the repository allowlist, App authentication, actual repository installation, remote executor mode, both current open PRs, a shared baseline, and candidate-only `rundiff.yml` on both candidates.
+
+Expected final markers:
+
+```text
+github_app_demo_preflight=passed
+executor_mode=remote
+candidate_only_rundiff_config=verified
+```
+
 ## Prove BLOCK + ALLOW with one installed-App command
 
 For the canonical customer-like sandbox, run both proof PRs through the installed GitHub App with one command:
