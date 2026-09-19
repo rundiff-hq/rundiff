@@ -12,18 +12,23 @@ module RunDiff
       Token = Data.define(:value, :expires_at)
 
       def self.from_env(root: Dir.pwd)
-        private_key_path = File.expand_path(ENV.fetch("RUNDIFF_GITHUB_PRIVATE_KEY_PATH"), root.to_s)
+        private_key_pem = ENV["RUNDIFF_GITHUB_PRIVATE_KEY_PEM"].to_s
+        private_key_path = if private_key_pem.empty?
+          File.expand_path(ENV.fetch("RUNDIFF_GITHUB_PRIVATE_KEY_PATH"), root.to_s)
+        end
 
         new(
           app_id: ENV.fetch("RUNDIFF_GITHUB_APP_ID"),
           private_key_path:,
+          private_key_pem: private_key_pem.empty? ? nil : private_key_pem,
           api_url: ENV.fetch("GITHUB_API_URL", "https://api.github.com")
         )
       end
 
-      def initialize(app_id:, private_key_path:, api_url: "https://api.github.com", clock: -> { Time.now.utc })
+      def initialize(app_id:, private_key_path: nil, private_key_pem: nil, api_url: "https://api.github.com", clock: -> { Time.now.utc })
         @app_id = app_id.to_s
         @private_key_path = private_key_path
+        @private_key_pem = private_key_pem
         @api_url = api_url.sub(%r{/+$}, "")
         @clock = clock
       end
@@ -107,9 +112,16 @@ module RunDiff
       end
 
       def private_key
-        @private_key ||= OpenSSL::PKey::RSA.new(File.read(@private_key_path))
+        @private_key ||= OpenSSL::PKey::RSA.new(private_key_material)
       rescue Errno::ENOENT, OpenSSL::PKey::RSAError => error
         raise Error, "GitHub App private key could not be loaded: #{error.message}"
+      end
+
+      def private_key_material
+        return @private_key_pem if @private_key_pem
+        return File.read(@private_key_path) if @private_key_path
+
+        raise Error, "GitHub App private key is not configured"
       end
 
       def base64url(value)
