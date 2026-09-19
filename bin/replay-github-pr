@@ -53,6 +53,7 @@ begin
   puts "delivery_id=#{replay.delivery_id}"
   puts "repository=#{replay.repository}"
   puts "pull_request=#{replay.pull_request_number}"
+  puts "pull_request_url=https://github.com/#{replay.repository}/pull/#{replay.pull_request_number}"
   puts "installation_id=#{replay.installation_id}"
   puts "baseline_sha=#{replay.baseline_sha}"
   puts "candidate_sha=#{replay.candidate_sha}"
