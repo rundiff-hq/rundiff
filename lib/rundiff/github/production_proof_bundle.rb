@@ -52,16 +52,22 @@ module RunDiff
         client = proof_client(installation_id:)
         pull_request = client.pull_request(repository: @repository, number: @pull_request_number)
         validate_current_head!(execution: allow_execution, pull_request:)
+        repository_id = Integer(pull_request.dig("base", "repo", "id"))
+        github_deliveries = @authentication.webhook_deliveries
 
         block_proof = build_phase_proof(
           execution: block_execution,
           client:,
-          expectation: PHASES.fetch("block")
+          expectation: PHASES.fetch("block"),
+          repository_id:,
+          github_deliveries:
         )
         allow_proof = build_phase_proof(
           execution: allow_execution,
           client:,
-          expectation: PHASES.fetch("allow")
+          expectation: PHASES.fetch("allow"),
+          repository_id:,
+          github_deliveries:
         )
 
         comment = exact_comment(client:)
@@ -192,7 +198,7 @@ module RunDiff
         @client_factory.call(token:)
       end
 
-      def build_phase_proof(execution:, client:, expectation:)
+      def build_phase_proof(execution:, client:, expectation:, repository_id:, github_deliveries:)
         validate_execution!(execution:, expectation:)
         installation_id = Integer(execution.context.fetch("installation_id"))
         delivery = delivery_for(execution:)
@@ -200,6 +206,13 @@ module RunDiff
           delivery:,
           execution:,
           installation_id:,
+          expected_action: expectation.fetch(:webhook_action)
+        )
+        github_delivery = exact_github_delivery(
+          deliveries: github_deliveries,
+          delivery:,
+          installation_id:,
+          repository_id:,
           expected_action: expectation.fetch(:webhook_action)
         )
 
@@ -214,6 +227,13 @@ module RunDiff
           "installation_id" => installation_id,
           "webhook_delivery_id" => delivery.delivery_id,
           "webhook_action" => delivery.action,
+          "github_delivery" => {
+            "id" => github_delivery.fetch("id"),
+            "guid" => github_delivery.fetch("guid"),
+            "delivered_at" => github_delivery["delivered_at"],
+            "redelivery" => github_delivery.fetch("redelivery", false),
+            "status_code" => github_delivery.fetch("status_code")
+          },
           "execution_id" => execution.execution_id,
           "execution_status" => execution.status,
           "outcome" => execution.outcome,
@@ -276,6 +296,26 @@ module RunDiff
         return if actual == expected
 
         raise Error, "webhook delivery #{delivery.delivery_id} does not match execution #{execution.execution_id}"
+      end
+
+      def exact_github_delivery(deliveries:, delivery:, installation_id:, repository_id:, expected_action:)
+        matches = Array(deliveries).select do |candidate|
+          candidate["guid"] == delivery.delivery_id &&
+            candidate["event"] == "pull_request" &&
+            candidate["action"] == expected_action &&
+            Integer(candidate["installation_id"]) == installation_id &&
+            Integer(candidate["repository_id"]) == repository_id &&
+            candidate["status_code"].to_i.between?(200, 399)
+        rescue ArgumentError, TypeError
+          false
+        end
+
+        if matches.empty?
+          raise Error,
+            "webhook delivery #{delivery.delivery_id.inspect} was not found in recent authenticated GitHub App delivery history"
+        end
+
+        matches.max_by { |candidate| parse_time(candidate["delivered_at"]) || Time.at(0).utc }
       end
 
       def validate_current_head!(execution:, pull_request:)
