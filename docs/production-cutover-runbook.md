@@ -63,6 +63,7 @@ The final stage calls `bin/collect-production-proof`, which correlates the durab
 The cutover is complete only when:
 
 - `production_cutover=verified` is printed;
+- `/onboarding` exposes the `Tests passed. Behavior changed.` promise and `RunDiff / Behavioral Review` preview;
 - the proof mode completes with both BLOCK and ALLOW evidence;
 - `tmp/production-proof.json` conforms to `schemas/production-proof-v1.schema.json`;
 - #121 and #75 can be closed with the resulting evidence.
