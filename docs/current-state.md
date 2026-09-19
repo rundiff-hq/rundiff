@@ -37,6 +37,22 @@ For the first production proof, the repository requires no RunDiff gem, GitHub A
 
 The currently proven subject scope is Rails with PostgreSQL or SQLite. Broader setup/runtime support remains future work.
 
+## Durable data model
+
+The current Rails schema uses only canonical RunDiff naming:
+
+```text
+github_webhook_deliveries
+rundiff_evidence_events
+rundiff_execution_work_items
+rundiff_executions
+rundiff_executor_requests
+```
+
+There is no remaining pre-RunDiff table naming debt in the committed schema.
+
+Production Proof v1 is retained only as a historical versioned schema and is explicitly deprecated. New external acceptance must use Production Proof v2.
+
 ## What is already proven
 
 The following are implementation facts, not future assumptions:
