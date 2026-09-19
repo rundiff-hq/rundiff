@@ -42,6 +42,7 @@ module RunDiffProductionLab
     )
     raise "Expected neutral PR #2, got ##{neutral.fetch("number")}" unless neutral.fetch("number") == 2
     assert_behavioral_review!(pull_request: neutral, expected_conclusion: "success", expected_text: "ALLOW")
+    puts "production_lab_emulator_originated_github_flow=verified"
     assert_github_app_demo_preflight!(regression:, neutral:)
     assert_github_app_demo!(regression:, neutral:)
 
@@ -52,6 +53,7 @@ module RunDiffProductionLab
     puts "production_lab=ok"
     puts "production_lab_regression=BLOCK:DATABASE_QUERY_REGRESSION"
     puts "production_lab_neutral=ALLOW"
+    puts "production_lab_emulator_originated_github_flow=verified"
     puts "production_lab_github_app_demo_preflight=verified"
     puts "production_lab_github_app_demo=BLOCK+ALLOW"
     puts "production_lab_invalid_webhook_signature=rejected"
