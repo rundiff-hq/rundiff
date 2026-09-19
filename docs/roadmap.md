@@ -46,8 +46,8 @@ The customer should not need a RunDiff gem, GitHub Action, middleware, initializ
 1. Complete the first real infrastructure apply from #92.
 2. Complete the live external identity cutover from #121.
 3. Run #75 from a GitHub account or organization outside `rundiff-hq`.
-4. Produce one deliberate regression review and one neutral review.
-5. Record exact execution/check/comment IDs and install-to-first-review elapsed time.
+4. On one external PR, prove GitHub-originated `opened -> BLOCK`, push the behavioral fix, then prove `synchronize -> ALLOW`.
+5. Run Production Proof v2 and retain GitHub-confirmed delivery GUIDs, exact execution/Check/comment identities, both candidate SHAs, and install-to-first-review elapsed time.
 
 Definition of done: a new external Rails repository can go from **Install RunDiff** to its first Behavioral Review without RunDiff operator intervention.
 
