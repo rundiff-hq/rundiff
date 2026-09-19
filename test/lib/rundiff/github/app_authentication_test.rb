@@ -45,6 +45,51 @@ class RunDiffGithubAppAuthenticationTest < ActiveSupport::TestCase
     end
   end
 
+  test "resolves the App installation for a repository" do
+    rsa = OpenSSL::PKey::RSA.generate(2048)
+
+    Dir.mktmpdir do |directory|
+      key_path = File.join(directory, "app.pem")
+      File.write(key_path, rsa.to_pem)
+
+      authentication = FakeAuthentication.new(
+        response: { "id" => 158_885_061, "app_slug" => "rundiff" },
+        app_id: 4_831_516,
+        private_key_path: key_path
+      )
+
+      installation = authentication.repository_installation(repository: "rundiff-hq/customer-rails-sandbox")
+
+      assert_equal 158_885_061, installation.fetch("id")
+      call = authentication.calls.fetch(0)
+      assert_equal :get, call.fetch(:method)
+      assert_equal "/repos/rundiff-hq/customer-rails-sandbox/installation", call.fetch(:path)
+      assert_match(/\ABearer /, call.fetch(:authorization))
+    end
+  end
+
+  test "rejects malformed repository names before App API access" do
+    rsa = OpenSSL::PKey::RSA.generate(2048)
+
+    Dir.mktmpdir do |directory|
+      key_path = File.join(directory, "app.pem")
+      File.write(key_path, rsa.to_pem)
+
+      authentication = FakeAuthentication.new(
+        response: {},
+        app_id: 4_831_516,
+        private_key_path: key_path
+      )
+
+      error = assert_raises(ArgumentError) do
+        authentication.repository_installation(repository: "not-a-repository")
+      end
+
+      assert_includes error.message, "owner/name"
+      assert_empty authentication.calls
+    end
+  end
+
   test "signs an app JWT and exchanges it for an installation token" do
     now = Time.utc(2026, 9, 4, 17, 30, 0)
     rsa = OpenSSL::PKey::RSA.generate(2048)
