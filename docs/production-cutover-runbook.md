@@ -89,7 +89,9 @@ bin/verify-production-cutover \
 
 The final stage calls `bin/collect-production-proof`. Production Proof v2 correlates both durable executions and webhook deliveries for that one PR, requires the first proof delivery to be `opened`, requires the final proof delivery to be `synchronize`, verifies the immutable Check Run attached to each exact candidate SHA, and requires the current GitHub PR head to match the final ALLOW revision.
 
-RunDiff maintains one durable PR comment and updates it in place. The proof bundle records that stable comment ID once, while the BLOCK revision remains durably evidenced by its execution, webhook delivery and immutable Check Run.
+The collector also authenticates as the production GitHub App and verifies each recorded `X-GitHub-Delivery` GUID against GitHub's own recent App webhook delivery history. Event, action, installation, repository and successful delivery status must all match. A RunDiff operator replay or another locally synthesized signed webhook therefore cannot satisfy the canonical production proof.
+
+RunDiff maintains one durable PR comment and updates it in place. The proof bundle records that stable comment ID once, while the BLOCK revision remains durably evidenced by its execution, GitHub-confirmed webhook delivery and immutable Check Run.
 
 ## Success criteria
 
