@@ -110,7 +110,7 @@ The deliberate SQLite regression should show a functional pass plus a blocking `
 
 ## One-command proof
 
-The onboarding lab now produces the same review artifact and terminal rendering:
+The onboarding lab now executes the exact one-command demo path and preserves the same review artifact and terminal rendering:
 
 ```bash
 bin/lab run onboarding --case sqlite
@@ -123,6 +123,7 @@ tmp/lab/onboarding/sqlite/
   proof.log
   review.json
   review.txt
+  payload-proof.log
   result.env
 ```
 
