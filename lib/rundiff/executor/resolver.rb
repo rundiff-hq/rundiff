@@ -46,6 +46,14 @@ module RunDiff
             "RUNDIFF_REMOTE_EXECUTOR_READ_TIMEOUT_SECONDS",
             HttpAdapter::DEFAULT_READ_TIMEOUT_SECONDS
           ),
+          retry_attempts: env.fetch(
+            "RUNDIFF_REMOTE_EXECUTOR_RETRY_ATTEMPTS",
+            HttpAdapter::DEFAULT_RETRY_ATTEMPTS
+          ),
+          retry_base_delay: env.fetch(
+            "RUNDIFF_REMOTE_EXECUTOR_RETRY_BASE_DELAY_SECONDS",
+            HttpAdapter::DEFAULT_RETRY_BASE_DELAY_SECONDS
+          ),
           repository_capability_provider: RunDiff::Github::RepositoryCapabilityProvider.new(root:)
         )
       rescue HttpAdapter::Error, ArgumentError => error
