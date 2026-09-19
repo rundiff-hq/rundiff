@@ -64,29 +64,33 @@ GitHub does not expose every settings-page field through this API, so #121 remai
 
 ## Cross-account proof evidence
 
-After the production App is installed and #75 has one deliberate regression PR plus one neutral PR, collect the durable evidence bundle from the production control plane:
+After the production App is installed, #75 uses one external pull request that first produces BLOCK and then, after a normal fix push, produces ALLOW.
+
+Collect the durable evidence bundle from the production control plane immediately after the ALLOW revision:
 
 ```bash
 bin/collect-production-proof external-owner/proof-repo \
-  --regression-pr 12 \
-  --neutral-pr 13 \
+  --pull-request 12 \
   --output tmp/production-proof.json
 ```
 
-The command uses the RunDiff App credentials already configured on the control plane. It mints installation-scoped GitHub tokens internally; no operator PAT is required and no token is written to the bundle.
+The command uses the RunDiff App credentials already configured on the control plane. It mints an installation-scoped GitHub token internally and authenticates as the App to verify GitHub's own webhook delivery history. No operator PAT is required and no token is written to the bundle.
 
 It fails closed unless:
 
 - the proof repository is owned outside `rundiff-hq`;
-- the durable execution is completed;
-- current GitHub base/head SHAs exactly match the recorded execution;
-- the regression PR is `BLOCK` with a failing RunDiff Check;
-- the neutral PR is `ALLOW` with a successful RunDiff Check;
-- one exact Check Run matches the RunDiff execution id;
-- one durable RunDiff PR comment exists;
-- the webhook delivery matches installation/repository/PR/base/head.
+- an earlier completed BLOCK execution and a later completed ALLOW execution belong to the same PR, branch, baseline and App installation;
+- the two revisions have different candidate SHAs;
+- the BLOCK delivery is `pull_request/opened`;
+- the ALLOW delivery is `pull_request/synchronize`;
+- both delivery GUIDs are present in authenticated GitHub App webhook delivery history with matching repository, installation, action and successful HTTP delivery status;
+- the current GitHub base/head exactly match the final ALLOW execution;
+- one exact immutable Check Run matches each RunDiff execution id and candidate SHA;
+- one durable RunDiff PR comment exists and currently shows ALLOW.
 
-The output contract is `schemas/production-proof-v1.schema.json` and is tracked by #123.
+The durable comment is updated in place, so the earlier BLOCK is preserved by its execution, GitHub-confirmed webhook delivery and immutable Check Run rather than by a second comment.
+
+The output contract is `schemas/production-proof-v2.schema.json`. The original evidence collector was tracked by #123; #158 upgraded that contract to the same-PR production acceptance required by #75.
 
 ## Productization sequence
 
@@ -107,4 +111,4 @@ For the final operator sequence, use `docs/production-cutover-runbook.md` and:
 bin/verify-production-cutover --infra-repo ../infra
 ```
 
-When the two cross-account proof PRs exist, add the proof arguments from that runbook so the same command also produces the final evidence bundle.
+When the cross-account proof PR has transitioned from BLOCK to ALLOW, add `--proof-repo`, `--proof-pr`, and `--proof-output` from that runbook so the same command also produces the final evidence bundle.
