@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+
+require_relative "../config/environment"
+require "active_record/tasks/database_tasks"
+
+if SolidQueue::Job.table_exists?
+  puts "solid_queue_schema=ready"
+  exit 0
+end
+
+db_config = ActiveRecord::Base.configurations.configs_for(
+  env_name: Rails.env,
+  name: "queue"
+)
+
+abort "queue database configuration is missing" unless db_config
+
+schema = Rails.root.join("db/queue_schema.rb").to_s
+tasks = ActiveRecord::Tasks::DatabaseTasks
+
+tasks.with_temporary_connection(db_config) do
+  tasks.load_schema(db_config, :ruby, schema)
+end
+
+abort "Solid Queue schema load did not create solid_queue_jobs" unless SolidQueue::Job.table_exists?
+
+puts "solid_queue_schema=loaded"
