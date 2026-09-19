@@ -68,10 +68,14 @@ The sandbox repository must be explicitly admitted by `RUNDIFF_GITHUB_REPOSITORY
 
 ## Cross-account proof
 
-After the public App is installed on a repository owned outside `rundiff-hq`, create:
+After the public App is installed on a repository owned outside `rundiff-hq`, use one customer-shaped pull request:
 
-1. one PR with a deliberate behavioral regression that RunDiff marks `BLOCK`;
-2. one neutral PR that RunDiff marks `ALLOW`.
+1. open the PR with ordinary tests passing and a deliberate runtime SQL regression;
+2. let GitHub's real `pull_request/opened` delivery produce `BLOCK / DATABASE_QUERY_REGRESSION`;
+3. push the behavioral fix to the same PR branch;
+4. let GitHub's real `pull_request/synchronize` delivery update that same PR to `ALLOW`.
+
+Do not use `bin/replay-github-pr`, `bin/prove-github-app-demo`, curl, or a manually synthesized webhook for the canonical proof.
 
 Then run:
 
@@ -79,12 +83,13 @@ Then run:
 bin/verify-production-cutover \
   --infra-repo ../infra \
   --proof-repo external-owner/proof-repo \
-  --regression-pr 12 \
-  --neutral-pr 13 \
+  --proof-pr 12 \
   --proof-output tmp/production-proof.json
 ```
 
-The final stage calls `bin/collect-production-proof`, which correlates the durable webhook/execution records with the current GitHub PR heads, Check Runs and durable RunDiff comments.
+The final stage calls `bin/collect-production-proof`. Production Proof v2 correlates both durable executions and webhook deliveries for that one PR, requires the first proof delivery to be `opened`, requires the final proof delivery to be `synchronize`, verifies the immutable Check Run attached to each exact candidate SHA, and requires the current GitHub PR head to match the final ALLOW revision.
+
+RunDiff maintains one durable PR comment and updates it in place. The proof bundle records that stable comment ID once, while the BLOCK revision remains durably evidenced by its execution, webhook delivery and immutable Check Run.
 
 ## Success criteria
 
@@ -93,7 +98,7 @@ The cutover is complete only when:
 - `production_cutover=verified` is printed;
 - `/onboarding` exposes the `Tests passed. Behavior changed.` promise and `RunDiff / Behavioral Review` preview;
 - the proof mode completes with both BLOCK and ALLOW evidence;
-- `tmp/production-proof.json` conforms to `schemas/production-proof-v1.schema.json`;
+- `tmp/production-proof.json` conforms to `schemas/production-proof-v2.schema.json`;
 - #121 and #75 can be closed with the resulting evidence.
 
 ## Safety
