@@ -17,9 +17,9 @@ class RunDiffGithubCommentRendererTest < ActiveSupport::TestCase
     )
 
     assert_includes markdown, RunDiff::Github::CommentRenderer::MARKER
-    assert_includes markdown, "RunDiff · Behavioral Review"
+    assert_includes markdown, "RunDiff Behavioral Review"
     assert_includes markdown, "SQL queries"
-    assert_includes markdown, "Merge recommendation: **BLOCK**"
+    assert_includes markdown, "**BLOCK** - Tests passed, but runtime behavior changed."
     assert_includes markdown, "bootstrap dogfood run"
   end
 
@@ -39,6 +39,9 @@ class RunDiffGithubCommentRendererTest < ActiveSupport::TestCase
     )
 
     assert_includes markdown, "1 regression · 1 high"
+    assert_includes markdown, "### What changed"
+    assert_includes markdown, "`DATABASE_QUERY_REGRESSION`"
+    assert_includes markdown, "Candidate executed **5 additional SQL queries** while the functional scenario still passed."
     assert_includes markdown, "[`01234567`](https://github.com/rundiff-hq/rundiff/commit/0123456789abcdef)"
     assert_includes markdown, "[`fedcba98`](https://github.com/rundiff-hq/rundiff/commit/fedcba9876543210)"
     assert_includes markdown, "[Source diff](https://github.com/rundiff-hq/rundiff/compare/0123456789abcdef...fedcba9876543210)"

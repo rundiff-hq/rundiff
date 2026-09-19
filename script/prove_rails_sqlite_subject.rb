@@ -3,6 +3,7 @@
 require "bundler"
 require "digest"
 require "fileutils"
+require "json"
 require "open3"
 require "pathname"
 require "tmpdir"
@@ -84,6 +85,7 @@ module RailsSqliteSubjectProof
         verify!(result)
         verify_clean_customer!(subject_root)
         verify_tool_lock_unchanged!(tool_lock_digest)
+        write_review_payload(result.payload)
         print_proof(request:, result:, runtime_capabilities:)
       end
     end
@@ -261,6 +263,15 @@ module RailsSqliteSubjectProof
     return if actual_digest == expected_digest
 
     raise "SQLite subject dependency setup mutated the RunDiff control-plane lockfile"
+  end
+
+  def write_review_payload(payload)
+    return unless ENV["RUNDIFF_OUTPUT"]
+
+    output = Pathname(ENV.fetch("RUNDIFF_OUTPUT")).expand_path
+    FileUtils.mkdir_p(output.dirname)
+    output.write(JSON.pretty_generate(payload))
+    puts "review_payload=#{output}"
   end
 
   def print_proof(request:, result:, runtime_capabilities:)

@@ -32,7 +32,7 @@ class RunDiffGithubQueueStageRendererTest < ActiveSupport::TestCase
     summary = check.fetch("summary")
 
     assert_equal "success", check.fetch("conclusion")
-    assert_includes comment, "Merge recommendation: **ALLOW**"
+    assert_includes comment, "**ALLOW** - No behavioral regression detected."
     assert_includes comment, "Change source: declared scheduled delay"
     assert_includes comment, "Scheduled delay | +250.0 ms | 100.0%"
     assert_includes comment, "Eligible → worker start | unchanged | 0.0%"
