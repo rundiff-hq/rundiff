@@ -45,6 +45,36 @@ class RunDiffGithubAppAuthenticationTest < ActiveSupport::TestCase
     end
   end
 
+  test "lists recent App webhook deliveries with App JWT" do
+    rsa = OpenSSL::PKey::RSA.generate(2048)
+
+    Dir.mktmpdir do |directory|
+      key_path = File.join(directory, "app.pem")
+      File.write(key_path, rsa.to_pem)
+
+      authentication = FakeAuthentication.new(
+        response: [
+          {
+            "id" => 123,
+            "guid" => "0b989ba4-242f-11e5-81e1-c7b6966d2516",
+            "event" => "pull_request",
+            "action" => "opened"
+          }
+        ],
+        app_id: 4_831_516,
+        private_key_path: key_path
+      )
+
+      deliveries = authentication.webhook_deliveries
+
+      assert_equal 1, deliveries.length
+      call = authentication.calls.fetch(0)
+      assert_equal :get, call.fetch(:method)
+      assert_equal "/app/hook/deliveries?per_page=100", call.fetch(:path)
+      assert_match(/\ABearer /, call.fetch(:authorization))
+    end
+  end
+
   test "resolves the App installation for a repository" do
     rsa = OpenSSL::PKey::RSA.generate(2048)
 
