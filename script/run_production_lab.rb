@@ -43,6 +43,7 @@ module RunDiffProductionLab
     )
     raise "Expected neutral PR #2, got ##{neutral.fetch("number")}" unless neutral.fetch("number") == 2
     assert_behavioral_review!(pull_request: neutral, expected_conclusion: "success", expected_text: "ALLOW")
+    assert_operator_replay!(pull_request: neutral, expected_text: "ALLOW")
 
     assert_invalid_webhook_signature!
     assert_disallowed_repository_is_ignored!
@@ -51,7 +52,7 @@ module RunDiffProductionLab
     puts "production_lab=ok"
     puts "production_lab_regression=BLOCK:DATABASE_QUERY_REGRESSION"
     puts "production_lab_neutral=ALLOW"
-    puts "production_lab_operator_replay=verified"
+    puts "production_lab_operator_replay=BLOCK+ALLOW"
     puts "production_lab_invalid_webhook_signature=rejected"
     puts "production_lab_disallowed_repository=ignored"
     puts "production_lab_wrong_executor_token=rejected"
