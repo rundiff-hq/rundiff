@@ -51,8 +51,9 @@ module RunDiff
         { check: check_action, comment: comment_action }
       end
 
-      def infra_failure(execution:, error: nil, error_class: nil)
+      def infra_failure(execution:, error: nil, error_class: nil, error_message: nil)
         failure_class = error_class || error&.class&.to_s || "UnknownError"
+        failure_detail = public_failure_detail(failure_class:, error_message: error_message || error&.message)
         context = execution.context
         repository = context.fetch("repository")
         pr_number = Integer(context.fetch("pull_request_number"))
@@ -64,6 +65,7 @@ module RunDiff
 
           Execution: `#{execution.execution_id}`<br>
           Failure class: `#{failure_class}`
+          #{failure_detail ? "Failure detail: `#{failure_detail}`" : nil}
         MARKDOWN
 
         check_action = check_publisher.upsert(
@@ -90,6 +92,7 @@ module RunDiff
           Run: `#{execution.execution_id}`<br>
           Candidate: `#{execution.candidate_sha.first(8)}`<br>
           Failure class: `#{failure_class}`
+          #{failure_detail ? "Failure detail: `#{failure_detail}`" : nil}
         MARKDOWN
 
         comment_action = comment_publisher.upsert(
@@ -104,6 +107,12 @@ module RunDiff
       end
 
       private
+
+      def public_failure_detail(failure_class:, error_message:)
+        return unless failure_class == "RunDiff::Executor::HttpAdapter::Error"
+
+        error_message.to_s.lines.first.to_s.tr("`", "'").strip.truncate(300).presence
+      end
 
       def check_publisher
         CheckPublisher.new(token: @token, api_url: @api_url)
