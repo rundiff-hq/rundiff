@@ -36,6 +36,19 @@ module RunDiff
         request(:get, "/app/hook/config", authorization: "Bearer #{app_jwt}")
       end
 
+      def webhook_deliveries(per_page: 100)
+        per_page = Integer(per_page)
+        unless per_page.between?(1, 100)
+          raise ArgumentError, "per_page must be between 1 and 100"
+        end
+
+        request(
+          :get,
+          "/app/hook/deliveries?per_page=#{per_page}",
+          authorization: "Bearer #{app_jwt}"
+        )
+      end
+
       def repository_installation(repository:)
         owner, name = repository.to_s.split("/", 2)
         if owner.to_s.empty? || name.to_s.empty? || name.include?("/")

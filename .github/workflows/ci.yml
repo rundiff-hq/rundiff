@@ -30,7 +30,13 @@ jobs:
 
       - name: Shell syntax
         run: |
-          bash -n bin/lab bin/production-lab
+          bash -n \
+            bin/lab \
+            bin/production-lab \
+            bin/verify-production-cutover \
+            bin/verify-production-identity \
+            bin/verify-production-topology
+          ruby -c bin/collect-production-proof
           find lab -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
       - name: Demo portable behavioral diff

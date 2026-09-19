@@ -6,8 +6,7 @@ ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 INFRA_REPO="${RUNDIFF_INFRA_REPO:-}"
 PROOF_REPO=""
-REGRESSION_PR=""
-NEUTRAL_PR=""
+PROOF_PR=""
 PROOF_OUTPUT=""
 
 usage() {
@@ -18,8 +17,7 @@ Usage:
   bin/verify-production-cutover \
     --infra-repo PATH \
     --proof-repo OWNER/REPO \
-    --regression-pr N \
-    --neutral-pr N \
+    --proof-pr N \
     --proof-output FILE
 EOF
 }
@@ -41,14 +39,9 @@ while [[ $# -gt 0 ]]; do
       PROOF_REPO="$2"
       shift 2
       ;;
-    --regression-pr)
-      [[ $# -ge 2 ]] || fail "--regression-pr requires a number"
-      REGRESSION_PR="$2"
-      shift 2
-      ;;
-    --neutral-pr)
-      [[ $# -ge 2 ]] || fail "--neutral-pr requires a number"
-      NEUTRAL_PR="$2"
+    --proof-pr)
+      [[ $# -ge 2 ]] || fail "--proof-pr requires a number"
+      PROOF_PR="$2"
       shift 2
       ;;
     --proof-output)
@@ -78,18 +71,16 @@ CLOUDFLARE_VERIFIER="$INFRA_REPO/scripts/verify_cloudflare_identity.py"
 
 proof_arg_count=0
 [[ -n "$PROOF_REPO" ]] && proof_arg_count=$((proof_arg_count + 1))
-[[ -n "$REGRESSION_PR" ]] && proof_arg_count=$((proof_arg_count + 1))
-[[ -n "$NEUTRAL_PR" ]] && proof_arg_count=$((proof_arg_count + 1))
+[[ -n "$PROOF_PR" ]] && proof_arg_count=$((proof_arg_count + 1))
 [[ -n "$PROOF_OUTPUT" ]] && proof_arg_count=$((proof_arg_count + 1))
 
-if [[ "$proof_arg_count" -ne 0 && "$proof_arg_count" -ne 4 ]]; then
-  fail "proof mode requires --proof-repo, --regression-pr, --neutral-pr, and --proof-output together"
+if [[ "$proof_arg_count" -ne 0 && "$proof_arg_count" -ne 3 ]]; then
+  fail "proof mode requires --proof-repo, --proof-pr, and --proof-output together"
 fi
 
 if [[ -n "$PROOF_REPO" ]]; then
   [[ "$PROOF_REPO" == */* ]] || fail "--proof-repo must use owner/repo form"
-  [[ "$REGRESSION_PR" =~ ^[1-9][0-9]*$ ]] || fail "--regression-pr must be a positive integer"
-  [[ "$NEUTRAL_PR" =~ ^[1-9][0-9]*$ ]] || fail "--neutral-pr must be a positive integer"
+  [[ "$PROOF_PR" =~ ^[1-9][0-9]*$ ]] || fail "--proof-pr must be a positive integer"
 fi
 
 IDENTITY_VERIFIER="${RUNDIFF_IDENTITY_VERIFIER:-$SCRIPT_DIR/verify-production-identity}"
@@ -112,7 +103,10 @@ if [[ -z "$PROOF_REPO" ]]; then
   printf 'stage=production_proof status=not_requested\n'
 else
   printf 'stage=production_proof status=running\n'
-  "$PROOF_COLLECTOR"     "$PROOF_REPO"     --regression-pr "$REGRESSION_PR"     --neutral-pr "$NEUTRAL_PR"     --output "$PROOF_OUTPUT"
+  "$PROOF_COLLECTOR" \
+    "$PROOF_REPO" \
+    --pull-request "$PROOF_PR" \
+    --output "$PROOF_OUTPUT"
   printf 'stage=production_proof status=verified output=%s\n' "$PROOF_OUTPUT"
 fi
 

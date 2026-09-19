@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rundiff.com/schemas/production-proof-v2.schema.json",
+  "title": "RunDiff Production Proof v2",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "repository",
+    "control_plane_url",
+    "executor_url",
+    "github_app_slug",
+    "installation_ids",
+    "installation_received_at",
+    "first_review_at",
+    "install_to_first_review_ms",
+    "transition",
+    "proofs",
+    "durable_comment"
+  ],
+  "properties": {
+    "schema_version": {"const": "2"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+    "control_plane_url": {"type": "string", "format": "uri"},
+    "executor_url": {"type": "string", "format": "uri"},
+    "github_app_slug": {"type": "string", "minLength": 1},
+    "installation_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {"type": "integer"}
+    },
+    "installation_received_at": {"type": ["string", "null"], "format": "date-time"},
+    "first_review_at": {"type": ["string", "null"], "format": "date-time"},
+    "install_to_first_review_ms": {"type": ["integer", "null"], "minimum": 0},
+    "transition": {
+      "type": "object",
+      "required": [
+        "pull_request_number",
+        "pull_request_url",
+        "baseline_sha",
+        "candidate_ref",
+        "block_candidate_sha",
+        "allow_candidate_sha"
+      ],
+      "properties": {
+        "pull_request_number": {"type": "integer", "minimum": 1},
+        "pull_request_url": {"type": "string", "format": "uri"},
+        "baseline_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "candidate_ref": {"type": "string", "minLength": 1},
+        "block_candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "allow_candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      },
+      "additionalProperties": false
+    },
+    "proofs": {
+      "type": "object",
+      "required": ["block", "allow"],
+      "properties": {
+        "block": {"$ref": "#/$defs/proof"},
+        "allow": {"$ref": "#/$defs/proof"}
+      },
+      "additionalProperties": false
+    },
+    "durable_comment": {
+      "type": "object",
+      "required": ["id", "url", "created_at", "updated_at", "current_recommendation"],
+      "properties": {
+        "id": {"type": "integer"},
+        "url": {"type": ["string", "null"], "format": "uri"},
+        "created_at": {"type": ["string", "null"], "format": "date-time"},
+        "updated_at": {"type": ["string", "null"], "format": "date-time"},
+        "current_recommendation": {"const": "ALLOW"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "proof": {
+      "type": "object",
+      "required": [
+        "pull_request_number",
+        "baseline_sha",
+        "candidate_sha",
+        "candidate_ref",
+        "installation_id",
+        "webhook_delivery_id",
+        "webhook_action",
+        "github_delivery",
+        "execution_id",
+        "execution_status",
+        "outcome",
+        "check_run",
+        "execution_created_at",
+        "execution_finished_at"
+      ],
+      "properties": {
+        "pull_request_number": {"type": "integer", "minimum": 1},
+        "baseline_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "candidate_ref": {"type": "string", "minLength": 1},
+        "installation_id": {"type": "integer"},
+        "webhook_delivery_id": {"type": "string", "minLength": 1},
+        "webhook_action": {"enum": ["opened", "synchronize"]},
+        "github_delivery": {
+          "type": "object",
+          "required": ["id", "guid", "delivered_at", "redelivery", "status_code"],
+          "properties": {
+            "id": {"type": "integer"},
+            "guid": {"type": "string", "minLength": 1},
+            "delivered_at": {"type": ["string", "null"], "format": "date-time"},
+            "redelivery": {"type": "boolean"},
+            "status_code": {"type": "integer", "minimum": 200, "maximum": 399}
+          },
+          "additionalProperties": false
+        },
+        "execution_id": {"type": "string", "minLength": 1},
+        "execution_status": {"const": "completed"},
+        "outcome": {"enum": ["allow", "block"]},
+        "check_run": {
+          "type": "object",
+          "required": ["id", "name", "conclusion", "url", "completed_at"],
+          "properties": {
+            "id": {"type": "integer"},
+            "name": {"type": "string"},
+            "conclusion": {"enum": ["success", "failure"]},
+            "url": {"type": ["string", "null"], "format": "uri"},
+            "completed_at": {"type": ["string", "null"], "format": "date-time"}
+          },
+          "additionalProperties": false
+        },
+        "execution_created_at": {"type": ["string", "null"], "format": "date-time"},
+        "execution_finished_at": {"type": ["string", "null"], "format": "date-time"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

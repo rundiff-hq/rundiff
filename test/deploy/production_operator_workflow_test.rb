@@ -243,7 +243,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
       write_executable(proof, <<~BASH)
         #!/usr/bin/env bash
         printf 'proof %s\\n' "$*" >> "$CUTOVER_LOG"
-        printf '%s\\n' '{"schema_version":"1"}' > "$7"
+        printf '%s\\n' '{"schema_version":"2"}' > "$5"
       BASH
 
       stdout, stderr, status = run_script(
@@ -252,10 +252,8 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
         infra,
         "--proof-repo",
         "external-owner/proof-repo",
-        "--regression-pr",
+        "--proof-pr",
         "12",
-        "--neutral-pr",
-        "13",
         "--proof-output",
         output,
         env: {
@@ -269,7 +267,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
       calls = File.readlines(log, chomp: true)
       assert_equal "identity", calls.fetch(0)
       assert_equal "cloudflare", calls.fetch(1)
-      assert_includes calls.fetch(2), "proof external-owner/proof-repo --regression-pr 12 --neutral-pr 13 --output #{output}"
+      assert_includes calls.fetch(2), "proof external-owner/proof-repo --pull-request 12 --output #{output}"
       assert File.file?(output)
       assert_includes stdout, "stage=production_proof status=verified output=#{output}"
       assert_includes stdout, "production_cutover=verified"

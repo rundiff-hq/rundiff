@@ -7,14 +7,10 @@ require_relative "../config/environment"
 options = {}
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: bin/collect-production-proof OWNER/REPO --regression-pr N --neutral-pr N [--output FILE]"
+  opts.banner = "Usage: bin/collect-production-proof OWNER/REPO --pull-request N [--output FILE]"
 
-  opts.on("--regression-pr N", Integer, "PR expected to produce BLOCK") do |value|
-    options[:regression_pr] = value
-  end
-
-  opts.on("--neutral-pr N", Integer, "PR expected to produce ALLOW") do |value|
-    options[:neutral_pr] = value
+  opts.on("--pull-request N", Integer, "PR that transitions from BLOCK to ALLOW") do |value|
+    options[:pull_request] = value
   end
 
   opts.on("--output FILE", String, "Write the evidence bundle to FILE") do |value|
@@ -25,7 +21,7 @@ end
 parser.parse!
 
 repository = ARGV.shift
-if repository.to_s.empty? || !ARGV.empty? || !options[:regression_pr] || !options[:neutral_pr]
+if repository.to_s.empty? || !ARGV.empty? || !options[:pull_request]
   warn parser
   exit 64
 end
@@ -33,8 +29,7 @@ end
 begin
   bundle = RunDiff::Github::ProductionProofBundle.new(
     repository:,
-    regression_pr: options.fetch(:regression_pr),
-    neutral_pr: options.fetch(:neutral_pr)
+    pull_request: options.fetch(:pull_request)
   ).call
 
   json = JSON.pretty_generate(bundle)
