@@ -292,25 +292,46 @@ After registration, verify that the public App installation page can be opened b
 
 ## Cross-account acceptance
 
-The deployment is not considered product-proven until #75 is completed from a repository owned outside the `rundiff-hq` GitHub organization and both outcomes are observed:
+The deployment is not considered product-proven until #75 is completed from a repository owned outside the `rundiff-hq` GitHub organization using one customer-shaped pull request:
 
 ```text
-deliberate SQL regression -> DATABASE_QUERY_REGRESSION -> BLOCK
-neutral candidate          -> no behavioral regression -> ALLOW
+open PR with deliberate SQL regression
+  -> GitHub pull_request/opened
+  -> DATABASE_QUERY_REGRESSION
+  -> BLOCK
+
+push behavioral fix to the same PR
+  -> GitHub pull_request/synchronize
+  -> no behavioral regression
+  -> ALLOW
 ```
 
-Record webhook delivery IDs, execution IDs, Check Run IDs, PR comment IDs, exact base/head SHAs, and install-to-first-review elapsed time in #75.
+Do not use `bin/replay-github-pr`, `bin/prove-github-app-demo`, curl, or another manually synthesized webhook for the canonical production proof.
 
+Record the installation id, GitHub-confirmed webhook delivery IDs/GUIDs, execution IDs, immutable Check Run IDs, the durable PR comment ID and timestamps, exact base/head SHAs for both revisions, and install-to-first-review elapsed time in #75.
 
 ## Capture #75 evidence
 
-Once the external proof repository has both required PR outcomes, run this on the production control plane with the normal RunDiff App credentials and database:
+Immediately after the same external PR has transitioned from BLOCK to ALLOW, run this on the production control plane with the normal RunDiff App credentials and database:
 
 ```bash
 bin/collect-production-proof external-owner/proof-repo \
-  --regression-pr <block-pr-number> \
-  --neutral-pr <allow-pr-number> \
+  --pull-request <proof-pr-number> \
   --output tmp/production-proof.json
 ```
 
-The resulting secret-free artifact follows `schemas/production-proof-v1.schema.json` and records exact webhook delivery, execution, Check Run, comment, installation, and Git SHA evidence. Attach or summarize this artifact in #75.
+Or run the complete identity, Cloudflare and proof gate:
+
+```bash
+bin/verify-production-cutover \
+  --infra-repo ../infra \
+  --proof-repo external-owner/proof-repo \
+  --proof-pr <proof-pr-number> \
+  --proof-output tmp/production-proof.json
+```
+
+Production Proof v2 requires an earlier BLOCK execution and a later ALLOW execution on the same PR, branch, baseline and GitHub App installation. It requires `opened` for the BLOCK revision and `synchronize` for the ALLOW revision, verifies an immutable Check Run on each exact candidate SHA, and verifies the current PR head is the final ALLOW SHA.
+
+The collector also authenticates as the production GitHub App and confirms both `X-GitHub-Delivery` GUIDs against GitHub's own App webhook delivery history. A replay or locally synthesized signed webhook cannot satisfy the canonical production acceptance.
+
+RunDiff keeps one durable PR comment and updates it in place. The resulting secret-free artifact follows `schemas/production-proof-v2.schema.json`. Attach or summarize this artifact in #75.
