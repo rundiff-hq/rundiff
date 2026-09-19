@@ -52,7 +52,7 @@ module RunDiff
         client = proof_client(installation_id:)
         pull_request = client.pull_request(repository: @repository, number: @pull_request_number)
         validate_current_head!(execution: allow_execution, pull_request:)
-        repository_id = Integer(pull_request.dig("base", "repo", "id"))
+        repository_id = repository_id_from(pull_request)
         github_deliveries = @authentication.webhook_deliveries
 
         block_proof = build_phase_proof(
@@ -188,6 +188,12 @@ module RunDiff
         end
 
         installation_id
+      end
+
+      def repository_id_from(pull_request)
+        Integer(pull_request.dig("base", "repo", "id"))
+      rescue ArgumentError, TypeError
+        raise Error, "current GitHub PR payload is missing base repository id"
       end
 
       def proof_client(installation_id:)
