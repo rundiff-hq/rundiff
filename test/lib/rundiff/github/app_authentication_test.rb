@@ -45,6 +45,19 @@ class RunDiffGithubAppAuthenticationTest < ActiveSupport::TestCase
     end
   end
 
+  test "can sign App JWT from private key PEM environment value" do
+    rsa = OpenSSL::PKey::RSA.generate(2048)
+
+    authentication = FakeAuthentication.new(
+      response: { "slug" => "rundiff" },
+      app_id: 4_831_516,
+      private_key_pem: rsa.to_pem
+    )
+
+    assert_equal "rundiff", authentication.app.fetch("slug")
+    assert_match(/\ABearer /, authentication.calls.fetch(0).fetch(:authorization))
+  end
+
   test "lists recent App webhook deliveries with App JWT" do
     rsa = OpenSSL::PKey::RSA.generate(2048)
 
