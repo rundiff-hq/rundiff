@@ -15,6 +15,15 @@ class RunDiff::Runtime::ReadinessTest < ActiveSupport::TestCase
     end
   end
 
+  test "production control plane accepts private key PEM from the environment" do
+    result = readiness(
+      env: control_plane_env.merge("RUNDIFF_GITHUB_PRIVATE_KEY_PEM" => "private-key-placeholder")
+    ).call
+
+    assert result.ready?, result.errors.inspect
+    assert_equal "control_plane", result.role
+  end
+
   test "production control plane requires remote executor and https endpoints" do
     Dir.mktmpdir("rundiff-readiness-") do |root|
       File.write(File.join(root, "github.pem"), "private-key-placeholder")
@@ -82,6 +91,7 @@ class RunDiff::Runtime::ReadinessTest < ActiveSupport::TestCase
         "RUNDIFF_EXECUTOR_SERVICE_TOKEN" => "service-secret",
         "RUNDIFF_EXECUTOR_SERVICE_ADAPTER" => "local",
         "RUNDIFF_GITHUB_PRIVATE_KEY_PATH" => "github.pem",
+        "RUNDIFF_GITHUB_PRIVATE_KEY_PEM" => "private-key-pem",
         "RUNDIFF_GITHUB_WEBHOOK_SECRET" => "webhook-secret",
         "RUNDIFF_EXECUTOR" => "remote",
         "RUNDIFF_REMOTE_EXECUTOR_URL" => "https://itself.example.test/v1/executions",
@@ -92,6 +102,7 @@ class RunDiff::Runtime::ReadinessTest < ActiveSupport::TestCase
     assert_not result.ready?
     assert_includes result.errors, "RUNDIFF_EXECUTOR_SERVICE_ADAPTER must be git_clone for production executor service"
     assert_includes result.errors, "RUNDIFF_GITHUB_PRIVATE_KEY_PATH must not be configured on the executor service"
+    assert_includes result.errors, "RUNDIFF_GITHUB_PRIVATE_KEY_PEM must not be configured on the executor service"
     assert_includes result.errors, "RUNDIFF_GITHUB_WEBHOOK_SECRET must not be configured on the executor service"
     assert_includes result.errors, "RUNDIFF_EXECUTOR=remote must not be configured on the executor service"
     assert_includes result.errors, "RUNDIFF_REMOTE_EXECUTOR_TOKEN must not be configured on the executor service"
