@@ -43,8 +43,12 @@ Any failed stage stops the command immediately.
 Before the external-account proof, the installed App can be exercised against the canonical customer-like sandbox without making new commits:
 
 ```bash
-bin/replay-github-pr rundiff-hq/customer-rails-sandbox 4 --wait 1200
-bin/replay-github-pr rundiff-hq/customer-rails-sandbox 5 --wait 1200
+bin/prove-github-app-demo \
+  rundiff-hq/customer-rails-sandbox \
+  --regression-pr 4 \
+  --neutral-pr 5 \
+  --wait 1200 \
+  --output tmp/github-app-demo.json
 ```
 
 PR #4 is the deliberate `BLOCK` regression and PR #5 is the neutral `ALLOW` case. This is not sufficient to close the cross-account acceptance criterion, but it proves the real App installation, signed webhook boundary, durable execution pipeline, remote executor, GitHub Check, and durable PR comment before moving to an external owner.
