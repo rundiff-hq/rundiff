@@ -4,6 +4,7 @@ require "base64"
 require "json"
 require "net/http"
 require "openssl"
+require "open3"
 require "securerandom"
 require "time"
 require "uri"
@@ -33,6 +34,7 @@ module RunDiffProductionLab
     )
     raise "Expected regression PR #1, got ##{regression.fetch("number")}" unless regression.fetch("number") == 1
     assert_behavioral_review!(pull_request: regression, expected_conclusion: "failure", expected_text: "DATABASE_QUERY_REGRESSION")
+    assert_operator_replay!(pull_request: regression, expected_text: "DATABASE_QUERY_REGRESSION")
 
     neutral = create_pull_request!(
       repository: CUSTOMER_REPOSITORY,
@@ -49,6 +51,7 @@ module RunDiffProductionLab
     puts "production_lab=ok"
     puts "production_lab_regression=BLOCK:DATABASE_QUERY_REGRESSION"
     puts "production_lab_neutral=ALLOW"
+    puts "production_lab_operator_replay=verified"
     puts "production_lab_invalid_webhook_signature=rejected"
     puts "production_lab_disallowed_repository=ignored"
     puts "production_lab_wrong_executor_token=rejected"
@@ -129,6 +132,41 @@ module RunDiffProductionLab
     puts "production_lab_pr=#{number} conclusion=#{check_run.fetch("conclusion")} expected=#{expected_text} elapsed_ms=#{elapsed_ms(started_at)}"
   rescue StandardError
     warn "production_lab_pr=#{number || "unknown"} status=error elapsed_ms=#{elapsed_ms(started_at)}"
+    raise
+  end
+
+  def assert_operator_replay!(pull_request:, expected_text:)
+    started_at = monotonic_now
+    number = pull_request.fetch("number")
+    root = File.expand_path("..", __dir__)
+    command = [
+      File.join(root, "bin", "replay-github-pr"),
+      CUSTOMER_REPOSITORY,
+      number.to_s,
+      "--wait",
+      "60",
+      "--color",
+      "never"
+    ]
+
+    stdout, stderr, status = Open3.capture3(*command, chdir: root)
+    unless status.success?
+      raise "Operator PR replay failed for #{CUSTOMER_REPOSITORY}##{number}: #{stderr.empty? ? stdout : stderr}"
+    end
+
+    unless stdout.include?("review_delivery=accepted")
+      raise "Operator PR replay did not accept a signed delivery: #{stdout}"
+    end
+    unless stdout.include?("execution_status=completed")
+      raise "Operator PR replay did not resolve the durable execution: #{stdout}"
+    end
+    unless stdout.include?(expected_text)
+      raise "Operator PR replay did not render #{expected_text.inspect}: #{stdout}"
+    end
+
+    puts "production_lab_operator_replay=verified pr=#{number} elapsed_ms=#{elapsed_ms(started_at)}"
+  rescue StandardError
+    warn "production_lab_operator_replay=error pr=#{number || "unknown"} elapsed_ms=#{elapsed_ms(started_at)}"
     raise
   end
 

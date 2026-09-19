@@ -1,0 +1,132 @@
+#!/usr/bin/env ruby
+
+require "optparse"
+require_relative "../config/environment"
+
+options = {
+  wait: 0,
+  color: "auto"
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/replay-github-pr OWNER/REPO PR_NUMBER [options]"
+
+  opts.on("--url URL", String, "Override the control-plane webhook URL") do |value|
+    options[:url] = value
+  end
+
+  opts.on("--delivery-id ID", String, "Use a specific replay delivery id") do |value|
+    options[:delivery_id] = value
+  end
+
+  opts.on("--wait SECONDS", Integer, "Wait for the durable execution to finish") do |value|
+    raise OptionParser::InvalidArgument, "--wait must be zero or positive" if value.negative?
+
+    options[:wait] = value
+  end
+
+  opts.on("--color WHEN", %w[auto always never], "Terminal review color mode") do |value|
+    options[:color] = value
+  end
+end
+
+parser.parse!
+
+repository = ARGV.shift
+pull_request_number = ARGV.shift
+
+if repository.to_s.empty? || pull_request_number.to_s.empty? || !ARGV.empty?
+  warn parser
+  exit 64
+end
+
+begin
+  replay = RunDiff::Github::PullRequestReplay.new(
+    webhook_url: options[:url]
+  ).call(
+    repository:,
+    pull_request_number:,
+    delivery_id: options[:delivery_id]
+  )
+
+  puts "review_delivery=accepted"
+  puts "delivery_id=#{replay.delivery_id}"
+  puts "repository=#{replay.repository}"
+  puts "pull_request=#{replay.pull_request_number}"
+  puts "installation_id=#{replay.installation_id}"
+  puts "baseline_sha=#{replay.baseline_sha}"
+  puts "candidate_sha=#{replay.candidate_sha}"
+
+  exit 0 if options[:wait].zero?
+
+  deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + options[:wait]
+  execution = nil
+
+  loop do
+    delivery = GithubWebhookDelivery.find_by(delivery_id: replay.delivery_id)
+
+    if delivery&.status.in?(%w[failed ignored])
+      warn "review_delivery=#{delivery.status}"
+      warn "delivery_failure=#{delivery.failure}" if delivery.failure.present?
+      exit 1
+    end
+
+    recent_executions = RunDiffExecution
+      .where(source: "github_pull_request")
+      .order(id: :desc)
+      .limit(100)
+
+    execution ||= recent_executions.detect { |record| record.context["delivery_id"] == replay.delivery_id }
+
+    if execution.nil? && delivery&.status == "completed"
+      execution = recent_executions.detect do |record|
+        context = record.context
+        context["repository"] == replay.repository &&
+          Integer(context["pull_request_number"]) == replay.pull_request_number &&
+          record.candidate_sha == replay.candidate_sha
+      rescue ArgumentError, TypeError
+        false
+      end
+    end
+
+    if execution
+      execution.reload
+
+      if RunDiffExecution::TERMINAL_STATUSES.include?(execution.status)
+        puts "execution_id=#{execution.execution_id}"
+        puts "execution_status=#{execution.status}"
+        puts "execution_outcome=#{execution.outcome}" if execution.outcome
+        puts "execution_decision=#{execution.decision}" if execution.decision
+
+        if execution.status == "completed" && execution.result.present?
+          puts
+          puts RunDiff::TerminalRenderer.call(
+            payload: execution.result,
+            color: options[:color],
+            io: $stdout
+          )
+          exit 0
+        end
+
+        warn "execution_failure=#{execution.failure}" if execution.failure.present?
+        exit 1
+      end
+    end
+
+    if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+      warn "review_wait=timeout"
+      warn "delivery_id=#{replay.delivery_id}"
+      warn "execution_id=#{execution.execution_id}" if execution
+      exit 124
+    end
+
+    sleep 2
+  end
+rescue RunDiff::Github::PullRequestReplay::Error,
+  RunDiff::Github::AppAuthentication::Error,
+  RunDiff::Github::PullRequestClient::Error,
+  OptionParser::ParseError,
+  ArgumentError => error
+  warn "GitHub PR replay failed: #{error.message}"
+  exit 1
+end

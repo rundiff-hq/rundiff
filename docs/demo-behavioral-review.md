@@ -166,3 +166,58 @@ Functional scenario           PASSED
 A neutral PR should render the same review surface with `ALLOW`.
 
 The hosted public-App flow is the production promotion of this exact demo, not a separate execution model.
+
+
+## Replay a real installed GitHub PR
+
+Once the RunDiff GitHub App is installed on a repository, an operator can replay an existing current pull request through the **real signed webhook boundary** without creating another commit.
+
+This is useful for the customer-like sandbox before the final cross-account production proof:
+
+```bash
+bin/replay-github-pr \
+  rundiff-hq/customer-rails-sandbox \
+  4 \
+  --wait 1200 \
+  --color always
+```
+
+Expected result for the deliberate regression PR:
+
+```text
+review_delivery=accepted
+...
+execution_status=completed
+execution_outcome=block
+
+RunDiff Behavioral Review
+✕ BLOCK
+...
+DATABASE_QUERY_REGRESSION
+```
+
+The neutral counterpart is:
+
+```bash
+bin/replay-github-pr \
+  rundiff-hq/customer-rails-sandbox \
+  5 \
+  --wait 1200 \
+  --color always
+```
+
+Expected outcome: `allow`.
+
+The replay command:
+
+- resolves the repository's installation through the configured RunDiff GitHub App;
+- mints a short-lived installation token;
+- fetches the current pull-request head/base;
+- creates a correctly signed `pull_request/synchronize` delivery;
+- posts it to the normal `/github/webhooks` endpoint;
+- does **not** bypass `RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST`;
+- never needs an operator PAT;
+- never prints the installation token or webhook secret;
+- optionally waits on the durable control-plane execution and renders the same Behavioral Review in the terminal.
+
+For production, run the command from an environment connected to the same control-plane database and configured with the same App credentials and webhook secret. `--url` may override the webhook endpoint when needed.
