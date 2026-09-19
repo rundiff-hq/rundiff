@@ -246,6 +246,7 @@ services:
       control-plane-worker:
         condition: service_started
     environment:
+      <<: *control-plane-environment
       GITHUB_EMULATOR_URL: http://github-emulator:4001
       RUNDIFF_LAB_CONTROL_PLANE_URL: https://control-plane-tls:4444
       RUNDIFF_LAB_EXECUTOR_URL: https://executor-tls:4443
