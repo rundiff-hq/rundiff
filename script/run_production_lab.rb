@@ -131,7 +131,7 @@ module RunDiffProductionLab
     updated = wait_for("synchronized pull request #{repository}##{number}") do
       current = github_json(:get, "/repos/#{repository}/pulls/#{number}")
       current_head_sha = current.dig("head", "sha")
-      current if current_head_sha.present? && current_head_sha != previous_head_sha
+      current if !current_head_sha.to_s.empty? && current_head_sha != previous_head_sha
     end
 
     unless updated.fetch("number") == number
