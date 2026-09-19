@@ -60,7 +60,13 @@ bin/rundiff diff \
 
 ## Behavioral Review
 
-A complete A/B execution payload can be rendered through the same product-facing review surface used by GitHub:
+Run the full customer-like Rails + SQLite demo with one command:
+
+```bash
+bin/rundiff demo --color always
+```
+
+A complete A/B execution payload can also be rendered through the same product-facing review surface used by GitHub:
 
 ```bash
 bin/rundiff review --input tmp/demo/block.json
