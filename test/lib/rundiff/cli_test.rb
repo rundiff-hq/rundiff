@@ -86,6 +86,51 @@ class RunDiffCliTest < ActiveSupport::TestCase
     end
   end
 
+
+  test "runs the customer-like demo without an input file" do
+    calls = []
+    demo_runner = Struct.new(:payload, :calls) do
+      def call(output_path: nil)
+        calls << output_path
+        payload
+      end
+    end.new(review_payload, calls)
+    stdout = StringIO.new
+
+    status = RunDiff::CLI.new(
+      [ "demo", "--color", "never" ],
+      stdout:,
+      stderr: StringIO.new,
+      demo_runner:
+    ).run
+
+    assert_equal 0, status
+    assert_equal [ nil ], calls
+    assert_includes stdout.string, "RunDiff Behavioral Review"
+    assert_includes stdout.string, "✕ BLOCK"
+    assert_includes stdout.string, "DATABASE_QUERY_REGRESSION"
+  end
+
+  test "persists demo evidence when an output path is requested" do
+    calls = []
+    demo_runner = Struct.new(:payload, :calls) do
+      def call(output_path: nil)
+        calls << output_path
+        payload
+      end
+    end.new(review_payload, calls)
+
+    status = RunDiff::CLI.new(
+      [ "demo", "--output", "tmp/demo/review.json", "--fail-on-block", "--color", "never" ],
+      stdout: StringIO.new,
+      stderr: StringIO.new,
+      demo_runner:
+    ).run
+
+    assert_equal 1, status
+    assert_equal [ "tmp/demo/review.json" ], calls
+  end
+
   private
 
   def with_review_payload

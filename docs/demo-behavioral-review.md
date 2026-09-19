@@ -13,7 +13,45 @@ plain Rails app
        -> GitHub PR comment
 ```
 
-## Local wow demo
+## One-command wow demo
+
+Prepare the RunDiff repository once:
+
+```bash
+bundle install
+bin/rails db:prepare
+```
+
+Then run the complete customer-like proof and render it immediately:
+
+```bash
+bin/rundiff demo --color always
+```
+
+That one command creates a plain temporary Rails + SQLite subject, commits a clean baseline and a candidate with a deliberate SQL regression plus candidate-only `rundiff.yml`, executes both exact Git revisions, captures runtime evidence, and renders the resulting Behavioral Review.
+
+Persist the raw review payload for inspection or recording:
+
+```bash
+bin/rundiff demo \
+  --color always \
+  --output tmp/demo/block.json
+```
+
+The same one-command demo can render GitHub Markdown or JSON:
+
+```bash
+bin/rundiff demo --format markdown
+bin/rundiff demo --format json
+```
+
+Use it as a shell gate when desired:
+
+```bash
+bin/rundiff demo --fail-on-block
+```
+
+## Manual local wow demo
 
 Prepare the RunDiff repository once:
 
