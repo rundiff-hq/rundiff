@@ -40,7 +40,18 @@ Any failed stage stops the command immediately.
 
 ## Same-org preproduction replay
 
-Before the external-account proof, the installed App can be exercised against the canonical customer-like sandbox without making new commits:
+Before the external-account proof, the installed App can be exercised against the canonical customer-like sandbox without making new commits.
+
+First run the read-only preflight:
+
+```bash
+bin/verify-github-app-demo \
+  rundiff-hq/customer-rails-sandbox \
+  --regression-pr 4 \
+  --neutral-pr 5
+```
+
+Then run the actual BLOCK + ALLOW proof:
 
 ```bash
 bin/prove-github-app-demo \
