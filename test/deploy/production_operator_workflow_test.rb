@@ -150,7 +150,7 @@ class ProductionOperatorWorkflowTest < ActiveSupport::TestCase
               printf '%s\\n' '{"status":"ready","role":"executor_service","errors":[]}'
               ;;
             https://app.rundiff.com/onboarding)
-              printf '%s\\n' '<html><title>RunDiff</title><body>RunDiff onboarding</body></html>'
+              printf '%s\\n' '<html><title>RunDiff</title><body>RunDiff onboarding Tests passed. Behavior changed. RunDiff / Behavioral Review</body></html>'
               ;;
             https://github.com/apps/rundiff)
               printf '%s\\n' '<html><title>RunDiff</title><body>RunDiff</body></html>'
