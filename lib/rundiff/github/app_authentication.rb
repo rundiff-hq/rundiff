@@ -36,6 +36,19 @@ module RunDiff
         request(:get, "/app/hook/config", authorization: "Bearer #{app_jwt}")
       end
 
+      def repository_installation(repository:)
+        owner, name = repository.to_s.split("/", 2)
+        if owner.to_s.empty? || name.to_s.empty? || name.include?("/")
+          raise ArgumentError, "repository must use owner/name form"
+        end
+
+        request(
+          :get,
+          "/repos/#{owner}/#{name}/installation",
+          authorization: "Bearer #{app_jwt}"
+        )
+      end
+
       def installation_token(installation_id:, repositories: nil, permissions: nil)
         body = {}
         body[:repositories] = Array(repositories) if repositories
