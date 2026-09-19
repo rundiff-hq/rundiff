@@ -27,6 +27,20 @@ class RunDiffGithubAppConfigurationVerifierTest < ActiveSupport::TestCase
     refute_includes JSON.generate(result), "secret"
   end
 
+  test "committed production manifest matches the verified minimal contract" do
+    manifest = JSON.parse(Rails.root.join(".github/app-manifest.json").read)
+
+    assert_equal(
+      RunDiff::Github::AppConfigurationVerifier::REQUIRED_PERMISSIONS,
+      manifest.fetch("default_permissions")
+    )
+    assert_equal(
+      RunDiff::Github::AppConfigurationVerifier::REQUIRED_EVENTS.sort,
+      manifest.fetch("default_events").sort
+    )
+    refute manifest.fetch("default_permissions").key?("issues")
+  end
+
   test "allows GitHub implicit metadata read but rejects extra permissions" do
     app = canonical_app
     app["permissions"] = app.fetch("permissions").merge(
