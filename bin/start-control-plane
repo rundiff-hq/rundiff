@@ -4,10 +4,13 @@ set -Eeuo pipefail
 # Provider-neutral control-plane process entrypoint.
 # The platform supplies DATABASE_URL, PORT and the RunDiff runtime environment.
 #
-# Some private-network platforms expose an executor as host:port rather than a
-# full URL. Normalize that generic form here without leaking a provider name.
-if [[ -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" && -n "${RUNDIFF_REMOTE_EXECUTOR_HOSTPORT:-}" ]]; then
-  export RUNDIFF_REMOTE_EXECUTOR_URL="http://${RUNDIFF_REMOTE_EXECUTOR_HOSTPORT}"
+# Deployment targets can provide either the exact execution endpoint, a public
+# executor origin, or a private host:port. Normalize the generic forms here
+# without leaking a provider name into the application runtime contract.
+if [[ -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" && -n "${RUNDIFF_REMOTE_EXECUTOR_ORIGIN:-}" ]]; then
+  export RUNDIFF_REMOTE_EXECUTOR_URL="${RUNDIFF_REMOTE_EXECUTOR_ORIGIN%/}/v1/executions"
+elif [[ -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" && -n "${RUNDIFF_REMOTE_EXECUTOR_HOSTPORT:-}" ]]; then
+  export RUNDIFF_REMOTE_EXECUTOR_URL="http://${RUNDIFF_REMOTE_EXECUTOR_HOSTPORT}/v1/executions"
 fi
 
 bin/rails db:prepare
