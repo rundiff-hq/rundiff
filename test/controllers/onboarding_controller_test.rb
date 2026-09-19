@@ -10,6 +10,10 @@ class OnboardingControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "https://github.com/apps/rundiff-development/installations/new"
     assert_includes response.body, "Your first Behavioral Review in three steps."
+    assert_includes response.body, "Tests passed. Behavior changed."
+    assert_includes response.body, "RunDiff / Behavioral Review"
+    assert_includes response.body, "DATABASE_QUERY_REGRESSION"
+    assert_includes response.body, "17 → 31"
     assert_includes response.body, "version: 1"
     assert_includes response.body, "path: /orders/42"
     assert_includes response.body, "PostgreSQL or SQLite"
