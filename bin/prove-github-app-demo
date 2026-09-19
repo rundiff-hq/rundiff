@@ -1,0 +1,140 @@
+#!/usr/bin/env ruby
+
+require "fileutils"
+require "json"
+require "open3"
+require "optparse"
+
+options = {
+  wait: 1200,
+  color: "auto"
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/prove-github-app-demo OWNER/REPO --regression-pr N --neutral-pr N [options]"
+
+  opts.on("--regression-pr N", Integer, "PR expected to produce BLOCK") do |value|
+    options[:regression_pr] = value
+  end
+
+  opts.on("--neutral-pr N", Integer, "PR expected to produce ALLOW") do |value|
+    options[:neutral_pr] = value
+  end
+
+  opts.on("--wait SECONDS", Integer, "Maximum wait per replay") do |value|
+    raise OptionParser::InvalidArgument, "--wait must be positive" unless value.positive?
+
+    options[:wait] = value
+  end
+
+  opts.on("--color WHEN", %w[auto always never], "Terminal review color mode") do |value|
+    options[:color] = value
+  end
+
+  opts.on("--output FILE", String, "Persist a machine-readable demo proof bundle") do |value|
+    options[:output] = value
+  end
+end
+
+parser.parse!
+
+repository = ARGV.shift
+if repository.to_s.empty? || !ARGV.empty? || !options[:regression_pr] || !options[:neutral_pr]
+  warn parser
+  exit 64
+end
+
+def parse_fields(output)
+  output.lines.filter_map do |line|
+    key, value = line.strip.split("=", 2)
+    next if key.to_s.empty? || value.nil?
+    next unless key.match?(/\A[a-z_]+\z/)
+
+    [ key, value ]
+  end.to_h
+end
+
+def run_replay(repository:, pr:, expected_outcome:, wait:, color:)
+  command = [
+    File.expand_path("replay-github-pr", __dir__),
+    repository,
+    pr.to_s,
+    "--wait",
+    wait.to_s,
+    "--color",
+    color
+  ]
+
+  stdout, stderr, status = Open3.capture3(*command)
+  unless status.success?
+    detail = stderr.to_s.empty? ? stdout.to_s : stderr.to_s
+    raise "replay for #{repository}##{pr} failed: #{detail.strip}"
+  end
+
+  fields = parse_fields(stdout)
+  actual = fields["execution_outcome"]
+  unless actual == expected_outcome
+    raise "replay for #{repository}##{pr} produced #{actual.inspect}, expected #{expected_outcome.inspect}"
+  end
+
+  [ fields, stdout ]
+end
+
+begin
+  regression, regression_output = run_replay(
+    repository:,
+    pr: options.fetch(:regression_pr),
+    expected_outcome: "block",
+    wait: options.fetch(:wait),
+    color: options.fetch(:color)
+  )
+
+  neutral, neutral_output = run_replay(
+    repository:,
+    pr: options.fetch(:neutral_pr),
+    expected_outcome: "allow",
+    wait: options.fetch(:wait),
+    color: options.fetch(:color)
+  )
+
+  puts "=== Regression review ==="
+  puts regression_output
+  puts "=== Neutral review ==="
+  puts neutral_output
+
+  bundle = {
+    "schema_version" => "1",
+    "repository" => repository,
+    "proofs" => {
+      "regression" => {
+        "pull_request_number" => options.fetch(:regression_pr),
+        "pull_request_url" => regression.fetch("pull_request_url"),
+        "execution_id" => regression.fetch("execution_id"),
+        "execution_status" => regression.fetch("execution_status"),
+        "outcome" => regression.fetch("execution_outcome")
+      },
+      "neutral" => {
+        "pull_request_number" => options.fetch(:neutral_pr),
+        "pull_request_url" => neutral.fetch("pull_request_url"),
+        "execution_id" => neutral.fetch("execution_id"),
+        "execution_status" => neutral.fetch("execution_status"),
+        "outcome" => neutral.fetch("execution_outcome")
+      }
+    }
+  }
+
+  if options[:output]
+    output = File.expand_path(options.fetch(:output))
+    FileUtils.mkdir_p(File.dirname(output))
+    File.write(output, "#{JSON.pretty_generate(bundle)}\n")
+    puts "proof_output=#{output}"
+  end
+
+  puts "github_app_demo_repository=#{repository}"
+  puts "github_app_demo_regression=BLOCK"
+  puts "github_app_demo_neutral=ALLOW"
+  puts "github_app_demo=passed"
+rescue KeyError, RuntimeError => error
+  warn "GitHub App demo proof failed: #{error.message}"
+  exit 1
+end
