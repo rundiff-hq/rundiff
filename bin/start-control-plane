@@ -12,13 +12,10 @@ fi
 
 bin/rails db:prepare
 
-# db:prepare cannot initialize a second logical database when a proof target
-# intentionally maps primary and queue to the same physical PostgreSQL database.
-# Ask Solid Queue itself whether its schema exists and load only the queue schema
-# once when it is absent. This is also safe when queue uses a separate database.
-if ! bin/rails runner 'exit(SolidQueue::Job.table_exists? ? 0 : 1)'; then
-  bin/rails db:schema:load:queue
-fi
+# Prepare the queue schema through the configured production queue connection.
+# This stays idempotent for both shared-database proof targets and separate
+# queue-database production targets, without invoking test-database Rake tasks.
+bin/prepare-solid-queue
 
 # The first production proof keeps Solid Queue in the same service/container.
 # Dedicated worker processes remain a deployment-target choice.
