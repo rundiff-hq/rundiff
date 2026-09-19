@@ -151,7 +151,7 @@ module RunDiffProductionLab
 
     stdout, stderr, status = Open3.capture3(*command, chdir: root)
     unless status.success?
-      raise "Operator PR replay failed for #{CUSTOMER_REPOSITORY}##{number}: #{stderr.presence || stdout}"
+      raise "Operator PR replay failed for #{CUSTOMER_REPOSITORY}##{number}: #{stderr.empty? ? stdout : stderr}"
     end
 
     unless stdout.include?("review_delivery=accepted")
