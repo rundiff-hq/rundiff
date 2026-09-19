@@ -3,6 +3,13 @@ set -Eeuo pipefail
 
 # Provider-neutral control-plane process entrypoint.
 # The platform supplies DATABASE_URL, PORT and the RunDiff runtime environment.
+#
+# Some private-network platforms expose an executor as host:port rather than a
+# full URL. Normalize that generic form here without leaking a provider name.
+if [[ -z "${RUNDIFF_REMOTE_EXECUTOR_URL:-}" && -n "${RUNDIFF_REMOTE_EXECUTOR_HOSTPORT:-}" ]]; then
+  export RUNDIFF_REMOTE_EXECUTOR_URL="http://${RUNDIFF_REMOTE_EXECUTOR_HOSTPORT}"
+fi
+
 bin/rails db:prepare
 
 # The first production proof keeps Solid Queue in the same service/container.
