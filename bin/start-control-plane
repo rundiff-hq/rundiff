@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# Provider-neutral control-plane process entrypoint.
+# The platform supplies DATABASE_URL, PORT and the RunDiff runtime environment.
+bin/rails db:prepare
+
+# The first production proof keeps Solid Queue in the same service/container.
+# Dedicated worker processes remain a deployment-target choice.
+bin/jobs &
+
+exec bin/rails server -b 0.0.0.0 -p "${PORT:-3000}"
