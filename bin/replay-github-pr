@@ -71,11 +71,23 @@ begin
       exit 1
     end
 
-    execution ||= RunDiffExecution
+    recent_executions = RunDiffExecution
       .where(source: "github_pull_request")
       .order(id: :desc)
       .limit(100)
-      .detect { |record| record.context["delivery_id"] == replay.delivery_id }
+
+    execution ||= recent_executions.detect { |record| record.context["delivery_id"] == replay.delivery_id }
+
+    if execution.nil? && delivery&.status == "completed"
+      execution = recent_executions.detect do |record|
+        context = record.context
+        context["repository"] == replay.repository &&
+          Integer(context["pull_request_number"]) == replay.pull_request_number &&
+          record.candidate_sha == replay.candidate_sha
+      rescue ArgumentError, TypeError
+        false
+      end
+    end
 
     if execution
       execution.reload
