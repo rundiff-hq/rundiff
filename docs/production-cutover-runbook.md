@@ -38,6 +38,19 @@ production_cutover=verified
 
 Any failed stage stops the command immediately.
 
+## Same-org preproduction replay
+
+Before the external-account proof, the installed App can be exercised against the canonical customer-like sandbox without making new commits:
+
+```bash
+bin/replay-github-pr rundiff-hq/customer-rails-sandbox 4 --wait 1200
+bin/replay-github-pr rundiff-hq/customer-rails-sandbox 5 --wait 1200
+```
+
+PR #4 is the deliberate `BLOCK` regression and PR #5 is the neutral `ALLOW` case. This is not sufficient to close the cross-account acceptance criterion, but it proves the real App installation, signed webhook boundary, durable execution pipeline, remote executor, GitHub Check, and durable PR comment before moving to an external owner.
+
+The sandbox repository must be explicitly admitted by `RUNDIFF_GITHUB_REPOSITORY_ALLOWLIST`. The replay tool fails closed if the repository is not admitted or the App is not actually installed there.
+
 ## Cross-account proof
 
 After the public App is installed on a repository owned outside `rundiff-hq`, create:
