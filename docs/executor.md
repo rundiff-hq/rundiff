@@ -186,11 +186,13 @@ Authorization: Bearer <executor service token>
 
 ## Executor service role
 
-The same codebase can be deployed in a separate executor-service role. The endpoints are mounted only when:
+The same codebase can be deployed in a separate executor-service role. New deployments select it explicitly with:
 
 ```text
-RUNDIFF_EXECUTOR_SERVICE=1
+RUNDIFF_RUNTIME_ROLE=executor_service
 ```
+
+`RUNDIFF_EXECUTOR_SERVICE=1` remains a compatibility signal only when `RUNDIFF_RUNTIME_ROLE` is absent.
 
 The service accepts:
 
@@ -294,9 +296,9 @@ Repository authorization, control-plane heartbeats, finalization fencing, and co
 
 1. worker-host progress/heartbeat transport independent of the control-plane queue
 2. hard worker/container termination after cooperative cancellation
-3. generalized subject instrumentation so an arbitrary customer repository does not need RunDiff's dogfood files committed into it
+3. generalized subject instrumentation for customer stacks beyond the currently proven Rails path
 4. fork pull requests, which require an explicit multi-repository capability model rather than reusing the base-repository capability
-5. deployment isolation proving the executor role actually runs without the GitHub App private key or webhook secret
-6. a real control-plane -> executor-service E2E on separate processes or hosts using the `git_clone` adapter
 
-The live Development App infra-failure Re-run proof was completed in #35.
+Deployment isolation and a real separate-process control-plane -> executor-service `git_clone` path are no longer remaining boundaries. They are exercised by `remote_executor_topology` and the hermetic Production Lab.
+
+The live Development App infra-failure Re-run proof was completed in #35. The old workstation Development App clock-domain proof was later retired as a production gate in #51; current production acceptance is #75/#121.
