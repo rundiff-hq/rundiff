@@ -216,6 +216,59 @@ class RunDiffGithubProductionProofBundleTest < ActiveSupport::TestCase
     assert_includes error.message, "cannot use an operator replay delivery"
   end
 
+  test "rejects a signed delivery that GitHub does not report for the App" do
+    block = create_proof_record(
+      execution_id: "github-block-proof",
+      candidate_sha: "b" * 40,
+      delivery_id: "synthetic-but-plausible-guid",
+      action: "opened",
+      outcome: "block",
+      recommendation: "block",
+      created_at: Time.utc(2026, 9, 19, 10, 0, 10)
+    )
+    allow = create_proof_record(
+      execution_id: "github-allow-proof",
+      candidate_sha: "c" * 40,
+      delivery_id: "delivery-allow",
+      action: "synchronize",
+      outcome: "allow",
+      recommendation: "allow",
+      created_at: Time.utc(2026, 9, 19, 10, 0, 50)
+    )
+
+    client = FakeClient.new(
+      pull_requests: { [ REPOSITORY, PR_NUMBER ] => pull_request(allow) },
+      checks: {
+        [ REPOSITORY, block.candidate_sha, CHECK_NAME ] => [
+          check_run(
+            block,
+            id: 501,
+            conclusion: "failure",
+            completed_at: Time.utc(2026, 9, 19, 10, 0, 35)
+          )
+        ]
+      },
+      comments: {}
+    )
+    authentication = FakeAuthentication.new(
+      [],
+      [
+        github_delivery(
+          id: 702,
+          guid: "delivery-allow",
+          action: "synchronize",
+          delivered_at: Time.utc(2026, 9, 19, 10, 0, 49)
+        )
+      ]
+    )
+
+    error = assert_raises(RunDiff::Github::ProductionProofBundle::Error) do
+      build_bundle(authentication:, client:)
+    end
+
+    assert_includes error.message, "not found in recent authenticated GitHub App delivery history"
+  end
+
   test "rejects BLOCK and ALLOW executions from different candidate branches" do
     create_proof_record(
       execution_id: "github-block-proof",
