@@ -24,6 +24,69 @@ class RunDiffExecutorHttpAdapterTest < ActiveSupport::TestCase
     assert_equal payload, result.payload
   end
 
+  test "retries transient HTTP responses with the same idempotency key" do
+    success = RunDiff::Executor::HttpAdapter::Response.new(
+      status: 200,
+      body: JSON.generate(RunDiff::Executor::Result.success(payload).to_h)
+    )
+    transport = sequence_transport(
+      RunDiff::Executor::HttpAdapter::Response.new(status: 503, body: "warming"),
+      RunDiff::Executor::HttpAdapter::Response.new(status: 502, body: "warming"),
+      success
+    )
+    delays = []
+
+    result = adapter(
+      transport:,
+      retry_attempts: 3,
+      retry_base_delay: 2,
+      sleeper: ->(seconds) { delays << seconds }
+    ).call(request: executor_request)
+
+    assert result.success?
+    assert_equal [ 2.0, 4.0 ], delays
+    assert_equal 3, transport.calls.length
+    assert_equal [ "github-123:2" ], transport.calls.map { |call| call.fetch(:headers).fetch("Idempotency-Key") }.uniq
+  end
+
+  test "retries transient connect failures" do
+    success = RunDiff::Executor::HttpAdapter::Response.new(
+      status: 200,
+      body: JSON.generate(RunDiff::Executor::Result.success(payload).to_h)
+    )
+    transport = sequence_transport(Net::OpenTimeout.new("warming"), success)
+    delays = []
+
+    result = adapter(
+      transport:,
+      retry_attempts: 2,
+      retry_base_delay: 1,
+      sleeper: ->(seconds) { delays << seconds }
+    ).call(request: executor_request)
+
+    assert result.success?
+    assert_equal [ 1.0 ], delays
+    assert_equal 2, transport.calls.length
+  end
+
+  test "does not retry non-transient HTTP responses" do
+    transport = recording_transport(status: 401, body: "unauthorized")
+    delays = []
+
+    error = assert_raises(RunDiff::Executor::HttpAdapter::Error) do
+      adapter(
+        transport:,
+        retry_attempts: 5,
+        retry_base_delay: 1,
+        sleeper: ->(seconds) { delays << seconds }
+      ).call(request: executor_request)
+    end
+
+    assert_equal "Remote executor returned HTTP 401", error.message
+    assert_equal [], delays
+    assert_equal 1, transport.calls.length
+  end
+
   test "sends a repository capability only as an HTTP header" do
     transport = recording_transport(
       status: 200,
@@ -171,12 +234,21 @@ class RunDiffExecutorHttpAdapterTest < ActiveSupport::TestCase
 
   private
 
-  def adapter(transport:, repository_capability_provider: nil)
+  def adapter(
+    transport:,
+    repository_capability_provider: nil,
+    retry_attempts: 1,
+    retry_base_delay: 0,
+    sleeper: ->(_seconds) {}
+  )
     RunDiff::Executor::HttpAdapter.new(
       url: "https://executor.example.test/v1/executions",
       token: "remote-secret",
       open_timeout: 3,
       read_timeout: 120,
+      retry_attempts:,
+      retry_base_delay:,
+      sleeper:,
       transport:,
       repository_capability_provider:
     )
@@ -214,5 +286,17 @@ class RunDiffExecutorHttpAdapterTest < ActiveSupport::TestCase
       RunDiff::Executor::HttpAdapter::Response.new(status:, body:),
       []
     )
+  end
+
+  def sequence_transport(*steps)
+    Struct.new(:steps, :calls) do
+      def call(**arguments)
+        calls << arguments
+        step = steps.shift
+        raise step if step.is_a?(Exception)
+
+        step
+      end
+    end.new(steps, [])
   end
 end
