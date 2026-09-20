@@ -196,3 +196,37 @@ The deployable image and separate-process executor path are now proven. Remainin
 - arbitrary customer setup shell hooks and secret injection policy
 - non-Rails subject runtimes
 - first live production infrastructure apply, public control-plane/executor deployment, and external identity cutover (#92/#121/#75)
+
+
+## Managed executor evolution
+
+The runtime roles above describe the current production artifact and remain the current deployment contract.
+
+The accepted future managed-compute direction does not require the Rails executor-service role to remain the final host supervisor.
+
+Target evolution:
+
+~~~text
+current
+  Rails control plane
+    -> Rails executor service
+       -> proven portable Result
+
+future managed path
+  Rails control plane
+    -> Execution Plan
+    -> Go Executor / host agent
+       -> process / OCI / microVM runtime
+       -> portable Result
+~~~
+
+The migration must preserve:
+
+- control-plane authority;
+- Request/Result portability;
+- short-lived repository capability;
+- no GitHub App private key/webhook secret in the executor;
+- exact-attempt cancellation/finalization fencing;
+- source-code execution outside the control plane.
+
+See RFC 0009.
