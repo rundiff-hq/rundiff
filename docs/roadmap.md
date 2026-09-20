@@ -53,6 +53,41 @@ Definition of done: a new external Rails repository can go from **Install RunDif
 
 Timing sampling hardening from #103/#137 remains important, but it is not allowed to hide or delay this end-to-end product proof.
 
+## Vertical Slice 1.0 - Cloudflare-native production proof
+
+Selected hosted implementation:
+
+~~~text
+React + Hono Worker
+  + D1
+  + Cloudflare Workflows
+  + R2
+        |
+        v
+GitHub Actions
+  -> RunDiff Executor
+~~~
+
+Shortest path to finish:
+
+1. Cloudflare local spike: Worker + D1 + Workflow + fake executor result.
+2. Persist and render one Behavioral Review from React.
+3. Port GitHub webhook dedupe/exact identity semantics.
+4. Connect the GitHub Actions execution bridge.
+5. Deploy Worker/D1/Workflow/R2 production resources.
+6. Verify authoritative domain, then bind the production custom domain.
+7. Install the production GitHub App on an external repository.
+8. Real `pull_request/opened` -> deliberate regression -> BLOCK.
+9. Push fix to the same PR -> `synchronize` -> ALLOW.
+10. Prove stale/superseded result rejection and executor timeout -> INFRA_FAILURE.
+11. Retain exact proof identities and actual Cloudflare cost.
+
+Not required for VS1: Durable Objects, Queues, Containers executor, Rails parity, PostgreSQL, Temporal, Performance/Deep evidence, billing, RCA/causal graph.
+
+Rails remains a reference/fallback implementation rather than the hosted-v1 deployment target.
+
+See ADR 0016 and RFC 0011.
+
 ## Analysis depth guardrail
 
 RunDiff deliberately stops short of building a full investigation/ontology platform before the first production Behavioral Review proof.
