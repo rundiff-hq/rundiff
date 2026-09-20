@@ -45,7 +45,7 @@ Do not make the here.now deployment a permanent runtime dependency. A temporary 
 
 ## Gate 1 - preserve the landing
 
-Status: **implemented on the Cloudflare branch, pending build/visual verification**.
+Status: **implemented and deployed to the production Worker; browser/API verification still required from a client**.
 
 The generated landing artifact is committed as `apps/control-plane-cloudflare/src/react-app/landing.html` and rendered at `/`. The prior Behavioral Review UI remains on non-root SPA routes such as `/dashboard`.
 
@@ -175,3 +175,18 @@ same PR + fix + synchronize
 If the apex cutover fails, remove/revert only the new Custom Domain binding and continue using the verified `workers.dev` endpoint while fixing the root cause. Do not rotate GitHub App credentials as part of a domain rollback.
 
 After a stable production period, `workers_dev` may be disabled deliberately in a separate change.
+
+
+## Deployment record
+
+Production Custom Domain deployment completed successfully on 2026-09-21.
+
+~~~text
+Worker       rundiff-control-plane
+Custom domain https://rundiff.com
+Fallback      https://rundiff-control-plane.sergii-ponomarov.workers.dev
+Workflow      rundiff-behavioral-review
+Version ID    6491ac44-93c4-418f-9c9d-c1323d7edf26
+~~~
+
+The final deploy uploaded the current landing asset bundle after the public GitHub App CTA/private-repository-link cleanup. Remaining checks are client-visible root/API verification and GitHub webhook redelivery.
