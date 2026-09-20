@@ -562,3 +562,34 @@ This RFC does not define the final rundiff.yml schema, guarantee current GitHub 
 - docs/executor.md
 - docs/subject-environments.md
 - docs/github.md
+
+
+## GitHub identity versus installation
+
+RunDiff should treat two GitHub relationships separately.
+
+### User authentication
+
+Purpose:
+
+~~~text
+Who is this RunDiff user?
+~~~
+
+Use the minimum identity/profile authorization required for account/session behavior.
+
+Do not request broad repository write scope merely for configuration onboarding.
+
+### GitHub App installation
+
+Purpose:
+
+~~~text
+Which repositories may RunDiff observe/review?
+~~~
+
+Repository access comes from the GitHub App installation and its selected repositories/permissions.
+
+This separation means a user can sign in to the RunDiff control panel without automatically granting RunDiff repository access, and repository access can be installed/revoked independently of user login.
+
+Configuration PR creation remains a browser handoff to GitHub under the user's existing GitHub session rather than a reason to persist a broad OAuth repository-write token.
