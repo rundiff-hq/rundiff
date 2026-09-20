@@ -1,0 +1,26 @@
+id: resource.cpu.time.regression
+title: CPU time increased
+kind: regression
+
+legacy_reason_codes:
+  - CPU_TIME_REGRESSION
+
+signal: process.cpu.time
+
+facets:
+  domains:
+    - runtime
+  quality_dimensions:
+    - performance_efficiency
+  resources:
+    - cpu
+
+default_severity: medium
+
+comparison:
+  direction: increase
+  threshold_percent: 30
+  threshold_absolute_ms: 10
+
+notes:
+  - Request and worker scopes may use the same rule with different scope metadata.
