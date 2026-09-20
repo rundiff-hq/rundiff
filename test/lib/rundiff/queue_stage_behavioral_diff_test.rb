@@ -27,6 +27,7 @@ class RunDiffQueueStageBehavioralDiffTest < ActiveSupport::TestCase
     assert_not result.dig("signals", "queue_wait_ms", "decision_relevant")
     assert result.dig("signals", "dispatch_wait_ms", "regression")
     assert_equal [ "DISPATCH_WAIT_REGRESSION" ], result.fetch("findings").map { |finding| finding.fetch("reason_code") }
+    assert_equal [ "async.dispatch.wait.regression" ], result.fetch("findings").map { |finding| finding.fetch("rule_id") }
     assert_equal "dispatch_wait_regression", result.dig("runtime_diagnosis", "async_delta", "classification")
   end
 
