@@ -1,4 +1,5 @@
 export type ReviewStatus =
+  | "superseded"
   | "starting"
   | "waiting_for_executor"
   | "completed"

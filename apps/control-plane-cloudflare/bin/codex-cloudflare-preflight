@@ -66,7 +66,12 @@ say "Workflows list" "ok"
 
 echo
 echo "Local project checks:"
+if [[ ! -f wrangler.jsonc ]]; then
+  echo "Missing local wrangler.jsonc; refusing a frontend-only build."
+  exit 4
+fi
 npm run typecheck
+npm test
 npm run build
 
 echo

@@ -1,3 +1,6 @@
+import { D1GitHubRepository } from "../adapters/d1/github-repository";
+import { GitHubClient } from "../adapters/github/client";
+import { parsePullRequest, verifyWebhook } from "../domain/github";
 import { Hono } from "hono";
 
 import { D1ExecutionRepository } from "../adapters/d1/execution-repository";
@@ -35,7 +38,91 @@ app.get("/api/ready", async (c) => {
   return c.json({ ok: true, d1: "ready" });
 });
 
+app.post("/api/github/webhooks", async (c) => {
+  if (!c.env.RUNDIFF_GITHUB_WEBHOOK_SECRET)
+    return c.json({ error: "GitHub webhook is not configured" }, 503);
+  const raw = await c.req.text();
+  if (
+    !(await verifyWebhook(
+      raw,
+      c.req.header("x-hub-signature-256"),
+      c.env.RUNDIFF_GITHUB_WEBHOOK_SECRET,
+    ))
+  )
+    return c.json({ error: "invalid signature" }, 401);
+  if (c.req.header("x-github-event") !== "pull_request")
+    return c.json({ status: "ignored" }, 202);
+  const deliveryId = c.req.header("x-github-delivery");
+  if (!deliveryId || !/^[a-zA-Z0-9-]{1,100}$/.test(deliveryId))
+    return c.json({ error: "invalid delivery ID" }, 422);
+  let identity;
+  try {
+    identity = parsePullRequest(JSON.parse(raw), deliveryId);
+  } catch {
+    return c.json({ error: "invalid or unsupported pull request" }, 422);
+  }
+  if (!identity) return c.json({ status: "ignored" }, 202);
+  if (
+    !c.env.RUNDIFF_GITHUB_APP_ID ||
+    !c.env.RUNDIFF_GITHUB_APP_PRIVATE_KEY ||
+    !c.env.RUNDIFF_GITHUB_SCENARIO_ID
+  )
+    return c.json(
+      { error: "GitHub App and proof scenario are not configured" },
+      503,
+    );
+  const github = await GitHubClient.installation(
+    c.env,
+    identity.installationId,
+    identity.repositoryId,
+  );
+  if (
+    !(await github.current(
+      identity.repository,
+      identity.pullRequestNumber,
+      identity.candidateSha,
+    ))
+  )
+    return c.json({ status: "stale" }, 202);
+  const repo = new D1GitHubRepository(c.env.DB);
+  const accepted = await repo.accept(
+    identity,
+    await canonicalDigest(JSON.parse(raw)),
+    c.env.RUNDIFF_GITHUB_SCENARIO_ID,
+    Number(c.env.RUNDIFF_EXECUTOR_TIMEOUT_SECONDS ?? 1800),
+  );
+  if (await repo.current(accepted.executionId)) {
+    // Idempotent recovery when the database commit succeeded but Workflow creation did not.
+    const instance = await c.env.REVIEW_WORKFLOW.get(accepted.reviewId);
+    let exists = false;
+    try {
+      await instance.status();
+      exists = true;
+    } catch {
+      /* A missing instance must be created. */
+    }
+    if (!exists)
+      await c.env.REVIEW_WORKFLOW.create({
+        id: accepted.reviewId,
+        params: {
+          reviewId: accepted.reviewId,
+          executionId: accepted.executionId,
+          attemptNumber: 1,
+        },
+      });
+  }
+  return c.json(accepted, 202);
+});
+
 app.post("/api/spike/reviews", async (c) => {
+  if (
+    !(await tokenAuthorized(
+      c.req.header("authorization"),
+      c.env.RUNDIFF_SPIKE_TOKEN,
+    ))
+  ) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
   const body = await c.req.json<CreateSpikeReviewBody>();
 
   if (
@@ -97,7 +184,12 @@ app.get("/api/reviews/:id", async (c) => {
 });
 
 app.post("/api/execution-bridges/github-actions/claim", async (c) => {
-  if (!bridgeAuthorized(c.req.header("authorization"), c.env)) {
+  if (
+    !(await tokenAuthorized(
+      c.req.header("authorization"),
+      c.env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN,
+    ))
+  ) {
     return c.json({ error: "unauthorized" }, 401);
   }
 
@@ -130,7 +222,12 @@ app.post("/api/execution-bridges/github-actions/claim", async (c) => {
 app.post(
   "/api/executions/:executionId/attempts/:attemptNumber/result",
   async (c) => {
-    if (!bridgeAuthorized(c.req.header("authorization"), c.env)) {
+    if (
+      !(await tokenAuthorized(
+        c.req.header("authorization"),
+        c.env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN,
+      ))
+    ) {
       return c.json({ error: "unauthorized" }, 401);
     }
 
@@ -148,8 +245,11 @@ app.post(
     }
 
     const executionId = c.req.param("executionId");
-    const attemptNumber = Number.parseInt(c.req.param("attemptNumber"), 10);
-    if (!Number.isInteger(attemptNumber)) {
+    const attemptNumber = Number(c.req.param("attemptNumber"));
+    if (
+      !/^[1-9][0-9]*$/.test(c.req.param("attemptNumber")) ||
+      !Number.isSafeInteger(attemptNumber)
+    ) {
       return c.json({ error: "invalid attempt number" }, 422);
     }
 
@@ -179,7 +279,10 @@ app.post(
     );
     if (!review) return c.json({ error: "review not found" }, 404);
 
-    if (execution.status !== "completed" && execution.status !== "infra_failure") {
+    if (
+      execution.status !== "completed" &&
+      execution.status !== "infra_failure"
+    ) {
       const instance = await c.env.REVIEW_WORKFLOW.get(
         review.workflowInstanceId,
       );
@@ -193,19 +296,39 @@ app.post(
       });
     }
 
-    return c.json({ status: state === "duplicate" ? "duplicate" : "accepted" }, 202);
+    return c.json(
+      { status: state === "duplicate" ? "duplicate" : "accepted" },
+      202,
+    );
   },
 );
 
 export default app;
 
-function bridgeAuthorized(
+async function tokenAuthorized(
   authorization: string | undefined,
-  env: Env,
-): boolean {
-  const token = env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN;
-  if (!token) return false;
-  return authorization === `Bearer ${token}`;
+  token: string | undefined,
+): Promise<boolean> {
+  if (!token || !authorization) return false;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(token),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(`Bearer ${token}`),
+  );
+  return crypto.subtle.verify(
+    "HMAC",
+    key,
+    signature,
+    encoder.encode(authorization),
+  );
 }
 
 async function canonicalDigest(value: unknown): Promise<string> {

@@ -111,6 +111,8 @@ export class D1ExecutionRepository {
            AND baseline_sha = ?
            AND candidate_sha = ?
            AND status = 'available'
+           AND (expires_at IS NULL OR expires_at > ?)
+           AND (installation_id IS NULL OR review_id IN (SELECT review_id FROM github_pull_requests))
          ORDER BY created_at DESC
          LIMIT 1`,
       )
@@ -119,6 +121,7 @@ export class D1ExecutionRepository {
         input.pullRequestNumber,
         input.baselineSha,
         input.candidateSha,
+        input.now,
       )
       .first<ExecutionRow>();
 
@@ -128,9 +131,9 @@ export class D1ExecutionRepository {
       .prepare(
         `UPDATE executions
          SET status = 'claimed', updated_at = ?
-         WHERE id = ? AND status = 'available'`,
+         WHERE id = ? AND status = 'available' AND (expires_at IS NULL OR expires_at > ?) AND (installation_id IS NULL OR review_id IN (SELECT review_id FROM github_pull_requests))`,
       )
-      .bind(input.now, row.id)
+      .bind(input.now, row.id, input.now)
       .run();
 
     if ((update.meta.changes ?? 0) !== 1) return null;
@@ -165,7 +168,9 @@ export class D1ExecutionRepository {
          WHERE id = ?
            AND attempt_number = ?
            AND status = 'claimed'
-           AND result_digest IS NULL`,
+           AND result_digest IS NULL
+           AND (expires_at IS NULL OR expires_at > ?)
+           AND (installation_id IS NULL OR review_id IN (SELECT review_id FROM github_pull_requests))`,
       )
       .bind(
         JSON.stringify(input.result),
@@ -173,28 +178,52 @@ export class D1ExecutionRepository {
         input.now,
         input.executionId,
         input.attemptNumber,
+        input.now,
       )
       .run();
 
-    return (update.meta.changes ?? 0) === 1 ? "accepted" : "not_live";
+    if ((update.meta.changes ?? 0) === 1) return "accepted";
+    const raced = await this.get(input.executionId);
+    return raced?.resultDigest
+      ? raced.resultDigest === input.digest
+        ? "duplicate"
+        : "conflict"
+      : "not_live";
   }
 
-  async markTerminal(
+  async finalize(
     executionId: string,
     attemptNumber: number,
-    status: "completed" | "infra_failure",
+    decision: string,
+    result: unknown,
     now: string,
   ): Promise<void> {
-    await this.db
-      .prepare(
-        `UPDATE executions
-         SET status = ?, updated_at = ?
-         WHERE id = ?
-           AND attempt_number = ?
-           AND status IN ('available', 'claimed', 'result_received', 'completed', 'infra_failure')`,
-      )
-      .bind(status, now, executionId, attemptNumber)
-      .run();
+    const status = decision === "INFRA_FAILURE" ? "infra_failure" : "completed";
+    await this.db.batch([
+      this.db
+        .prepare(
+          `UPDATE executions SET status=?,updated_at=? WHERE id=? AND attempt_number=?
+        AND status IN ('available','claimed','result_received')
+        AND (installation_id IS NULL OR review_id IN (SELECT review_id FROM github_pull_requests))`,
+        )
+        .bind(status, now, executionId, attemptNumber),
+      this.db
+        .prepare(
+          `UPDATE behavioral_reviews SET status=?,decision=?,result_json=?,updated_at=?
+        WHERE id=(SELECT review_id FROM executions WHERE id=? AND attempt_number=? AND status=? AND updated_at=?)
+        AND status IN ('starting','waiting_for_executor')`,
+        )
+        .bind(
+          status,
+          decision,
+          JSON.stringify(result),
+          now,
+          executionId,
+          attemptNumber,
+          status,
+          now,
+        ),
+    ]);
   }
 }
 

@@ -17,3 +17,4 @@
 /apps/control-plane-cloudflare/dist/
 /apps/control-plane-cloudflare/.wrangler/
 /apps/control-plane-cloudflare/wrangler.jsonc
+/apps/control-plane-cloudflare/.dev.vars*

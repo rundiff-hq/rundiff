@@ -57,7 +57,7 @@ export class D1ReviewRepository implements ReviewRepository {
   async markWaiting(id: string, now: string): Promise<void> {
     await this.db
       .prepare(
-        "UPDATE behavioral_reviews SET status = 'waiting_for_executor', updated_at = ? WHERE id = ?",
+        "UPDATE behavioral_reviews SET status = 'waiting_for_executor', updated_at = ? WHERE id = ? AND status = 'starting'",
       )
       .bind(now, id)
       .run();
@@ -73,7 +73,7 @@ export class D1ReviewRepository implements ReviewRepository {
       .prepare(
         `UPDATE behavioral_reviews
          SET status = ?, decision = ?, result_json = ?, updated_at = ?
-         WHERE id = ?`,
+         WHERE id = ? AND status IN ('starting', 'waiting_for_executor')`,
       )
       .bind(
         decision === "INFRA_FAILURE" ? "infra_failure" : "completed",

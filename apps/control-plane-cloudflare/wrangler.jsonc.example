@@ -4,7 +4,8 @@
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-09-20",
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": { "enabled": true }
   },
   "assets": {
     "not_found_handling": "single-page-application"

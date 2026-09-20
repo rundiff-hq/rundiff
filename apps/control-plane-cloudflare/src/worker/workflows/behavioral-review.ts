@@ -3,7 +3,7 @@ import {
   type WorkflowEvent,
   type WorkflowStep,
 } from "cloudflare:workers";
-
+import { publishReview } from "../../adapters/github/publication";
 import { D1ExecutionRepository } from "../../adapters/d1/execution-repository";
 import { D1ReviewRepository } from "../../adapters/d1/review-repository";
 import {
@@ -17,7 +17,6 @@ export type BehavioralReviewWorkflowParams = {
   executionId: string;
   attemptNumber: number;
 };
-
 type ExecutorResultEvent = {
   executionId: string;
   attemptNumber: number;
@@ -33,90 +32,77 @@ export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
     step: WorkflowStep,
   ) {
     const { reviewId, executionId, attemptNumber } = event.payload;
-
-    await step.do("mark waiting for executor", async () => {
-      const reviews = new D1ReviewRepository(this.env.DB);
-      await reviews.markWaiting(reviewId, new Date().toISOString());
-    });
-
     try {
+      await step.do("mark waiting for executor", async () => {
+        await new D1ReviewRepository(this.env.DB).markWaiting(
+          reviewId,
+          new Date().toISOString(),
+        );
+      });
       const resultEvent = await step.waitForEvent<ExecutorResultEvent>(
         "wait for executor result",
         {
           type: "executor-result",
-          timeout: "30 minutes",
+          timeout: this.env.RUNDIFF_EXECUTOR_TIMEOUT_SECONDS
+            ? `${Number(this.env.RUNDIFF_EXECUTOR_TIMEOUT_SECONDS)} seconds`
+            : "30 minutes",
         },
       );
-
-      const payload =
-        "payload" in resultEvent
-          ? (resultEvent.payload as ExecutorResultEvent)
-          : (resultEvent as unknown as ExecutorResultEvent);
-
+      const payload = resultEvent.payload;
       if (
         payload.executionId !== executionId ||
         payload.attemptNumber !== attemptNumber
-      ) {
+      )
         throw new Error("executor result identity mismatch");
-      }
-
-      const result = validateWorkflowExecutorResult(payload.resultJson);
-      const decision = decisionFromExecutorResult(result);
-
+      const result = validateExecutorResult(JSON.parse(payload.resultJson));
       await step.do("finalize review", async () => {
-        const now = new Date().toISOString();
-        const reviews = new D1ReviewRepository(this.env.DB);
         const executions = new D1ExecutionRepository(this.env.DB);
-
-        await reviews.finalize(reviewId, decision, result, now);
-        await executions.markTerminal(
+        const stored = await executions.get(executionId);
+        // Events are wakeups; only the result accepted by the durable bridge is authoritative.
+        if (
+          !stored?.result ||
+          JSON.stringify(stored.result) !== JSON.stringify(result)
+        )
+          throw new Error("executor result is not durably accepted");
+        await executions.finalize(
           executionId,
           attemptNumber,
-          decision === "INFRA_FAILURE" ? "infra_failure" : "completed",
-          now,
+          decisionFromExecutorResult(stored.result),
+          stored.result,
+          new Date().toISOString(),
         );
       });
-
-      return { reviewId, executionId, attemptNumber, decision };
     } catch (error) {
       await step.do("mark executor timeout or lifecycle failure", async () => {
-        const now = new Date().toISOString();
-        const reviews = new D1ReviewRepository(this.env.DB);
-        const executions = new D1ExecutionRepository(this.env.DB);
-
-        const failure = {
-          code: "EXECUTOR_RESULT_TIMEOUT_OR_LIFECYCLE_FAILURE",
-          message:
-            error instanceof Error ? error.message : "executor lifecycle failure",
-        };
-
-        await reviews.finalize(reviewId, "INFRA_FAILURE", failure, now);
-        await executions.markTerminal(
+        await new D1ExecutionRepository(this.env.DB).finalize(
           executionId,
           attemptNumber,
-          "infra_failure",
-          now,
+          "INFRA_FAILURE",
+          {
+            code: "EXECUTOR_RESULT_TIMEOUT_OR_LIFECYCLE_FAILURE",
+            message:
+              error instanceof Error
+                ? error.message
+                : "executor lifecycle failure",
+          },
+          new Date().toISOString(),
         );
       });
-
-      return {
-        reviewId,
-        executionId,
-        attemptNumber,
-        decision: "INFRA_FAILURE" as const,
-      };
     }
+    // Publication failures retry independently; they cannot rewrite a completed decision.
+    await step.do("publish GitHub review", async () =>
+      publishReview(this.env.DB, this.env, executionId),
+    );
+    const review = await step.do("read durable outcome", async () => {
+      const r = await new D1ReviewRepository(this.env.DB).get(reviewId);
+      return { decision: r?.decision ?? null, status: r?.status ?? null };
+    });
+    return {
+      reviewId,
+      executionId,
+      attemptNumber,
+      decision: review?.decision,
+      status: review?.status,
+    };
   }
-}
-
-function validateWorkflowExecutorResult(resultJson: string) {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(resultJson);
-  } catch {
-    throw new Error("executor result event contains invalid JSON");
-  }
-
-  return validateExecutorResult(parsed);
 }

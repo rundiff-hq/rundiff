@@ -239,7 +239,7 @@ class RunDiffExecutorHttpAdapterTest < ActiveSupport::TestCase
     repository_capability_provider: nil,
     retry_attempts: 1,
     retry_base_delay: 0,
-    sleeper: ->(_seconds) {}
+    sleeper: ->(_seconds) { }
   )
     RunDiff::Executor::HttpAdapter.new(
       url: "https://executor.example.test/v1/executions",
