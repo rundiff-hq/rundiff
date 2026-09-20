@@ -8,11 +8,11 @@ class HomeController < ApplicationController
     onboarding_cta = if RunDiff::Runtime::Role.from_env.control_plane?
       <<~HTML
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin:32px 0">
-          <a href="#{onboarding_path}" style="display:inline-block;background:#161616;color:white;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px">
-            Run your first diff
-          </a>
-          <a href="#sample-diff" style="display:inline-block;border:1px solid #bbb;color:#161616;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px">
+          <a href="#sample-diff" style="display:inline-block;background:#161616;color:white;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px">
             See a sample diff
+          </a>
+          <a href="#{onboarding_path}" style="display:inline-block;border:1px solid #bbb;color:#161616;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px">
+            View onboarding
           </a>
         </div>
       HTML
