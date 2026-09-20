@@ -11,3 +11,9 @@
 !.env.example
 /deploy/production/.secrets/
 .DS_Store
+
+# Cloudflare Control Plane local/build state
+/apps/control-plane-cloudflare/node_modules/
+/apps/control-plane-cloudflare/dist/
+/apps/control-plane-cloudflare/.wrangler/
+/apps/control-plane-cloudflare/wrangler.jsonc
