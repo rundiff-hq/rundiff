@@ -16,8 +16,9 @@ Environment prefix  RUNDIFF_
 Production URL      https://rundiff.com
 Production webhook  https://rundiff.com/api/github/webhooks
 Control plane       implementation-independent; Cloudflare-native selected for production v1
-Hosted endpoint     workers.dev verified; rundiff.com custom-domain cutover pending landing promotion
-Landing reference   https://oaken-rapids-g7ze.here.now (temporary pre-cutover site)
+Hosted endpoint     workers.dev verified; rundiff.com custom-domain cutover pending deploy/verification
+Landing source      committed into Cloudflare app root from the generated landing artifact
+Landing reference   https://oaken-rapids-g7ze.here.now (temporary pre-cutover deployment)
 Executor             GitHub Actions first; managed providers later
 Rails image          ghcr.io/rundiff-hq/rundiff (reference/fallback implementation)
 ```
@@ -120,7 +121,7 @@ These are the actual current production blockers:
 1. configure the deployed Worker with the production GitHub App credentials and
    proof scenario;
 2. complete the GitHub Actions workflow against the deployed bridge;
-3. promote/preserve the current landing experience at the confirmed `rundiff.com` root and bind the Worker Custom Domain;
+3. verify the promoted landing build locally, then bind and verify the `rundiff.com` Worker Custom Domain;
 4. complete the external GitHub App identity cutover to `RunDiff Checks`;
 5. install the public App on a repository/account outside `rundiff-hq`;
 6. execute the GitHub-originated same-PR BLOCK -> fix -> ALLOW flow;

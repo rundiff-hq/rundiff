@@ -1,6 +1,7 @@
 // Production cutover template.
-// Do not deploy this until the landing experience intended for https://rundiff.com/
-// is served by this Worker. Keep workers.dev enabled through first verification.
+// Production custom-domain config for the existing RunDiff Cloudflare resources.
+// The landing artifact is now served at / on this branch. Verify typecheck/build locally
+// before the first apex deploy. Keep workers.dev enabled through first verification.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "rundiff-control-plane",
@@ -19,7 +20,7 @@
     {
       "binding": "DB",
       "database_name": "rundiff-control-plane",
-      "database_id": "<D1_DATABASE_ID>",
+      "database_id": "c794e38c-487b-4574-a8b6-e43504ff472e",
       "migrations_dir": "migrations"
     }
   ],

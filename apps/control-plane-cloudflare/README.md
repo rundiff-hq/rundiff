@@ -197,9 +197,9 @@ The current landing-page reference is temporarily hosted at:
 https://oaken-rapids-g7ze.here.now
 ~~~
 
-Do not bind the apex Custom Domain until the landing experience has been promoted into this Worker (preferred) or an explicit temporary proxy strategy has been accepted. Binding `rundiff.com` today would otherwise replace the public landing page with the current internal Behavioral Review UI.
+The landing artifact used for the current public design is now committed into the Cloudflare app and rendered at `/`; the internal Behavioral Review UI remains available on non-root SPA routes such as `/dashboard`.
 
-For the production cutover, copy `wrangler.production.jsonc.example` to the ignored `wrangler.production.jsonc`, fill the real D1/account-specific values, verify the landing root, then deploy. Keep `workers.dev` enabled as a rollback endpoint until the custom-domain health checks and GitHub webhook redelivery are green.
+Before the first apex bind, run typecheck/build locally and visually verify `/` against the current landing. Then copy `wrangler.production.jsonc.example` to the ignored `wrangler.production.jsonc` and deploy. Keep `workers.dev` enabled as a rollback endpoint until the custom-domain health checks and GitHub webhook redelivery are green.
 
 See:
 - `docs/production-domain-cutover.md`

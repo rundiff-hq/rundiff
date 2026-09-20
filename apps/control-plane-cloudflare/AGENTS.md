@@ -170,7 +170,7 @@ The authoritative production domain is `rundiff.com`.
 
 The production GitHub App is `RunDiff Checks` with slug `rundiff-checks`.
 
-The current public landing reference is `https://oaken-rapids-g7ze.here.now`. Before binding the Worker Custom Domain at the apex, preserve that landing experience at `/` so the cutover does not expose the internal Review UI as the marketing homepage.
+The current public landing reference is `https://oaken-rapids-g7ze.here.now`. Its generated landing artifact is now committed under `src/react-app/landing.html` and rendered at `/`. Before binding the Worker Custom Domain at the apex, verify the local/preview root visually and ensure non-root product routes still render the Review UI.
 
 Target production webhook: `https://rundiff.com/api/github/webhooks`.
 

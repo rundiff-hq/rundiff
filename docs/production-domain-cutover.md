@@ -45,9 +45,11 @@ Do not make the here.now deployment a permanent runtime dependency. A temporary 
 
 ## Gate 1 - preserve the landing
 
-Before binding the apex, promote the current landing design/source into `apps/control-plane-cloudflare` and make `/` render it.
+Status: **implemented on the Cloudflare branch, pending build/visual verification**.
 
-The current Cloudflare React root is an internal Behavioral Review screen. Binding the apex before this gate would replace the public site with the wrong UI.
+The generated landing artifact is committed as `apps/control-plane-cloudflare/src/react-app/landing.html` and rendered at `/`. The prior Behavioral Review UI remains on non-root SPA routes such as `/dashboard`.
+
+Before binding the apex, verify that the landing matches the intended public site and that the review route still works.
 
 Expected before DNS/domain mutation:
 
@@ -74,7 +76,7 @@ cd apps/control-plane-cloudflare
 cp wrangler.production.jsonc.example wrangler.production.jsonc
 ~~~
 
-Fill the real D1 database ID and any account-specific non-secret configuration.
+The sanitized production template already contains the existing production D1 database ID. Review account/profile selection and do not add secrets to the file.
 
 The production template uses:
 
