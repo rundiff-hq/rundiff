@@ -188,7 +188,7 @@ app.post(
         payload: {
           executionId,
           attemptNumber,
-          result,
+          resultJson: JSON.stringify(result),
         },
       });
     }
