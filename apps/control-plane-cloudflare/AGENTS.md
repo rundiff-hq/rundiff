@@ -106,8 +106,8 @@ Do NOT:
 - change account billing/subscription;
 - delete unrelated Cloudflare resources;
 - alter WAF, Zero Trust, DNS, tunnels, email routing, or zones;
-- bind a production custom domain;
-- mutate DNS until the user explicitly confirms the authoritative RunDiff domain;
+- bind the production custom domain before the current landing experience is preserved at the apex;
+- mutate unrelated DNS records or replace an existing production origin without an explicit cutover plan;
 - expose or print credentials/tokens/private keys;
 - commit wrangler.jsonc containing account-specific secrets;
 - commit .dev.vars or secret material.
@@ -162,3 +162,16 @@ Do not add these before VS1 requires them:
 - preserve Rails implementation as reference/fallback;
 - prefer explicit tests over prose assertions;
 - never hide a failed check.
+
+
+## Confirmed production identity
+
+The authoritative production domain is `rundiff.com`.
+
+The production GitHub App is `RunDiff Checks` with slug `rundiff-checks`.
+
+The current public landing reference is `https://oaken-rapids-g7ze.here.now`. Before binding the Worker Custom Domain at the apex, preserve that landing experience at `/` so the cutover does not expose the internal Review UI as the marketing homepage.
+
+Target production webhook: `https://rundiff.com/api/github/webhooks`.
+
+Keep the verified `workers.dev` endpoint enabled through the first custom-domain verification and GitHub webhook redelivery so rollback remains trivial.

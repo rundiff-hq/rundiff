@@ -52,7 +52,7 @@ class RunDiffGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
 
   test "uses the production RunDiff bot login by default" do
     assert_equal(
-      "rundiff[bot]",
+      "rundiff-checks[bot]",
       RunDiff::Github::PullRequestExecutionPublisher::DEFAULT_BOT_LOGIN
     )
   end

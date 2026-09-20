@@ -111,12 +111,16 @@ Rules:
 - keep expected platform cost <= USD 10/month;
 - do not change account plan/billing;
 - do not delete unrelated resources;
-- do not touch DNS/WAF/Zero Trust/Tunnels/Email Routing;
-- do not bind a custom domain yet;
+- do not touch unrelated DNS/WAF/Zero Trust/Tunnels/Email Routing;
+- the authoritative production domain is confirmed as `rundiff.com`;
+- do not bind the apex until the current landing experience is preserved at `/`;
+- keep the verified `workers.dev` endpoint during the first custom-domain cutover;
 - do not expose secret values in logs;
 - do not commit secret material.
 
-The authoritative production domain is unresolved. Historical repo docs say `rundiff.com`; prior planning also mentioned `rundiv.com`. Stop before any DNS/custom-domain mutation and ask the user to confirm the authoritative domain.
+Production GitHub App identity is `RunDiff Checks` (slug `rundiff-checks`). The target production webhook is `https://rundiff.com/api/github/webhooks`.
+
+The current landing reference is `https://oaken-rapids-g7ze.here.now`. Do not replace it with the internal Review UI during the domain cutover.
 
 Create a real local `wrangler.jsonc` if required, but keep account-specific/generated local config uncommitted unless it is intentionally sanitized and portable.
 

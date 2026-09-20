@@ -102,7 +102,7 @@ Create:
 - Worker secrets;
 - GitHub App production secrets.
 
-Do not bind/mutate a production custom domain until the authoritative domain is verified.
+The authoritative production domain is confirmed as `rundiff.com`. Bind it only after the current landing experience is preserved at the apex; keep the verified `workers.dev` endpoint during the first cutover.
 
 Budget guardrail: target <= USD 10/month; expected idle/low-volume platform cost near the Workers Paid base price.
 

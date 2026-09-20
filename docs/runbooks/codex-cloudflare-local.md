@@ -168,11 +168,25 @@ Workflow   rundiff-behavioral-review
 
 Inspect before create.
 
-## 10. DNS stop line
+## 10. Production domain cutover
 
-Do not bind a custom domain or change DNS until the authoritative RunDiff production domain has been explicitly confirmed.
+The authoritative production domain is confirmed as:
 
-The repository contains historical references to `rundiff.com`; prior conversation also surfaced `rundiv.com`. Treat this as unresolved until explicitly confirmed.
+~~~text
+rundiff.com
+~~~
+
+Use a Cloudflare Worker Custom Domain, not a Tunnel, for the Cloudflare-native Control Plane when the Worker is the origin.
+
+Before binding the apex, preserve the current landing experience referenced by `https://oaken-rapids-g7ze.here.now`. The current Worker root is an internal Behavioral Review UI, so an immediate apex bind would be a visible regression.
+
+Target webhook after cutover:
+
+~~~text
+https://rundiff.com/api/github/webhooks
+~~~
+
+Keep the `workers.dev` endpoint enabled until apex health/readiness and a real GitHub webhook redelivery are verified. See `docs/production-domain-cutover.md`.
 
 ## Useful Cloudflare commands
 

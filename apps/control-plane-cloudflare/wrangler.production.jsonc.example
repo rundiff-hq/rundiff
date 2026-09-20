@@ -1,0 +1,46 @@
+// Production cutover template.
+// Do not deploy this until the landing experience intended for https://rundiff.com/
+// is served by this Worker. Keep workers.dev enabled through first verification.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rundiff-control-plane",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-09-20",
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  },
+  "assets": {
+    "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rundiff-control-plane",
+      "database_id": "<D1_DATABASE_ID>",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "rundiff-artifacts"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "REVIEW_WORKFLOW",
+      "name": "rundiff-behavioral-review",
+      "class_name": "BehavioralReviewWorkflow"
+    }
+  ],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "rundiff.com",
+      "custom_domain": true
+    }
+  ]
+}

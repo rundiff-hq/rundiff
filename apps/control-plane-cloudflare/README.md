@@ -171,15 +171,38 @@ Never commit GitHub App private keys, webhook secrets, API tokens, or real Wrang
 
 ## Production
 
-Do not bind a custom domain until the authoritative RunDiff production domain is explicitly verified.
+The authoritative production domain is confirmed:
 
-The verified spike deployment uses the default Workers hostname:
+~~~text
+https://rundiff.com
+~~~
+
+Production GitHub App:
+
+~~~text
+RunDiff Checks
+slug: rundiff-checks
+webhook: https://rundiff.com/api/github/webhooks
+~~~
+
+The verified spike remains available at:
 
 ~~~text
 https://rundiff-control-plane.sergii-ponomarov.workers.dev
 ~~~
 
+The current landing-page reference is temporarily hosted at:
+
+~~~text
+https://oaken-rapids-g7ze.here.now
+~~~
+
+Do not bind the apex Custom Domain until the landing experience has been promoted into this Worker (preferred) or an explicit temporary proxy strategy has been accepted. Binding `rundiff.com` today would otherwise replace the public landing page with the current internal Behavioral Review UI.
+
+For the production cutover, copy `wrangler.production.jsonc.example` to the ignored `wrangler.production.jsonc`, fill the real D1/account-specific values, verify the landing root, then deploy. Keep `workers.dev` enabled as a rollback endpoint until the custom-domain health checks and GitHub webhook redelivery are green.
+
 See:
+- `docs/production-domain-cutover.md`
 - ADR 0016
 - RFC 0011
 - docs/implementation-plans/0002-cloudflare-control-plane-v1.md

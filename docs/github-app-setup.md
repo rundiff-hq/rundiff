@@ -1,116 +1,90 @@
 # GitHub App setup
 
-RunDiff keeps one manifest per environment under version control:
+RunDiff uses separate GitHub App identities by environment.
 
-- `.github/app-manifest.development.json` for `RunDiff Development`
-- `.github/app-manifest.staging.json` for `RunDiff Staging`
-- `.github/app-manifest.json` for production `RunDiff`
+- Development: `RunDiff Development`
+- Staging: `RunDiff Staging`
+- Production: **`RunDiff Checks`**
+- Production App slug: **`rundiff-checks`**
+- Owner: **`rundiff-hq`**
 
-All manifests use `{{RUNDIFF_PUBLIC_URL}}` for callback and webhook URLs. The Rails bootstrap page resolves that placeholder at runtime.
+The production App already exists. Do not create a second production App from the manifest launcher.
 
-## Unified launcher
+## Production identity
 
-From the repository root:
+Canonical production settings:
 
-```bash
-bash bin/setup-github-app
-```
+~~~text
+App name       RunDiff Checks
+Homepage       https://rundiff.com
+Webhook        https://rundiff.com/api/github/webhooks
+Setup URL      blank until hosted onboarding is implemented
+OAuth on install disabled
+Device Flow    disabled
+~~~
 
-The launcher asks which environment to configure:
+The production `.github/app-manifest.json` is kept as a declarative settings snapshot for the existing App. It is not the creation path for a second production App.
 
-```text
-1) Development
-2) Staging
-3) Production
-```
+The Cloudflare-native production webhook path is:
 
-You can also select the environment non-interactively:
+~~~text
+POST /api/github/webhooks
+~~~
 
-```bash
+The Rails reference/fallback implementation still has its historical `POST /github/webhooks` route. Do not use that path for the Cloudflare production App.
+
+## Development and staging bootstrap
+
+The Rails bootstrap launcher remains useful for Development and Staging:
+
+~~~bash
 bash bin/setup-github-app development
 bash bin/setup-github-app staging
-bash bin/setup-github-app production
-```
+~~~
 
-The launcher verifies the project Ruby through `mise`, installs dependencies when needed, prepares PostgreSQL, starts the Rails bootstrap UI, starts or connects a Cloudflare Tunnel, verifies local and public health checks, and opens `/github/app/register`.
+Those manifests use `{{RUNDIFF_PUBLIC_URL}}` and the Rails manifest callback flow. Development may use a Quick Tunnel. Staging should use a stable public URL.
 
-Development may use a Quick Tunnel when `api.trycloudflare.com` is reachable. Staging and production never use Quick Tunnels automatically and require a stable named tunnel or an explicitly supplied external public URL.
-
-Useful overrides:
-
-```bash
-RUNDIFF_PUBLIC_URL=https://github-dev.example.com bash bin/setup-github-app development
-RUNDIFF_TUNNEL_MODE=named bash bin/setup-github-app staging
-RUNDIFF_TUNNEL_MODE=external RUNDIFF_PUBLIC_URL=https://app.example.com bash bin/setup-github-app production
-```
-
-Supported tunnel modes are `auto`, `quick`, `named`, and `external`. `quick` is restricted to Development.
-
-## GitHub App registration
-
-After the public endpoint is healthy, the launcher opens:
-
-```text
-https://<public-host>/github/app/register
-```
-
-The page renders the selected manifest and posts it to the GitHub organization App registration flow using a CSRF `state` value. GitHub redirects back to:
-
-```text
-/github/app/manifest/callback?code=...&state=...
-```
-
-RunDiff exchanges the one-time manifest code for the App credentials.
-
-Development credentials are persisted locally under ignored `tmp/github-app/` files so the local webhook receiver can continue immediately. Staging and production credentials are shown on the callback page and must be saved to the target secret store.
+Do not run the production launcher to replace or duplicate the existing `RunDiff Checks` App.
 
 ## Permissions and events
 
-All three manifests currently grant:
+The current App contract is:
 
-```text
+~~~text
 Checks        read/write
 Contents      read
 Pull requests read/write
-```
+~~~
 
-and subscribe to:
+Subscribed events:
 
-```text
+~~~text
 pull_request
 check_run
-```
+~~~
 
-GitHub installation lifecycle deliveries are sent to GitHub Apps independently of the explicit event list.
+GitHub installation lifecycle deliveries are sent independently of the explicit event list.
 
-## Webhook
+## Webhook security
 
-The webhook endpoint is:
+The production Worker requires a valid `X-Hub-Signature-256` generated with `RUNDIFF_GITHUB_WEBHOOK_SECRET`.
 
-```text
-POST /github/webhooks
-```
+Production Worker secrets/variables:
 
-It requires a valid `X-Hub-Signature-256` generated with `RUNDIFF_GITHUB_WEBHOOK_SECRET` and logs safe delivery metadata without logging credentials.
+~~~text
+RUNDIFF_GITHUB_APP_ID
+RUNDIFF_GITHUB_APP_PRIVATE_KEY
+RUNDIFF_GITHUB_WEBHOOK_SECRET
+RUNDIFF_GITHUB_SCENARIO_ID
+~~~
 
-## Promotion policy
-
-Bootstrap and dogfood `RunDiff Development` first. Create `RunDiff Staging` when we need a persistent pre-production environment. Create production `RunDiff` only after the development flow is green end-to-end and the production public URL and secret store are ready.
-
+Never commit their values.
 
 ## Repository-content permission policy
 
-The production direction is to keep repository file contents read-only for the normal RunDiff App.
+Keep repository contents read-only for the normal RunDiff App.
 
-Current manifest capability:
-
-~~~text
-Contents read
-~~~
-
-must not be expanded to Contents write merely to create or update /rundiff.yml.
-
-Configuration onboarding should use the user-confirmed GitHub browser handoff described in RFC 0007:
+Do not expand to Contents write merely to create or update `/rundiff.yml`. Configuration onboarding should use a user-confirmed GitHub browser handoff:
 
 ~~~text
 RunDiff control panel
@@ -120,32 +94,18 @@ RunDiff control panel
   -> user opens PR
 ~~~
 
-This keeps repository configuration changes attributable to the authenticated GitHub user and preserves native branch protection and CODEOWNERS behavior.
-
-Checks and pull-request presentation permissions are separate from repository file-content permission and may remain writable where required by RunDiff's review surfaces.
-
+Checks and pull-request presentation permissions are separate and may remain writable where required by RunDiff review surfaces.
 
 ## User authentication versus App installation
 
-The hosted product should treat user authentication and App installation as separate steps.
+Treat user authentication and App installation as separate steps:
 
 ~~~text
 Sign in with GitHub
   -> establishes RunDiff user identity/session
 
-Install RunDiff GitHub App
+Install RunDiff Checks GitHub App
   -> grants repository-scoped RunDiff access
 ~~~
 
 Do not use broad OAuth repository write scope as a shortcut for repository configuration.
-
-The normal config flow remains:
-
-~~~text
-control panel
-  -> generate /rundiff.yml
-  -> open GitHub browser UI
-  -> user commits/opens PR
-~~~
-
-This keeps the persistent RunDiff repository credential set read-oriented for repository contents while still providing a modern no-copy/paste configuration experience.
