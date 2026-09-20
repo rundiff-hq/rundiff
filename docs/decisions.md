@@ -149,4 +149,4 @@ Do not use cgo in the managed executor. If a capability needs native code, prefe
 
 This is an implementation decision, not part of the public RunDiff protocol or customer contract.
 
-See RFC 0006.
+See RFC 0006 and RFC 0009.
