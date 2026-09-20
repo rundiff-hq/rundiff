@@ -1412,6 +1412,7 @@ Execution planning in this RFC assumes two additional boundaries:
 
 - RFC 0007 defines repository-owned /rundiff.yml, Review Workload selection/discovery, GitHub browser configuration handoff, and the source-code/data boundary.
 - RFC 0008 defines ownership-aware finding routing after Behavioral Diff.
+- RFC 0009 defines the target managed Go Executor host runtime, lifecycle, isolation, cleanup, and evidence transport.
 
 Canonical terminology is summarized in docs/definitions.md.
 
