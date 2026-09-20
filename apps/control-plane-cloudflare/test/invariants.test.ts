@@ -6,7 +6,7 @@ import { convertV4MiniflareOptions, Miniflare } from "miniflare";
 import { D1GitHubRepository } from "../src/adapters/d1/github-repository";
 import { D1ExecutionRepository } from "../src/adapters/d1/execution-repository";
 import { D1ReviewRepository } from "../src/adapters/d1/review-repository";
-import { githubPrivateKeyPkcs8 } from "../src/adapters/github/client";
+import { GitHubClient, githubPrivateKeyPkcs8 } from "../src/adapters/github/client";
 import {
   verifyWebhook,
   parsePullRequest,
@@ -80,6 +80,21 @@ test("pull request identity is exact and forks are rejected", () => {
   payload.pull_request.head.repo.full_name = "other/fork";
   assert.throws(() => parsePullRequest(payload, "delivery-1"));
 });
+test("GitHub transport is invoked without the GitHubClient receiver", async () => {
+  let receiver: unknown = "not-called";
+  const transport = (async function (this: unknown) {
+    receiver = this;
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  const client = new GitHubClient("installation-token", transport);
+  assert.deepEqual(await client.request("/test"), { ok: true });
+  assert.equal(receiver, undefined);
+});
+
 test("GitHub App RSA keys accept PKCS#1 and PKCS#8 PEM formats", async () => {
   const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   for (const type of ["pkcs1", "pkcs8"] as const) {

@@ -63,7 +63,8 @@ export class GitHubClient {
     private readonly transport: typeof fetch = fetch,
   ) {}
   async request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-    const response = await this.transport(`https://api.github.com${path}`, {
+    const transport = this.transport;
+    const response = await transport(`https://api.github.com${path}`, {
       method,
       headers: {
         authorization: `Bearer ${this.token}`,
