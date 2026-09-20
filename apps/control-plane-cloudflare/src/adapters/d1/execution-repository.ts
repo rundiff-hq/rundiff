@@ -179,18 +179,21 @@ export class D1ExecutionRepository {
     return (update.meta.changes ?? 0) === 1 ? "accepted" : "not_live";
   }
 
-  async markCompleted(
+  async markTerminal(
     executionId: string,
     attemptNumber: number,
+    status: "completed" | "infra_failure",
     now: string,
   ): Promise<void> {
     await this.db
       .prepare(
         `UPDATE executions
-         SET status = 'completed', updated_at = ?
-         WHERE id = ? AND attempt_number = ? AND status IN ('result_received', 'completed')`,
+         SET status = ?, updated_at = ?
+         WHERE id = ?
+           AND attempt_number = ?
+           AND status IN ('available', 'claimed', 'result_received', 'completed', 'infra_failure')`,
       )
-      .bind(now, executionId, attemptNumber)
+      .bind(status, now, executionId, attemptNumber)
       .run();
   }
 }
