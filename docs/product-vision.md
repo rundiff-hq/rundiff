@@ -181,6 +181,16 @@ Supporting brand line:
 
 Keep the GitHub organization description descriptive rather than campaign-heavy.
 
+### GitHub README
+
+Lead with a memorable hook, then immediately explain the category:
+
+**Tests passed. Behavior changed.**
+
+**Pre-merge behavioral diffing for pull requests.**
+
+README copy should transition quickly from positioning into the runnable product, onboarding contract, and example Behavioral Review.
+
 ### Repository / README descriptor
 
 **RunDiff compares the runtime behavior of a baseline and candidate and surfaces meaningful behavioral changes before merge.**
@@ -192,6 +202,36 @@ The README may additionally use the campaign line, but should quickly transition
 **Run the change. Diff the behavior. See meaningful runtime changes before merge.**
 
 Social copy can be more expressive than repository documentation while keeping the same core idea.
+
+### LinkedIn
+
+**Pre-merge behavioral diffing for software teams. Run the baseline and candidate, compare runtime behavior, and see meaningful changes before merge.**
+
+Use the more explicit category language here because company pages are often encountered without prior product context.
+
+### Facebook
+
+**See what your code actually changes before it reaches main. RunDiff compares baseline and candidate runtime behavior directly in the pull-request workflow.**
+
+Treat Facebook as a secondary distribution surface, not a source of canonical product wording.
+
+### Product Hunt
+
+Headline:
+
+**Behavioral diffs for pull requests.**
+
+Supporting line:
+
+**You diff your code. Now diff what it does.**
+
+Product Hunt copy should lead with the category and demo outcome rather than infrastructure details.
+
+### Docs homepage
+
+**RunDiff compares executions and explains meaningful behavioral changes before merge.**
+
+Docs should optimize for precision and navigation, not campaign language.
 
 ### YouTube
 
@@ -224,6 +264,35 @@ A tagline, headline, descriptor, and CTA are not interchangeable:
 - **CTA** - requested next action: "Run your first diff."
 
 For the first public product, the CTA should optimize for reaching a real Behavioral Review, not for generic account creation.
+
+### CTA lifecycle
+
+Use CTA wording that matches the actual product state:
+
+- **Pre-launch / proof stage** - prefer **See a sample diff** or **View a Behavioral Review** when an external user cannot yet complete the full flow reliably.
+- **Public usable product** - use **Run your first diff** as the primary landing CTA.
+- **Onboarding** - use **Install RunDiff on GitHub** because the user has already entered the setup funnel.
+- **Post-install** - guide the user toward the next concrete action, such as adding `rundiff.yml` or opening a pull request.
+
+Do not use **Sign up** as the main CTA while a more product-specific next action is available.
+
+### Surface matrix
+
+The canonical message should stay stable while the expression changes by surface:
+
+| Surface | Primary job | Preferred wording |
+| --- | --- | --- |
+| Website | Explain value and start product flow | **Know what changed before you merge.** |
+| GitHub Organization | Define category | **Pre-merge behavioral diffing for pull requests.** |
+| GitHub README | Hook, then prove | **Tests passed. Behavior changed.** + category descriptor |
+| X / Twitter | Memorable developer language | **Run the change. Diff the behavior.** |
+| LinkedIn | Explain product to engineering organizations | Explicit category + workflow |
+| Facebook | Secondary awareness | Plain-language value statement |
+| Product Hunt | Category + novelty | **Behavioral diffs for pull requests.** |
+| YouTube | Search/discovery | **Runtime behavioral diffs before merge.** |
+| Docs | Precision | Execution comparison + behavioral diff |
+| Merchandise / stickers | Brand memory | **Run it. Diff it.** |
+| Conference booth | Start a conversation | **You diff your code. Now diff what it does.** |
 
 ## Messaging guardrails
 
