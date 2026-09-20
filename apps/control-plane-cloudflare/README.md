@@ -58,29 +58,67 @@ Create:
 curl -sS -X POST http://localhost:5173/api/spike/reviews \
   -H 'content-type: application/json' \
   -d '{
-    "project_id":"demo/shop",
+    "repository":"demo/shop",
+    "pull_request_number":42,
     "scenario_id":"orders.show",
+    "baseline_sha":"aaaaaaaa",
+    "candidate_sha":"bbbbbbbb",
+    "baseline_ref":"main",
+    "candidate_ref":"pull/42/head"
+  }'
+~~~
+
+The response contains the review ID and the exact portable Executor Request. The Workflow moves the review to `waiting_for_executor`.
+
+For the bridge flow, configure a local secret:
+
+~~~bash
+npx wrangler secret put RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN
+~~~
+
+Claim the exact Request:
+
+~~~bash
+curl -sS -X POST http://localhost:5173/api/execution-bridges/github-actions/claim \
+  -H 'authorization: Bearer <TOKEN>' \
+  -H 'content-type: application/json' \
+  -d '{
+    "repository":"demo/shop",
+    "pull_request_number":42,
     "baseline_sha":"aaaaaaaa",
     "candidate_sha":"bbbbbbbb"
   }'
 ~~~
 
-The response contains the review ID. The Workflow moves it to `waiting_for_executor`.
-
-Deliver a fake executor result:
+Submit a portable Executor Result v1:
 
 ~~~bash
-curl -sS -X POST http://localhost:5173/api/spike/reviews/<REVIEW_ID>/result \
+curl -sS -X POST \
+  http://localhost:5173/api/executions/<EXECUTION_ID>/attempts/1/result \
+  -H 'authorization: Bearer <TOKEN>' \
   -H 'content-type: application/json' \
   -d '{
-    "decision":"BLOCK",
-    "result":{
-      "rule_id":"database.query.count.regression",
-      "baseline":17,
-      "candidate":31
-    }
+    "schema_version":"1",
+    "status":"succeeded",
+    "payload":{
+      "result":{
+        "merge_recommendation":"block",
+        "findings":[
+          {
+            "reason_code":"DATABASE_QUERY_REGRESSION",
+            "signal":"sql_queries",
+            "baseline":17,
+            "candidate":31
+          }
+        ]
+      }
+    },
+    "error_class":null,
+    "error_message":null
   }'
 ~~~
+
+The result endpoint records a canonical SHA-256 digest for idempotency, then delivers `executor-result` to the Workflow. Identical retries are accepted; conflicting result content is rejected.
 
 Read:
 
@@ -105,9 +143,9 @@ waiting_for_executor
 
 ## Security
 
-`RUNDIFF_SPIKE_TOKEN` is optional only for local spike convenience.
+`RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN` is the temporary bridge credential for this proof.
 
-Before public result submission, use explicit bridge authentication. Target: GitHub Actions OIDC.
+Target before public customer use: GitHub Actions OIDC.
 
 Never commit GitHub App private keys, webhook secrets, API tokens, or real Wrangler secret values.
 
