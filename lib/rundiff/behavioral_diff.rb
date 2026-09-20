@@ -1,6 +1,7 @@
 require_relative "async_delta_diagnosis"
 require_relative "async_diagnosis"
 require_relative "runtime_diagnosis"
+require_relative "rule_registry"
 
 module RunDiff
   class BehavioralDiff
@@ -98,6 +99,7 @@ module RunDiff
         findings << {
           "type" => "behavioral_regression",
           "reason_code" => policy.fetch(:reason_code),
+          "rule_id" => RuleRegistry.rule_id_for(signal),
           "severity" => policy.fetch(:severity),
           "signal" => signal,
           "baseline" => baseline_value,
@@ -256,6 +258,7 @@ module RunDiff
       {
         "type" => "investigate",
         "reason_code" => primary.fetch("reason_code"),
+        "rule_id" => primary.fetch("rule_id"),
         "signal" => primary.fetch("signal")
       }
     end
