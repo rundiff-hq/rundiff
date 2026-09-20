@@ -53,6 +53,53 @@ Definition of done: a new external Rails repository can go from **Install RunDif
 
 Timing sampling hardening from #103/#137 remains important, but it is not allowed to hide or delay this end-to-end product proof.
 
+## Analysis depth guardrail
+
+RunDiff deliberately stops short of building a full investigation/ontology platform before the first production Behavioral Review proof.
+
+The near-term analysis depth is intentionally limited to:
+
+~~~text
+stable Rule ID
++ Finding facets
++ stable Finding fingerprint
++ explicit baseline/candidate evidence references
+~~~
+
+After that, analysis-model work is paused until the product proves a real need.
+
+The following are **consciously deferred**, not forgotten:
+
+- causal graph execution and persistence;
+- a general RCA engine;
+- rich Diagnosis entities beyond the small deterministic runtime classifications already present;
+- hypothesis -> confirmation workflows;
+- SARIF export/import;
+- ontology database/editor;
+- user-configurable taxonomy authoring;
+- a broad multi-dimensional confidence framework;
+- automatic AI root-cause analysis;
+- IEC 62740 workflow/conformance work;
+- graph ranking of causes/contributing factors;
+- generic cross-finding causal inference.
+
+These capabilities remain architecturally reserved by RFC 0010.
+
+### Re-entry triggers
+
+Do not resume the deferred depth merely because it is technically interesting.
+
+Resume a deeper analysis capability only when at least one concrete product trigger exists, for example:
+
+1. the external production `BLOCK -> fix -> ALLOW` proof is complete;
+2. the first Control Panel needs a specific deeper concept to explain a real review;
+3. Performance/Deep evidence creates multiple findings that users cannot understand without relations;
+4. ownership routing needs deduplication/identity beyond the current fingerprint;
+5. agents need machine-readable investigation state to perform a real repair loop;
+6. a customer/export integration creates a concrete SARIF or RCA requirement.
+
+Until then, work on analysis taxonomy must not delay the production control plane, GitHub Actions execution bridge, Review Workload configuration, or second-provider proof.
+
 ## Capability roadmap
 
 ## Slice 0 - Bootstrap
