@@ -199,7 +199,7 @@ https://oaken-rapids-g7ze.here.now
 
 The landing artifact used for the current public design is now committed into the Cloudflare app and rendered at `/`; the internal Behavioral Review UI remains available on non-root SPA routes such as `/dashboard`.
 
-Before the first apex bind, run typecheck/build locally and visually verify `/` against the current landing. Then copy `wrangler.production.jsonc.example` to the ignored `wrangler.production.jsonc` and deploy. Keep `workers.dev` enabled as a rollback endpoint until the custom-domain health checks and GitHub webhook redelivery are green.
+Before the first apex bind, run typecheck/test locally and visually verify `/` against the current landing. Then copy `wrangler.production.jsonc.example` to the ignored `wrangler.production.jsonc` and run `npm run deploy:production`. The production script builds through the Cloudflare Vite plugin and deploys the generated `dist/rundiff_control_plane/wrangler.json`; do not deploy the input `wrangler.production.jsonc` directly. Keep `workers.dev` enabled as a rollback endpoint until the custom-domain health checks and GitHub webhook redelivery are green.
 
 See:
 - `docs/production-domain-cutover.md`

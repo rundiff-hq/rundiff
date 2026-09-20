@@ -98,13 +98,21 @@ Before deploy, inspect Cloudflare DNS for an existing record on the apex. Cloudf
 
 ## Gate 3 - deploy and verify
 
-After local tests/build and the landing gate are green:
+After local tests and the landing gate are green, build **through the Cloudflare Vite plugin using the production Wrangler input config**, then deploy the generated output config:
 
 ~~~bash
 npm run typecheck
 npm test
-npm run build
-npx wrangler deploy --config wrangler.production.jsonc
+npm run build:production
+npx wrangler deploy --config dist/rundiff_control_plane/wrangler.json
+~~~
+
+Do not deploy the input `wrangler.production.jsonc` directly. With the Cloudflare Vite plugin, that file is an input configuration; `vite build` writes the deployable snapshot to `dist/rundiff_control_plane/wrangler.json` and injects the generated client assets directory there.
+
+Equivalent one-command production deploy:
+
+~~~bash
+npm run deploy:production
 ~~~
 
 Verify:
