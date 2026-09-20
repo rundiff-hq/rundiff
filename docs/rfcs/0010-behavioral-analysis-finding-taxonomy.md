@@ -864,10 +864,13 @@ Do not require agents to parse human prose to learn why a Behavioral Review bloc
 
 ### Phase 1 - Rule Registry behind current output
 
-- introduce a Rule abstraction/registry;
-- move policy metadata out of `BehavioralDiff::SIGNALS`;
+Implemented by PR #174:
+
+- introduce `RunDiff::RuleRegistry`;
+- move thresholds, severity, decision/optional semantics, legacy reason-code mapping, and facets out of `BehavioralDiff::SIGNALS`;
 - emit stable `rule_id` alongside legacy `reason_code`;
-- preserve current thresholds/decisions unless intentionally changed.
+- emit additive Finding facets;
+- preserve current thresholds/decisions.
 
 ### Phase 2 - normalized Finding model
 
