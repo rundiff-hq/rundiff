@@ -133,3 +133,20 @@ Routing policy is separate from Behavioral Diff. GitHub is the primary review su
 Infrastructure failures should route to CI/RunDiff operational ownership rather than application CODEOWNERS by default.
 
 See RFC 0008.
+
+
+## ADR 0013 - Managed executor is Go; sensors stay out of process
+
+Status: Accepted
+
+Implement the managed RunDiff Executor in Go.
+
+The executor is an execution supervisor for foreign processes, containers, cgroups, namespaces, cancellation, lifecycle, and evidence transport. It is not primarily a CPU-bound data plane.
+
+Keep sensors and low-level evidence collectors behind language-neutral process/protocol boundaries. Prefer Go first. Introduce Rust only when a measured low-level requirement justifies it.
+
+Do not use cgo in the managed executor. If a capability needs native code, prefer an out-of-process sensor or another explicit boundary.
+
+This is an implementation decision, not part of the public RunDiff protocol or customer contract.
+
+See RFC 0006.
