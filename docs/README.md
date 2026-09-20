@@ -27,4 +27,6 @@ Read in this order:
 23. rfcs/0007-repository-config-workload-discovery.md
 24. rfcs/0008-ownership-aware-routing.md
 25. rfcs/0009-managed-go-executor-host-runtime.md
-26. roadmap.md
+26. rfcs/0010-behavioral-analysis-finding-taxonomy.md
+27. rules/README.md
+28. roadmap.md
