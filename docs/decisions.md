@@ -32,26 +32,46 @@ GitHub comments and dashboards are presentation layers. Agents receive stable ma
 
 ## ADR 0006 - Separate execution provider, runtime, and evidence depth
 
-Status: Accepted
+Status: Superseded by ADR 0008
 
-Treat Execution Provider, runtime/isolation backend, and Evidence Depth as separate architectural dimensions.
-
-An Execution Provider provisions compute. A Provider Adapter integrates infrastructure such as GitHub Actions, Cloudflare, Namespace, RunDiff Fleet, or customer-hosted compute. The runtime describes how customer code executes after placement, for example Docker/OCI, VM, or Firecracker. Evidence Depth describes what RunDiff is allowed and able to observe: Standard, Performance, or Deep.
-
-Commercial review volume is independent of Evidence Depth. Preview uses customer GitHub Actions compute where practical; Review 250, Review 500, Review 1000, and Enterprise describe managed compute quantity rather than evidence quality.
-
-See RFC 0004.
+The original decision correctly separated infrastructure from runtime and Evidence Depth, but the flat Execution Provider concept was still too broad. RFC 0004 now decomposes execution into an Execution Plan with distinct orchestration, compute, runner, runtime, resource, parallelism, evidence, and policy roles.
 
 ## ADR 0007 - Automatic placement and paired performance execution
 
 Status: Accepted
 
-Use a Workload Profiler plus a deterministic Placement Engine to choose an Execution Provider from workload requirements, requested Evidence Depth, provider capability, policy, measured stability, and expected cost.
+Use a Workload Profiler plus a deterministic Placement Engine to choose an Execution Plan from workload requirements, requested Evidence Depth, infrastructure capabilities, policy, measured stability, parallelism requirements, and expected cost.
 
 Start with explicit auditable rules, collect empirical placement outcomes, and introduce predictive placement only after sufficient evidence exists.
 
 For performance comparison, prefer baseline and candidate execution on the same execution lease and use calibration/interleaving where appropriate. Performance claims are confidence-gated by measured environment noise rather than assuming cloud hardware is absolutely deterministic.
 
-The Go executor is an execution supervisor. It may run as a host daemon, container, or other deployment form; Docker is a workload runtime, not the executor's permanent architectural boundary. Firecracker is a controlled-fleet isolation option, not a determinism guarantee.
+The Go executor is an execution supervisor. It may run as a host daemon, container, external-CI agent step, or another deployment form. Docker is a workload runtime, not the executor's permanent architectural boundary. Firecracker is a controlled-fleet isolation option, not a determinism guarantee.
+
+See RFC 0004.
+
+## ADR 0008 - Execution Plan is the composition boundary
+
+Status: Accepted
+
+Do not model execution infrastructure as one flat provider choice.
+
+The control plane produces an Execution Plan that may independently describe:
+
+- execution orchestrator;
+- compute provider;
+- optional runner backend and provenance;
+- runtime/isolation backend;
+- resources and region;
+- parallelism;
+- Evidence Depth;
+- comparison strategy;
+- placement and fallback policy.
+
+Vendor identity is not an architectural role. One vendor may fill several roles, and one plan may combine several vendors.
+
+The Placement Engine evaluates complete plans rather than choosing a single provider string.
+
+Review volume is a commercial dimension separate from Evidence Depth. Wall-clock minutes are not a durable billing unit because machine size and parallelism change aggregate compute. Review Credits are the working normalized managed-compute abstraction, while Behavioral Review is the preferred customer-facing usage concept.
 
 See RFC 0004.
