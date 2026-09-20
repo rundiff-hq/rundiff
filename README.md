@@ -4,7 +4,7 @@
 
 RunDiff is a behavioral change validation platform. It runs the same scenario against two software subjects, captures execution evidence, and explains what changed.
 
-The product starts as a Rails 8.1 monolith on purpose. Portable contracts and comparison logic stay outside Rails-specific code so the CLI, protocol, recorders, drivers, and ingestion components can be extracted later without redesigning the model.
+The first implementation was built as a Rails 8.1 monolith to prove the product semantics quickly. The hosted production-v1 Control Plane is now being built as a Cloudflare-native React + Hono Worker application. RunDiff domain and Executor Request/Result contracts remain implementation-independent so Rails/PostgreSQL, Cloudflare, or future runtimes can implement the same Control Plane responsibilities.
 
 ## First vertical slice
 
@@ -99,14 +99,23 @@ See `docs/onboarding.md` for the current five-minute onboarding shape and delibe
 - `docs/` - product thesis, architecture, decisions, RFCs, demo, roadmap
 - `schemas/` - machine-readable execution/result contracts
 - `lib/rundiff/` - portable core plus Rails adapters/probes behind explicit namespaces
-- `app/` - Rails product shell and dogfood target
+- `app/` - proven Rails reference implementation and dogfood target
+- `apps/control-plane-cloudflare/` - Cloudflare-native hosted Control Plane v1
 - `examples/` - deterministic demo evidence
 
 ## Runtime
 
+Reference implementation:
 - Ruby 3.4.10
 - Rails 8.1.3.1
-- PostgreSQL control plane
+
+Hosted production v1:
+- TypeScript
+- React + Vite
+- Hono on Cloudflare Workers
+- D1 + Cloudflare Workflows + R2
+
+Executor contracts remain language-neutral.
 
 ## Current status
 
