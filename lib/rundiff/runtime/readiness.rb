@@ -80,12 +80,25 @@ module RunDiff
         require_private_key!(errors)
         validate_repository_admission!(errors)
 
-        unless @env["RUNDIFF_EXECUTOR"].to_s == "remote"
-          errors << "RUNDIFF_EXECUTOR must be remote for a production control plane"
-        end
+        validate_execution_orchestrator!(errors)
+      end
 
-        require_https!(errors, "RUNDIFF_REMOTE_EXECUTOR_URL")
-        require_value!(errors, "RUNDIFF_REMOTE_EXECUTOR_TOKEN")
+      def validate_execution_orchestrator!(errors)
+        orchestrator = @env.fetch("RUNDIFF_EXECUTION_ORCHESTRATOR", "native").to_s
+
+        case orchestrator
+        when "native"
+          unless @env["RUNDIFF_EXECUTOR"].to_s == "remote"
+            errors << "RUNDIFF_EXECUTOR must be remote for a native production control plane"
+          end
+
+          require_https!(errors, "RUNDIFF_REMOTE_EXECUTOR_URL")
+          require_value!(errors, "RUNDIFF_REMOTE_EXECUTOR_TOKEN")
+        when "github_actions"
+          require_value!(errors, "RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN")
+        else
+          errors << "RUNDIFF_EXECUTION_ORCHESTRATOR is unsupported"
+        end
       end
 
       def validate_repository_admission!(errors)
