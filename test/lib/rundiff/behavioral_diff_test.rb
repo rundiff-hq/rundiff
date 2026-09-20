@@ -20,6 +20,14 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
     assert_includes rule_ids, "database.query.count.regression"
     assert_includes rule_ids, "side_effect.background_job.count.changed"
     assert_includes rule_ids, "side_effect.email.count.changed"
+
+    database_finding = result.fetch("findings").find do |finding|
+      finding.fetch("rule_id") == "database.query.count.regression"
+    end
+    assert_equal %w[database], database_finding.dig("facets", "domains")
+    assert_equal %w[performance_efficiency], database_finding.dig("facets", "quality_dimensions")
+    assert_equal %w[database io], database_finding.dig("facets", "resources")
+    assert_equal "increase", database_finding.dig("facets", "change_kind")
   end
 
   test "ignores large percentage timing changes below the absolute noise floor" do
