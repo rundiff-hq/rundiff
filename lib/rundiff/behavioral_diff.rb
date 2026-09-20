@@ -5,58 +5,6 @@ require_relative "rule_registry"
 
 module RunDiff
   class BehavioralDiff
-    SIGNALS = {
-      "duration_ms" => {
-        reason_code: "PERFORMANCE_REGRESSION",
-        threshold_percent: 20.0,
-        threshold_absolute: 20.0,
-        severity: "high"
-      },
-      "process_cpu_ms" => { decision: false, optional: true },
-      "thread_cpu_ms" => {
-        reason_code: "CPU_TIME_REGRESSION",
-        threshold_percent: 30.0,
-        threshold_absolute: 10.0,
-        severity: "medium",
-        optional: true
-      },
-      "queue_wait_ms" => {
-        reason_code: "QUEUE_WAIT_REGRESSION",
-        threshold_percent: 20.0,
-        threshold_absolute: 20.0,
-        severity: "medium",
-        optional: true
-      },
-      "scheduled_delay_ms" => { decision: false, optional: true },
-      "dispatch_wait_ms" => {
-        reason_code: "DISPATCH_WAIT_REGRESSION",
-        threshold_percent: 20.0,
-        threshold_absolute: 20.0,
-        severity: "medium",
-        optional: true
-      },
-      "worker_wall_ms" => {
-        reason_code: "WORKER_LATENCY_REGRESSION",
-        threshold_percent: 20.0,
-        threshold_absolute: 20.0,
-        severity: "medium",
-        optional: true
-      },
-      "worker_process_cpu_ms" => { decision: false, optional: true },
-      "worker_thread_cpu_ms" => {
-        reason_code: "CPU_TIME_REGRESSION",
-        threshold_percent: 30.0,
-        threshold_absolute: 10.0,
-        severity: "medium",
-        optional: true
-      },
-      "sql_queries" => { reason_code: "DATABASE_QUERY_REGRESSION", threshold_percent: 25.0, severity: "high" },
-      "background_jobs" => { reason_code: "SIDE_EFFECT_CHANGED", threshold_absolute: 0, severity: "medium" },
-      "emails" => { reason_code: "SIDE_EFFECT_CHANGED", threshold_absolute: 0, severity: "high" },
-      "http_requests" => { reason_code: "NETWORK_BEHAVIOR_CHANGED", threshold_percent: 25.0, severity: "medium" },
-      "errors" => { reason_code: "NEW_RUNTIME_ERROR", threshold_absolute: 0, severity: "critical" }
-    }.freeze
-
     def self.call(baseline:, candidate:)
       new(baseline:, candidate:).call
     end
@@ -70,7 +18,7 @@ module RunDiff
       signals = {}
       findings = []
 
-      SIGNALS.each do |signal, policy|
+      RuleRegistry.each_signal do |signal, policy|
         unless comparable?(signal, policy)
           signals[signal] = unavailable_signal(signal, policy)
           next
@@ -98,9 +46,10 @@ module RunDiff
 
         findings << {
           "type" => "behavioral_regression",
-          "reason_code" => policy.fetch(:reason_code),
+          "reason_code" => policy.fetch(:legacy_reason_code),
           "rule_id" => RuleRegistry.rule_id_for(signal),
           "severity" => policy.fetch(:severity),
+          "facets" => RuleRegistry.facets_for(signal),
           "signal" => signal,
           "baseline" => baseline_value,
           "candidate" => candidate_value,
