@@ -175,3 +175,30 @@ Configuration changes use the user-confirmed GitHub browser handoff from ADR 001
 This separation keeps authentication lightweight, repository authorization explicit, and repository-content writes outside the permanent RunDiff credential set.
 
 See RFC 0007 and docs/github-app-setup.md.
+
+
+## ADR 0015 - Behavioral analysis uses explicit Rule, Finding, Diagnosis, Relation, and Decision concepts
+
+Status: Accepted
+
+Keep `RunDiff::Executor::Request` and `RunDiff::Executor::Result` as the portable executor transport boundary.
+
+Do not use one flat reason-code taxonomy as the long-term behavioral analysis model.
+
+RunDiff analysis separates:
+
+- Evidence - what was observed;
+- Rule - reusable analysis semantics;
+- Finding - one concrete evidence-backed behavioral change;
+- Diagnosis - an interpretation/hypothesis about one or more findings;
+- Relation - a typed edge such as depends_on, contributes_to, correlates_with, or causes;
+- Decision - ALLOW/REVIEW/BLOCK policy outcome;
+- Execution Failure - infrastructure/workload failure to produce the intended evidence contract.
+
+Findings are classified with orthogonal facets such as domain, quality dimension, resource, scope, change kind, and causal role rather than one rigid category tree.
+
+Use OpenTelemetry Semantic Conventions as preferred evidence vocabulary where applicable, ISO/IEC 25010:2023 as a reference for high-level quality dimensions, SARIF as prior art/export shape for Rule/Finding semantics, and IEC 62740 as guidance for future investigation/root-cause semantics. These references do not make RunDiff conformant to those standards.
+
+Schema v1 remains compatible: legacy `reason_code` stays valid while stable dotted `rule_id` values are introduced incrementally.
+
+See RFC 0010.
