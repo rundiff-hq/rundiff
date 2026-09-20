@@ -1,16 +1,36 @@
-# RFC 0004: Compute, executor, placement, and evidence strategy
+# RFC 0004: Execution planning, compute, placement, and evidence strategy
 
 ## Status
 
 Accepted direction. Implementation is incremental.
 
+Last major model revision: 2026-09-20.
+
 ## Context
 
-RunDiff compares software behavior between a baseline and one or more candidates. The product therefore needs real execution compute, not only static repository analysis.
+RunDiff compares software behavior between a baseline and one or more candidates. It therefore needs real execution compute, not only static repository analysis.
 
-The current RunDiff repository uses GitHub Actions heavily for its own CI and dogfood proofs. That must not be confused with the customer execution architecture. The production runtime already separates the GitHub-facing Rails control plane from an isolated executor service through portable Request / Result contracts.
+The original version of this RFC used a flat Execution Provider abstraction. That was useful for the first design pass, but it is too small for the real market and for RunDiff's likely architecture.
 
-This RFC defines the durable model for execution providers, the Go executor role, Docker and microVM isolation, workload placement, execution stability, evidence depth, Preview versus paid managed compute, provider learning, and BYOC.
+A single vendor can provide more than one role:
+
+- Buildkite can be a CI orchestrator and can also provide hosted agents.
+- GitHub Actions is an orchestrator and also has hosted runners.
+- Namespace can participate as GitHub Actions runner infrastructure and as general compute for development workloads.
+- E2B, Vercel Sandbox, Cloudflare Sandbox, Daytona, Fly Machines, and similar systems expose direct programmable compute or sandbox primitives.
+- Blacksmith, Depot, WarpBuild, and RunsOn primarily sit below GitHub Actions as runner backends.
+- Firecracker is not a provider at all. It is an isolation primitive.
+- OpenTelemetry and eBPF are evidence sources, not compute providers.
+
+RunDiff therefore needs a compositional execution model.
+
+The durable question is not:
+
+> Which provider do we use?
+
+It is:
+
+> What exact execution plan satisfies this workload, evidence, policy, stability, and cost requirement?
 
 The core product question remains:
 
@@ -18,276 +38,104 @@ The core product question remains:
 
 ## Decision summary
 
-1. The Rails control plane owns product state, policy, GitHub integration, leases, stale guards, cancellation authority, placement policy, and publication.
-2. The concrete managed executor implementation is Go. It is an execution supervisor, not "a Docker container" as a product boundary.
-3. Execution Provider is the term for infrastructure that can provision compute for a RunDiff execution. Examples include GitHub Actions, Cloudflare, Namespace, RunDiff-managed fleet, and customer-hosted infrastructure.
-4. A Provider Adapter is infrastructure-specific. The portable Request / Result contract remains provider-neutral.
-5. Provider and runtime are separate dimensions. A provider may run Docker, a VM, Firecracker, or another isolation backend.
-6. Preview uses customer GitHub Actions compute where practical. Preview therefore consumes customer Actions minutes rather than RunDiff-managed compute minutes.
-7. Paid hosted plans are based on managed review volume: Review 250, Review 500, Review 1000, then Enterprise. These numbers represent managed execution minutes, not evidence quality.
-8. Evidence depth is an independent axis with three product levels: Standard, Performance, and Deep.
-9. Users normally select Automatic execution. RunDiff chooses a provider according to workload requirements, requested evidence depth, provider capability, stability, cost, and policy.
-10. The first Placement Engine is deterministic and rule-based. RunDiff must collect placement evidence and learn from actual executions before introducing predictive models.
-11. RunDiff must prefer paired baseline/candidate execution on the same execution lease over absolute cross-machine benchmarking.
-12. Performance claims are confidence-gated. RunDiff measures environment noise and must suppress or downgrade claims when the observed delta is not larger than the measured noise floor.
-13. Determinism is not represented internally as one magic provider score. Stability is a profile across CPU, memory, disk, network, startup, and other relevant dimensions.
-14. Cloud/serverless compute is appropriate for Standard and some Performance workloads when capabilities and measured stability are sufficient. Deep evidence requires stronger host capabilities and is expected to route to RunDiff-controlled or explicitly capable customer infrastructure.
-15. Firecracker is an isolation and lifecycle tool, not a determinism guarantee. It is primarily relevant to a controlled RunDiff fleet.
-16. RunDiff must record provider, machine, workload, stability, cost, and failure outcomes so placement improves from empirical evidence.
-17. RunDiff must not implement naive CI x 2 or CI x 3. Candidate-result reuse and baseline reuse remain strategic cost controls.
-18. Deterministic evidence and behavioral diff remain the correctness path. LLM explanation stays downstream and optional.
+1. The Rails control plane owns durable product state, policy, GitHub integration, leases, stale guards, cancellation authority, placement, publication, and commercial metering.
+2. The managed RunDiff Executor is implemented in Go. It is an execution supervisor, not a Docker container as a product boundary.
+3. Execution Plan is the top-level placement and launch abstraction.
+4. An Execution Plan composes multiple independent roles: orchestrator, compute, optional runner backend, runtime/isolation, resources, parallelism, evidence profile, and placement policy.
+5. Vendor identity is not an architectural role. One vendor may fill multiple roles.
+6. Workload Profiler derives requirements. Placement Engine produces an Execution Plan.
+7. The first Placement Engine is deterministic, rule-based, explainable, and capability-driven.
+8. RunDiff collects empirical placement evidence and repository-specific history before introducing predictive scheduling.
+9. Preview should use customer-funded execution through GitHub Actions or another supported customer orchestrator where practical.
+10. Paid hosted plans use RunDiff-managed placement and compute by default.
+11. Review volume and Evidence Depth are independent product dimensions.
+12. Evidence Depth has three working levels: Standard, Performance, and Deep.
+13. Performance claims are confidence-gated by measured execution noise.
+14. Paired baseline/candidate execution on the same lease is preferred over absolute cross-machine benchmarking.
+15. Parallelism is part of the Execution Plan and must be held comparable for Performance evidence.
+16. Aggregate compute usage must account for parallel workers. Wall-clock duration alone is not a valid billing unit.
+17. Review Credits are the preferred working abstraction for normalized managed compute, but the exact public normalization is not yet a contract.
+18. Behavioral Review is the preferred customer-facing usage concept. PR count is not a durable product unit.
+19. Firecracker is a controlled-fleet isolation option, not a determinism guarantee.
+20. RunDiff must not implement naive CI x 2 or CI x 3. Candidate evidence reuse, baseline reuse, snapshots, and selective scenarios remain strategic.
+21. Deep evidence requires explicit host/runtime capabilities and must never silently degrade while retaining the Deep label.
+22. Deterministic evidence and behavioral diff remain the correctness path. LLM explanation stays downstream and optional.
+
+## Core architecture
+
+~~~text
+Git provider / webhook
+        |
+        v
+RunDiff Rails Control Plane
+        |
+        +--> Workload Profiler
+        |       |
+        |       v
+        |   Workload Profile
+        |
+        +--> Placement Engine
+                |
+                v
+          Execution Plan
+                |
+      +---------+----------+
+      |                    |
+      v                    v
+RunDiff-native path   External orchestrator bridge
+      |                    |
+      v                    v
+managed compute       GitHub Actions / Buildkite /
+or BYOC compute       GitLab CI / CircleCI / other
+      |                    |
+      +---------+----------+
+                |
+                v
+          RunDiff Executor
+                |
+                v
+      Subject + Evidence Providers
+                |
+                v
+          Portable Result
+                |
+                v
+     Behavioral Diff + Policy
+                |
+                v
+     GitHub / API / agent surfaces
+~~~
+
+The RunDiff control plane remains authoritative even when an external CI system performs execution.
 
 ## Terminology
 
-### Execution Provider
-
-An Execution Provider owns or exposes the compute substrate used for an execution.
-
-Examples:
-
-~~~text
-github_actions
-cloudflare
-namespace
-rundiff_fleet
-customer_hosted
-future providers
-~~~
-
-The implementation module that integrates one provider is a Provider Adapter.
-
-### Runtime / isolation backend
-
-The runtime is how customer code is isolated and executed after compute has been acquired.
-
-Examples:
-
-~~~text
-process
-Docker / OCI
-VM
-Firecracker microVM
-containerd
-Kubernetes workload
-~~~
-
-Provider and runtime are intentionally independent.
-
-Examples:
-
-~~~text
-Provider: Cloudflare
-Runtime: OCI / Docker-compatible environment
-
-Provider: RunDiff Fleet
-Runtime: Firecracker
-Inner workload: Docker / OCI
-
-Provider: Customer Hosted
-Runtime: Docker, VM, Kubernetes, or another supported backend
-~~~
-
-### Evidence Provider
-
-An Evidence Provider produces observations, not compute.
-
-Examples include framework-native instrumentation, OpenTelemetry, cgroup/process metrics, eBPF, HTTP/network probes, and driver-native artifacts.
-
-### Workload Profiler
-
-The Workload Profiler describes what a repository execution requires.
-
-### Placement Engine
-
-The Placement Engine chooses where an execution should run.
-
-This is a control-plane concern. The Go executor performs the assigned execution and reports evidence; it does not independently override placement policy.
-
-## Product dimensions
-
-RunDiff pricing and capability are intentionally not one ladder.
-
-### Dimension 1: Review Volume
-
-Working commercial shape:
-
-| Plan | RunDiff-managed compute |
-| --- | ---: |
-| Preview | 0 managed minutes |
-| Review 250 | 250 min/month |
-| Review 500 | 500 min/month |
-| Review 1000 | 1000 min/month |
-| Enterprise | Custom |
-
-Preview should execute in customer GitHub Actions where practical. The customer's Actions account pays for that execution. This makes the free tier useful without creating unmanaged RunDiff compute COGS.
-
-Paid Review plans include managed execution. The plan number describes quantity only.
-
-### Dimension 2: Evidence Depth
-
-Evidence depth describes how deeply RunDiff observes and compares execution.
-
-#### Standard
-
-Standard is behavioral evidence.
-
-Typical signals:
-
-- build / scenario success or failure;
-- exit status;
-- test failures;
-- application exceptions;
-- stdout/stderr and logs;
-- HTTP behavior;
-- response and status differences;
-- SQL count and fingerprints where instrumentation exists;
-- OpenTelemetry spans;
-- framework-native events;
-- process RSS / basic CPU samples;
-- artifacts.
-
-Standard should be portable across the widest provider set.
-
-#### Performance
-
-Performance includes Standard plus controlled resource comparison.
-
-Typical signals and behavior:
-
-- paired baseline/candidate execution;
-- repeated samples where appropriate;
-- wall time;
-- CPU time;
-- peak memory and memory curve;
-- disk reads/writes;
-- I/O behavior;
-- process/container metrics;
-- environment calibration;
-- measured noise;
-- confidence interval or confidence class;
-- performance regression thresholds.
-
-Performance evidence must be confidence-gated.
-
-RunDiff may report:
-
-~~~text
-BASE      182 ms
-PR        195 ms
-delta     +7.1%
-
-measured environment noise: +/-1.8%
-confidence: HIGH
-~~~
-
-If the delta is inside the measured noise floor, the correct output is not a regression claim:
-
-~~~text
-observed delta: +3.1%
-measured environment noise: +/-4.8%
-performance conclusion: INCONCLUSIVE
-~~~
-
-#### Deep
-
-Deep includes Performance plus host and kernel evidence where available.
-
-Potential signals:
-
-- eBPF evidence;
-- syscalls;
-- socket and network-flow activity;
-- TCP behavior;
-- context switches;
-- page faults;
-- block I/O;
-- scheduler/kernel latency;
-- process trees;
-- low-level file activity;
-- flamegraphs or profiles where supported.
-
-Deep should never silently degrade to Standard while presenting itself as Deep. Capability and provenance must be explicit.
-
-## Provider capability model
-
-Provider capability is discovered and measured, not assumed forever.
-
-A current working matrix is:
-
-| Execution Provider | Standard | Performance | Deep |
-| --- | :---: | :---: | :---: |
-| GitHub Actions | yes | limited / confidence-gated | no default guarantee |
-| Cloudflare | yes | yes, confidence-gated | no default guarantee |
-| Namespace | yes | yes | capability verification required |
-| RunDiff Fleet | yes | yes | yes, target capability |
-| Customer Hosted | yes | yes if capable | yes if explicitly capable |
-
-This matrix is a current routing hypothesis, not a permanent vendor contract. Provider capabilities can change. The Placement Engine must use capability records and probes rather than hard-coded marketing assumptions.
-
-## Preview and managed execution
-
-### Preview
-
-The intended free flow is:
-
-~~~text
-customer PR
-  -> GitHub Actions
-       -> RunDiff execution/instrumentation
-       -> RunDiff evidence/result
-  -> control plane
-  -> GitHub Check / review
-~~~
-
-Preview has zero RunDiff-managed compute minutes. It can still provide useful Standard evidence.
-
-Preview should not be intentionally crippled merely to force an upgrade. Paid value comes from managed compute, higher volume, stronger performance control, deeper evidence, retention, policy, and enterprise features.
-
-### Review 250 / 500 / 1000
-
-Paid managed Review plans should normally use automatic provider placement:
-
-~~~text
-RunDiff Control Plane
-      |
-      v
-Workload Profiler
-      |
-      v
-Placement Engine
-      |
-      +--> Cloudflare
-      +--> Namespace
-      +--> RunDiff Fleet
-      +--> future providers
-~~~
-
-A customer buys RunDiff Review capacity, not "the Cloudflare plan" or "the Namespace plan".
-
-Provider choice is an implementation and policy detail unless the customer explicitly needs control.
-
-### Enterprise
-
-Enterprise may expose additional placement policy:
-
-- customer-hosted / BYOC first;
-- region restrictions;
-- private networking;
-- approved provider allow-list;
-- no public hosted runners;
-- performance stability over cost;
-- dedicated capacity;
-- custom retention and evidence policy.
-
-## Workload Profiler
-
-The Workload Profiler should derive a requirements document before placement.
+### Workload Profile
+
+A Workload Profile describes what an execution needs before placement.
+
+It can contain:
+
+- language and framework;
+- service topology;
+- Docker / Compose requirements;
+- CPU, memory, disk, and architecture estimates;
+- privileged requirements;
+- custom networking;
+- nested container or VM requirements;
+- expected duration;
+- requested Evidence Depth;
+- required evidence capabilities;
+- data residency and network requirements;
+- expected parallelism;
+- historical repository resource envelope;
+- cache and snapshot opportunities.
 
 Illustrative profile:
 
 ~~~text
-runtime:
-  ruby: 3.4
+subject:
+  runtime: ruby
   framework: rails
 
 services:
@@ -296,158 +144,689 @@ services:
   - redis
   - sidekiq
 
-docker_compose: true
-privileged: false
-nested_docker: false
-custom_networking: false
+requirements:
+  docker_compose: true
+  privileged: false
+  custom_networking: false
+  nested_virtualization: false
+  architecture: amd64
 
 estimated:
+  cpu: 2
   memory_gb: 3.2
-  cpu_cores: 2
   duration_seconds: 240
 
-evidence_depth: performance
-
-requirements:
+evidence:
+  depth: performance
   paired_execution: true
   ebpf: false
-  stable_cpu: preferred
+
+parallelism:
+  current_test_workers: 4
 ~~~
 
-The profiler can use repository configuration, Docker/Compose files, detected services, prior RunDiff history, and eventually explicit customer policy.
+### Execution Plan
 
-## Placement Engine
+Execution Plan is the main output of placement.
 
-### Version 1: deterministic rules
+It describes how one RunDiff execution will actually happen.
 
-Do not begin with ML or an LLM scheduler.
+Illustrative, non-contractual shape:
 
-The first version should be simple, auditable, and explainable.
+~~~yaml
+execution_plan:
+  orchestrator:
+    kind: rundiff
+
+  compute:
+    provider: e2b
+    region: eu
+    shape: standard-4
+
+  runner_backend:
+    kind: direct
+
+  runtime:
+    isolation: microvm
+    workload: oci
+
+  resources:
+    cpu: 4
+    memory_gb: 8
+    architecture: amd64
+
+  parallelism:
+    mode: controlled
+    shards: 4
+    workers_per_shard: 1
+
+  evidence:
+    depth: performance
+
+  comparison:
+    paired_lease: true
+    interleave: true
+
+  policy:
+    provider_fallback: allowed
+    data_region: eu
+~~~
+
+Another valid plan may use customer CI:
+
+~~~yaml
+execution_plan:
+  orchestrator:
+    kind: buildkite
+
+  compute:
+    provider: customer_managed
+
+  runner_backend:
+    kind: existing_buildkite_queue
+
+  runtime:
+    isolation: external
+
+  parallelism:
+    mode: preserve_customer
+
+  evidence:
+    depth: standard
+~~~
+
+The schema above is explanatory. It is not yet a public configuration or wire contract.
+
+### Execution Orchestrator
+
+The orchestrator schedules jobs and owns the job graph or external CI lifecycle.
+
+Possible orchestrators include:
+
+- RunDiff native scheduler;
+- GitHub Actions;
+- Buildkite;
+- GitLab CI;
+- CircleCI;
+- Harness or another customer CI platform.
+
+RunDiff-native orchestration is preferred when RunDiff owns managed compute because adding a second CI scheduler is unnecessary.
+
+External orchestrators are valuable for Preview, BYOC, existing enterprise CI, private networks, and imported candidate evidence.
+
+### Compute Provider
+
+Compute Provider is the substrate that provides a machine, sandbox, container host, or worker capacity.
+
+Examples and candidates include:
+
+- RunDiff Fleet;
+- Cloudflare Sandbox / Containers;
+- E2B;
+- Vercel Sandbox;
+- Fly Machines;
+- Namespace;
+- Daytona;
+- Modal;
+- customer AWS/GCP/Azure/on-prem;
+- other programmable execution systems.
+
+A compute provider does not automatically imply a specific Evidence Depth.
+
+Capabilities belong to the actual execution plan: provider + runtime + privileges + resource shape + policy.
+
+### Runner Backend
+
+Runner Backend is an optional layer below an external CI orchestrator.
+
+For GitHub Actions this may include:
+
+- GitHub-hosted runners;
+- Blacksmith;
+- Depot;
+- WarpBuild;
+- RunsOn;
+- customer self-hosted runners;
+- Actions Runner Controller or another customer fleet.
+
+The key point is that RunDiff may integrate with GitHub Actions once and discover runner provenance without needing a first-party adapter for every GitHub runner vendor.
+
+Similar concepts exist for Buildkite agent queues, GitLab runners, and CircleCI runners.
+
+Runner Backend is therefore optional in an Execution Plan and may be opaque to RunDiff.
+
+### Runtime / isolation backend
+
+Runtime describes how customer code is isolated after compute has been acquired.
+
+Examples:
+
+- local process;
+- OCI / Docker container;
+- containerd workload;
+- Kubernetes pod;
+- full VM;
+- Firecracker microVM;
+- another microVM or hypervisor boundary.
+
+Runtime and Compute Provider are separate.
+
+### Evidence Provider
+
+Evidence Provider produces observations.
+
+Examples:
+
+- Rails or framework-native instrumentation;
+- OpenTelemetry;
+- process and cgroup metrics;
+- eBPF;
+- network probes;
+- driver-native artifacts;
+- browser traces;
+- native test framework artifacts.
+
+Evidence Provider is defined further in RFC 0006.
+
+### Subject Environment
+
+Subject Environment prepares the customer's application and its dependencies.
+
+This remains the boundary defined in docs/subject-environments.md and is separate from infrastructure placement.
+
+### Placement Engine
+
+Placement Engine transforms a Workload Profile and organization policy into one or more candidate Execution Plans and selects a compatible plan.
+
+### Behavioral Review
+
+Behavioral Review is the customer-facing product unit: one meaningful baseline/candidate review of a change or candidate.
+
+It is intentionally broader than Pull Request.
+
+A Behavioral Review may originate from:
+
+- a human PR;
+- an AI-generated patch;
+- a candidate branch;
+- a merge queue candidate;
+- one of several generated solutions;
+- a pre-commit or agent evaluation flow.
+
+This keeps the product model useful if AI systems generate far more candidate changes than human teams historically generated PRs.
+
+## Native execution and external orchestration
+
+### RunDiff-native managed execution
+
+Preferred managed path:
+
+~~~text
+Rails Control Plane
+  -> Workload Profiler
+  -> Placement Engine
+  -> Execution Plan
+  -> direct Compute Adapter
+  -> Go Executor
+  -> subject runtime
+  -> evidence
+~~~
+
+This avoids unnecessary scheduler nesting.
+
+### External orchestrator bridge
+
+Customer-controlled path:
+
+~~~text
+Rails Control Plane
+  -> GitHub Actions / Buildkite / GitLab / CircleCI
+  -> customer's existing runner topology
+  -> RunDiff execution/instrumentation
+  -> evidence export
+  -> Rails Control Plane
+~~~
+
+This is important where customers already have:
+
+- large test sharding;
+- tuned caches;
+- private services;
+- VPN access;
+- custom databases;
+- special hardware;
+- internal security policy.
+
+RunDiff should not force these customers to reproduce mature CI topology inside a generic managed sandbox just to adopt Behavioral Review.
+
+## Market map and prior art
+
+This section is non-normative. It records architecture references and provider candidates verified around 2026-09-20. Vendor capabilities change and must be re-verified before implementation decisions.
+
+### CI orchestrators
+
+#### Buildkite
+
+Buildkite is strong prior art for separating a SaaS control plane from execution agents. It supports both customer-hosted agents and Buildkite-hosted agents.
+
+RunDiff relevance:
+
+- external orchestrator bridge;
+- enterprise existing-CI integration;
+- candidate evidence import;
+- architecture reference for control-plane / data-plane separation;
+- parallel test topology that RunDiff must understand rather than flatten.
+
+#### GitLab Runner autoscaling
+
+GitLab Runner's current autoscaling architecture separates runner management, autoscaling logic, VM abstraction, and cloud provider plugins.
+
+RunDiff relevance:
+
+- strong prior art for provider abstraction;
+- reinforces capability-driven provisioning;
+- useful reference for fleet lifecycle and cloud plugin boundaries.
+
+#### CircleCI
+
+CircleCI supports self-hosted container and machine runners. Its Machine Runner Orchestrator can scale full VMs through Kubernetes/KubeVirt.
+
+RunDiff relevance:
+
+- external orchestrator bridge;
+- prior art for resource classes and ephemeral VM execution;
+- reference for separating orchestration from runner provisioning.
+
+#### GitHub Actions
+
+GitHub Actions remains the most important Preview path because customer workflow execution can fund free-tier compute.
+
+It is also an orchestration layer above multiple runner backends.
+
+### GitHub Actions runner backends
+
+Blacksmith, Depot, WarpBuild, RunsOn, and similar systems should usually be modeled as runner backends, not as top-level RunDiff compute abstractions.
+
+Their architectural value is important:
+
+- ephemeral per-job compute;
+- alternative hardware and cache strategies;
+- BYOC variants;
+- clean lifecycle boundaries;
+- runner provenance.
+
+RunDiff should capture runner provenance when available, especially for Performance evidence.
+
+A direct adapter for every runner backend is not an initial requirement.
+
+### Direct sandbox / VM candidates
+
+#### Cloudflare Sandbox / Containers
+
+Candidate for managed burst execution and Standard / confidence-gated Performance workloads.
+
+RunDiff must capability-detect restrictions around networking, nested execution, privileges, architecture, and host visibility.
+
+#### E2B
+
+Important direct-compute candidate because it provides isolated microVM sandboxes, snapshots, lifecycle APIs, metrics, and BYOC options.
+
+Potential roles:
+
+- managed execution;
+- interactive reproduction;
+- snapshot/fork experiments;
+- customer-cloud deployment.
+
+#### Vercel Sandbox
+
+Important direct-compute candidate with isolated sandbox execution, custom images, and snapshot capabilities.
+
+Potential roles:
+
+- Standard execution;
+- benchmarked Performance execution if stability is sufficient;
+- reproducible sandbox environments.
+
+#### Daytona
+
+Important sandbox candidate because it offers programmable container and VM environments, snapshots, VM forks, pause/resume, and custom compute regions.
+
+Potential roles:
+
+- managed execution;
+- reproduction/debug;
+- snapshot and fork experiments;
+- customer-supplied compute.
+
+#### Fly Machines
+
+Useful lower-level VM substrate with a direct machine lifecycle API.
+
+Potential role:
+
+- raw managed VM target for RunDiff's own Go executor;
+- useful when RunDiff wants to own more of the runtime stack rather than consume a higher-level sandbox API.
+
+#### Namespace
+
+Namespace is relevant in more than one role: high-performance GitHub Actions runner infrastructure and general developer/agent compute.
+
+RunDiff should treat the concrete product/API being integrated as the role, not the vendor name alone.
+
+#### Modal
+
+Watchlist compute/sandbox candidate. It is especially strong for elastic compute and now includes sandbox primitives. Any deeper Linux/VM capability must be re-verified before relying on it for Deep evidence.
+
+### Remote execution architecture references
+
+#### BuildBuddy
+
+BuildBuddy is important prior art for remote runners, Firecracker/OCI execution, warm environments, and snapshot reuse.
+
+The relevant RunDiff lesson is not "use BuildBuddy".
+
+It is:
+
+> baseline environment state may be reusable and forkable instead of rebuilt from zero for every candidate.
+
+This matters to one-baseline-many-candidates economics.
+
+#### EngFlow
+
+EngFlow is useful prior art for scheduler/worker separation and capability-based remote execution.
+
+The relevant RunDiff lesson is:
+
+> incoming work should describe resource and platform requirements, and placement should match those requirements to capable workers.
+
+This directly supports Workload Profile -> Placement Engine -> Execution Plan.
+
+### Specialized architecture references
+
+#### Dagger
+
+Dagger is useful prior art for keeping workflow definition portable across local, cloud, container, and remote engines.
+
+RunDiff should preserve the same principle without taking a dependency unless there is a concrete implementation benefit.
+
+#### Testcontainers Cloud
+
+Testcontainers Cloud demonstrates that application execution and service-container compute can live in different places.
+
+RunDiff should not assume forever that every dependency of a subject must be colocated on one machine.
+
+## Product dimensions
+
+RunDiff pricing should not be a single ladder where more volume automatically means deeper evidence.
+
+### Dimension 1: Review Volume
+
+Working plan names:
+
+- Preview;
+- Review 250;
+- Review 500;
+- Review 1000;
+- Enterprise.
+
+These names remain working commercial labels and may change before launch.
+
+The earlier model treated 250 / 500 / 1000 as raw managed minutes. That is too literal because:
+
+- a 2-minute review using one worker is not equivalent to a 2-minute review using 16 workers;
+- Performance may execute baseline/candidate repeatedly;
+- different machine sizes have different cost;
+- providers bill CPU, memory, disk, VM time, or proprietary units differently;
+- parallelism reduces wall time without reducing aggregate compute.
+
+RunDiff should therefore not make raw wall-clock minutes the permanent public billing contract.
+
+### Review Credits
+
+Preferred working metering abstraction:
+
+> Review Credits represent normalized managed execution consumption.
+
+The exact formula is not yet a public contract.
+
+A future normalization may use a Standard Worker reference and aggregate resource-time, for example:
+
+~~~text
+normalized usage =
+  resource-weighted execution time
+  + provider-specific normalized cost dimensions
+~~~
+
+The model must account for concurrency.
+
+Example:
+
+~~~text
+4 workers
+x 3 minutes each
+= approximately 12 worker-minutes before normalization
+~~~
+
+It must not be billed as only 3 minutes merely because the wall clock was 3 minutes.
+
+Do not expose raw provider billing primitives such as Cloudflare CPU seconds, provider-specific VM seconds, or vCPU-minute details as the main customer experience.
+
+### Behavioral Review estimate
+
+Credits are useful for accounting but are still abstract.
+
+The primary human explanation should be estimated Behavioral Reviews.
+
+Before repository history exists:
+
+~~~text
+Review 500
+
+Includes N Review Credits
+
+Typical usage:
+approximately X Behavioral Reviews
+for a representative 5-minute workload
+~~~
+
+The public estimate must be labeled approximate.
+
+After RunDiff learns the repository:
+
+~~~text
+Based on this repository:
+
+median Behavioral Review: 4m 14s
+estimated Review 500 capacity: about 118 reviews/month
+~~~
+
+The repository-specific estimate is more useful than a generic PR/day claim.
+
+Do not permanently price by PR count. AI agents can generate orders of magnitude more candidate changes than a traditional human PR workflow.
+
+### Preview
+
+Preview should use customer-funded compute through GitHub Actions or another supported external orchestrator where practical.
 
 Conceptually:
 
 ~~~text
-if evidence_depth == deep:
-  choose explicitly Deep-capable provider
-else if workload requires unsupported privileged/network features:
-  exclude incompatible providers
-else:
-  choose cheapest provider that satisfies
-    capability
-    resource requirements
-    region/policy
-    current stability threshold
+customer change
+  -> customer CI compute
+  -> RunDiff Standard evidence
+  -> RunDiff review
 ~~~
 
-Selection can consider:
+Preview has no RunDiff-managed compute allowance by default.
 
-- requested evidence depth;
-- required CPU/RAM/disk;
-- number and type of services;
-- Docker Compose topology;
-- privileged requirements;
-- networking requirements;
-- nested virtualization/container requirements;
-- architecture;
-- expected duration;
-- cold-start sensitivity;
-- cache locality;
-- provider availability;
-- measured stability;
-- historical success for this workload class;
-- expected cost;
-- organization policy.
+### Dimension 2: Evidence Depth
 
-### Placement explanation
+#### Standard
 
-Placement decisions should be inspectable.
+Behavioral evidence with broad portability.
+
+Typical signals:
+
+- test/scenario outcome;
+- exit status;
+- application errors;
+- HTTP behavior;
+- SQL count/fingerprints where available;
+- jobs and side effects where instrumented;
+- logs;
+- OpenTelemetry;
+- process RSS / basic CPU samples;
+- native artifacts.
+
+Standard can usually preserve the customer's existing CI parallelism if evidence correlation is strong.
+
+#### Performance
+
+Everything in Standard plus controlled resource comparison.
+
+Typical signals and requirements:
+
+- paired baseline/candidate execution;
+- stable resource envelope;
+- fixed or comparable worker topology;
+- wall time;
+- CPU time;
+- peak memory;
+- memory curve;
+- disk I/O;
+- process/container metrics;
+- calibration;
+- measured noise;
+- confidence gating;
+- repeated/interleaved samples where appropriate.
+
+#### Deep
+
+Everything in Performance plus explicitly supported host/kernel evidence.
+
+Potential signals:
+
+- eBPF;
+- syscalls;
+- socket/network-flow activity;
+- TCP behavior;
+- context switches;
+- page faults;
+- block I/O;
+- scheduler/kernel latency;
+- process trees;
+- low-level file activity;
+- flamegraphs/profiles where supported.
+
+Deep requires an Execution Plan whose full capability set can prove those signals.
+
+## Parallelism model
+
+Parallelism affects both evidence quality and commercial metering.
+
+It must be explicit in the Execution Plan.
+
+### Standard mode
+
+Default:
+
+> Preserve customer parallelism when correlation and aggregation remain correct.
+
+For example, 20 RSpec shards can contribute to one Behavioral Review if RunDiff can correlate:
+
+- execution ID;
+- scenario/test identity;
+- shard ID;
+- trace ID;
+- evidence provenance.
+
+Ordering differences are acceptable when the evidence semantic is aggregate behavior rather than a timing experiment.
+
+### Performance mode
+
+Performance must freeze or explicitly control:
+
+- shard count;
+- worker count;
+- CPU allocation;
+- memory allocation;
+- database pool;
+- runtime configuration;
+- test seed/order where relevant;
+- concurrency against the subject.
+
+Bad comparison:
+
+~~~text
+BASE: 8 workers
+PR: 12 workers
+~~~
+
+Better:
+
+~~~text
+BASE: 8 workers
+PR: 8 workers
+same resource envelope
+~~~
+
+Where possible, pair by shard:
+
+~~~text
+Shard 1: BASE -> PR
+Shard 2: BASE -> PR
+Shard 3: BASE -> PR
+Shard 4: BASE -> PR
+~~~
+
+This is preferable to comparing an unrelated baseline fleet with an unrelated candidate fleet.
+
+### Controlled performance experiment
+
+For endpoint latency, allocations, SQL behavior, or similar micro-level claims, RunDiff may intentionally ignore the customer's normal test-suite parallelism.
 
 Example:
 
 ~~~text
-Cloudflare
-  compatible: yes
-  resources: sufficient
-  deep evidence: not requested
-  expected cost: low
-  recent stability: acceptable
+fixed subject
+fixed database
+fixed CPU
+fixed concurrency
 
-Namespace
-  compatible: yes
-  expected cost: higher
-
-RunDiff Fleet
-  compatible: yes
-  deep-capable: yes
-  not required
-
-selected: Cloudflare
+BASE
+PR
+BASE
+PR
 ~~~
 
-### Fallback
+RunDiff should distinguish:
 
-Provider failure can trigger a policy-controlled fallback.
+- CI throughput comparison;
+- controlled performance experiment.
 
-Example:
+They answer different questions.
 
-~~~text
-Cloudflare selected
-  -> unsupported network behavior / OOM / infra failure
-  -> retry on Namespace
-  -> success
-  -> record placement outcome
-~~~
+## Execution stability and confidence
 
-A future execution of the same repository should use that history rather than repeat the same avoidable placement failure.
+### Do not promise provider determinism
 
-## Placement learning
+Cloud execution is not perfectly deterministic.
 
-RunDiff should collect empirical placement evidence from every managed execution.
+Potential noise sources include:
 
-Useful dimensions include:
+- physical CPU variation;
+- noisy neighbors;
+- disk contention;
+- network;
+- placement;
+- thermal behavior;
+- cache state;
+- cold starts.
 
-- provider;
-- region;
-- machine / shape;
-- CPU architecture and observable CPU identity when available;
-- repository/workload fingerprint;
-- languages and frameworks;
-- service count and service classes;
-- container count;
-- requested evidence depth;
-- estimated versus actual peak RAM;
-- estimated versus actual CPU;
-- startup/bootstrap/build time;
-- baseline time;
-- candidate time;
-- total execution time;
-- infra failure type;
-- OOM events;
-- retries and fallback;
-- environment stability profile;
-- cache hit rate;
-- evidence bytes;
-- network bytes when available;
-- provider-reported or estimated cost.
+RunDiff should record an Execution Stability Profile.
 
-The system should learn at two levels:
-
-1. workload-class history, for example Rails + Postgres + Redis;
-2. repository-specific history.
-
-Repository-specific history is especially valuable. After repeated reviews, RunDiff can know the normal resource envelope and bootstrap behavior of that exact repository.
-
-Predictive models may be introduced only after this dataset exists and only where they outperform transparent rules.
-
-## Determinism and execution stability
-
-### Do not model determinism as provider marketing
-
-Cloud execution is not perfectly deterministic. CPU host model, noisy neighbors, disk contention, network, placement, thermal behavior, cache state, and cold starts can all introduce variation.
-
-RunDiff should therefore describe a measured Execution Stability Profile, not claim that one provider has a permanent global determinism coefficient.
-
-A useful profile can contain:
+Illustrative:
 
 ~~~text
 CPU       0.991
@@ -457,24 +836,22 @@ Network   0.814
 Startup   0.944
 ~~~
 
-A single aggregate value may exist for scheduling, but user-facing performance conclusions should retain the relevant dimensions.
+A single aggregate score may exist for scheduling, but user-facing Performance evidence should retain relevant dimensions.
 
 ### Calibration
 
-Before or alongside Performance executions, the executor can run a short calibration suite.
-
-Candidate probes include:
+Potential calibration probes:
 
 - integer / hashing CPU workload;
-- compression workload;
+- compression;
 - memory bandwidth;
-- local disk sequential I/O;
-- local disk random I/O;
+- local sequential disk;
+- local random disk;
 - process spawn;
-- container startup;
-- optional network RTT when network performance is part of the claim.
+- container or VM startup;
+- optional network RTT.
 
-A working stability metric for one dimension can be:
+Working implementation hypothesis:
 
 ~~~text
 median = median(samples)
@@ -489,28 +866,26 @@ stability95 =
   1 - noise95
 ~~~
 
-This formula is an implementation hypothesis, not yet a public contract. The important contract is that RunDiff measures noise and records how the confidence conclusion was produced.
+This formula is not yet a public contract.
 
-### Paired execution over absolute benchmarking
+### Paired execution
 
-The strongest practical control is not "use the same physical machine forever".
-
-It is:
+The primary technique is:
 
 > Run baseline and candidate under the same execution lease and as close to the same conditions as possible.
 
-Basic sequence:
+Basic:
 
 ~~~text
-acquire worker
+acquire environment
   -> calibrate
   -> BASE
   -> PR
   -> compare
-  -> release worker
+  -> release
 ~~~
 
-For higher-confidence Performance reviews, interleave samples:
+Higher confidence may interleave:
 
 ~~~text
 BASE
@@ -521,434 +896,511 @@ BASE
 PR
 ~~~
 
-or another balanced schedule.
+If an external orchestrator cannot guarantee comparable placement, RunDiff must lower confidence, restrict the claim, or rerun a controlled experiment on a better plan.
 
-This reduces the impact of host-to-host variation because baseline and candidate share the same host, runtime, cache policy, region, and approximate time window.
+### Performance result example
 
-A slow worker can still produce a useful relative result if it affects both subjects similarly.
+Valid:
 
-## Reference / golden execution
+~~~text
+BASE      182 ms
+PR        195 ms
+delta     +7.1%
 
-RunDiff may maintain a high-control reference tier for validation and high-confidence benchmarks.
+environment noise: +/-1.8%
+confidence: HIGH
+~~~
 
-A reference host can target:
+Inconclusive:
+
+~~~text
+observed delta: +3.1%
+environment noise: +/-4.8%
+performance conclusion: INCONCLUSIVE
+~~~
+
+RunDiff must not turn an inconclusive performance observation into a deterministic regression claim.
+
+## Reference execution
+
+RunDiff may maintain a high-control reference tier.
+
+Possible properties:
 
 - dedicated bare metal;
 - fixed CPU model;
-- fixed RAM configuration;
+- fixed RAM;
 - local NVMe;
 - fixed kernel and OS image;
-- no unrelated workloads;
+- no unrelated workload;
 - fixed CPU governor;
-- optional CPU pinning;
-- optional NUMA pinning;
-- minimized background services;
-- explicit SMT / turbo policy;
-- prefetched dependencies;
+- CPU pinning;
+- NUMA policy;
+- explicit SMT/turbo policy;
 - fixed container images;
 - fixed random seeds;
 - fixed database fixtures;
-- external network disabled or separately measured.
+- controlled or disabled external network.
 
-The reference tier should still measure its own stability. It is not assigned 1.000 by definition.
+The reference tier still measures its own noise. It is never assigned a hard-coded 1.000 stability score.
 
-This tier is appropriate for RunDiff's own calibration, release benchmarks, performance-regression confirmation, and high-confidence customer review modes. It is not required for every normal PR.
+Use cases:
+
+- RunDiff calibration;
+- release benchmarks;
+- regression confirmation;
+- high-confidence customer investigations.
+
+## Placement Engine
+
+### Hard constraints first
+
+Placement rejects incompatible plans before optimization.
+
+Hard constraints may include:
+
+- architecture;
+- minimum CPU/RAM/disk;
+- required region;
+- customer network access;
+- privileged operations;
+- Docker/Compose behavior;
+- nested virtualization;
+- KVM;
+- eBPF;
+- persistent/snapshot requirement;
+- approved vendor list;
+- BYOC-only policy.
+
+### Optimization second
+
+Among compatible plans, choose according to:
+
+- expected cost / Review Credits;
+- measured stability;
+- startup latency;
+- queue latency;
+- cache locality;
+- snapshot availability;
+- historical success;
+- repository-specific history;
+- evidence fidelity;
+- fallback risk;
+- current provider capacity.
+
+### Explainability
+
+A placement decision should be inspectable.
+
+Example:
+
+~~~text
+Candidate plan A
+  orchestrator: rundiff
+  compute: cloudflare
+  compatible: yes
+  evidence: standard/performance
+  expected cost: low
+  stability: acceptable
+
+Candidate plan B
+  orchestrator: rundiff
+  compute: e2b
+  compatible: yes
+  snapshot support: useful
+  expected cost: medium
+
+Candidate plan C
+  orchestrator: rundiff
+  compute: rundiff_fleet
+  compatible: yes
+  deep evidence: yes
+  unnecessary for requested depth
+
+selected: plan A
+~~~
+
+### Fallback
+
+Policy-controlled fallback is allowed for infrastructure failures.
+
+Example:
+
+~~~text
+plan A
+  -> unsupported runtime behavior / OOM / provider failure
+  -> plan B
+  -> success
+  -> record outcome
+~~~
+
+Repository history should prevent repeated avoidable placement failures.
+
+Product regressions must never be silently retried on a different provider until they disappear.
+
+## Placement learning
+
+Record operational metadata outside the portable behavioral Result contract.
+
+Useful dimensions:
+
+- orchestrator;
+- compute provider;
+- runner backend;
+- runtime/isolation;
+- region;
+- machine/shape;
+- observable CPU identity where available;
+- architecture;
+- workload fingerprint;
+- repository;
+- language/framework;
+- service count;
+- container count;
+- Evidence Depth;
+- planned and actual parallelism;
+- estimated and actual RAM;
+- estimated and actual CPU;
+- bootstrap/build time;
+- baseline time;
+- candidate time;
+- total wall time;
+- aggregate worker time;
+- calibration/stability profile;
+- infra failure reason;
+- OOM;
+- retries/fallback;
+- cache hit rate;
+- snapshot reuse;
+- evidence bytes;
+- network bytes when available;
+- normalized Review Credits;
+- provider-reported or estimated cost.
+
+Learn at two levels:
+
+1. workload class;
+2. exact repository.
+
+Repository-specific history should eventually answer:
+
+~~~text
+typical peak RAM
+typical CPU
+bootstrap duration
+common services
+stable provider/runtime combinations
+normal review duration
+normal Review Credit consumption
+failure-prone placements
+~~~
+
+Predictive models may be introduced only after this data exists and only if they materially outperform transparent rules.
+
+## Reuse and snapshots
+
+RunDiff is not CI x 2.
+
+### Candidate evidence reuse
+
+If equivalent candidate work already ran in customer CI, import evidence when identity and provenance are strong enough.
+
+Required identity should include at least:
+
+- exact candidate SHA;
+- exact scenario/test identity;
+- compatible environment profile;
+- compatible instrumentation;
+- trustworthy provenance.
+
+A green exit code alone is insufficient.
+
+### Baseline reuse
+
+Baseline evidence may be reusable when all relevant identity dimensions match.
+
+Potential identity:
+
+~~~text
+baseline SHA
+scenario identity
+subject environment
+runtime/toolchain
+instrumentation profile
+fixture/database identity
+relevant secrets/emulator profile
+execution-plan compatibility
+~~~
+
+### Snapshot/fork opportunity
+
+BuildBuddy, E2B, Vercel Sandbox, Daytona, Firecracker-based systems, and similar technologies demonstrate that environment state can sometimes be snapshotted or forked.
+
+Potential future RunDiff model:
+
+~~~text
+prepared baseline environment
+        |
+        +--> baseline execution
+        |
+        +--> candidate A
+        |
+        +--> candidate B
+        |
+        +--> candidate C
+~~~
+
+This can materially change one-baseline-many-candidates economics, especially for AI-generated candidate sets.
+
+Snapshot reuse must not contaminate comparison state.
 
 ## Executor role
 
-### The executor is a supervisor
+The concrete managed implementation is Go.
 
-The concrete current direction is a Go executor.
-
-The durable architectural role is:
+Durable role:
 
 ~~~text
 RunDiff Executor
-  -> acquire / receive execution environment
+  -> accept assigned Execution Plan
   -> prepare repository
-  -> bootstrap
-  -> build
-  -> start subjects
-  -> readiness
+  -> bootstrap/build
+  -> create subject environment
+  -> start/readiness
   -> execute scenario
   -> collect evidence
+  -> enforce limits/cancellation
   -> teardown
   -> return portable Result
 ~~~
 
-It coordinates foreign processes and Linux primitives. It is not a CPU-bound data plane.
+The executor coordinates foreign processes and Linux/runtime primitives.
 
-### Deployment is not the abstraction
+It is not itself defined as a Docker container.
 
-The executor may be delivered as:
+Possible deployment forms:
 
-- a binary;
-- a systemd service;
-- an OCI image;
-- a Kubernetes DaemonSet;
-- another host agent form.
+- host binary/systemd service;
+- OCI image;
+- Kubernetes DaemonSet;
+- agent injected into an external CI job;
+- another host-agent form.
 
-For a controlled RunDiff worker, the preferred direction is a small host-level daemon rather than making "executor inside Docker" a hard invariant. Host-level execution gives the supervisor clean access to cgroups, namespaces, KVM, network namespaces, block devices, eBPF, and host metrics.
-
-A provider can still require the executor itself to run inside a container. That is a provider-specific deployment constraint, not the core model.
+On a controlled RunDiff Fleet, a small host-level daemon is preferred when access to cgroups, namespaces, KVM, block devices, eBPF, or host metrics is required.
 
 ## Docker, VMs, and Firecracker
 
-Docker remains an important workload runtime. It is not the entire executor architecture.
+Docker/OCI remains an important workload runtime.
 
-For generic managed jobs:
+It is not the top-level architecture.
+
+Generic managed path:
 
 ~~~text
-Execution Provider
-  -> worker / VM
+Compute Provider
+  -> worker / VM / sandbox
        -> RunDiff Executor
-            -> Docker / OCI workloads
+            -> Docker / OCI subject
 ~~~
 
-For a controlled high-isolation fleet:
+Controlled high-isolation path:
 
 ~~~text
-RunDiff Control Plane
-  -> Placement Engine
-       -> RunDiff Fleet host
-            -> Go Executor
-                 -> Firecracker microVM
-                      -> Docker / OCI
-                           -> app
-                           -> postgres
-                           -> redis
-                           -> tests
+RunDiff Fleet host
+  -> Go Executor
+       -> Firecracker microVM
+            -> Docker / OCI
+                 -> app
+                 -> postgres
+                 -> redis
+                 -> tests
 ~~~
 
-Firecracker is useful for strong tenant isolation, fast disposable VM lifecycle, clean execution boundaries, resource boundaries, and controlled fleet security.
+Firecracker is valuable for isolation, lifecycle, and disposable VM boundaries.
 
-Firecracker does not remove noisy-neighbor effects from the physical host and does not make a benchmark deterministic by itself.
+It does not make underlying hardware deterministic.
 
-## Provider roles
+## Deep evidence
 
-### GitHub Actions
+Deep is a capability of an Execution Plan, not a vendor marketing label.
 
-Primary near-term role:
+A valid Deep plan may require:
 
-- Preview execution;
-- customer-funded compute;
-- easy adoption;
-- functional and Standard evidence;
-- limited Performance evidence when measured confidence is sufficient.
+- Linux;
+- eBPF-capable kernel;
+- sufficient privileges;
+- controlled cgroup visibility;
+- network namespace visibility;
+- process lineage access;
+- stable host instrumentation;
+- security policy allowing those sensors.
 
-GitHub-hosted runner identity should not be treated as a stable physical benchmark machine.
+RunDiff Fleet is the expected first environment where these capabilities are under RunDiff's control.
 
-### Cloudflare
+Customer Hosted may also be Deep-capable.
 
-Primary candidate role:
+External CI and generic sandboxes should not be assumed Deep-capable without explicit proof.
 
-- managed burst compute for simple-to-moderate workloads;
-- Standard evidence;
-- Performance evidence when paired execution and measured stability meet the threshold.
+## Commercial UX
 
-Provider restrictions around privileged behavior, networking, nested execution, or host visibility must be capability-detected. Cloudflare should not be the Deep evidence contract.
-
-Review 250 / 500 / 1000 may route substantial eligible work to Cloudflare without making Cloudflare visible in the commercial plan name.
-
-### Namespace
-
-Primary candidate role:
-
-- CI-oriented managed compute;
-- larger or more complex workloads;
-- Standard and Performance execution;
-- fallback when another provider cannot satisfy topology or capacity requirements.
-
-Deep capability must be explicitly verified before being promised.
-
-### RunDiff Fleet
-
-Primary role:
-
-- controlled Performance;
-- Deep evidence;
-- host metrics and eBPF;
-- strong isolation;
-- reference execution;
-- workloads that external providers cannot satisfy.
-
-The RunDiff Fleet can use dedicated hosts and Firecracker or another suitable isolation backend.
-
-### Customer Hosted / BYOC
-
-Primary role:
-
-- enterprise;
-- private networks;
-- data residency;
-- provider restrictions;
-- controlled performance;
-- Deep evidence where the customer grants required host capabilities.
-
-### exe.dev and similar ephemeral VM products
-
-These services are interesting provider candidates, but do not need to be primary production placement targets initially.
-
-A particularly strong future integration is interactive reproduction:
-
-~~~text
-RunDiff failure
-  -> Open reproduction environment
-       -> disposable VM
-       -> exact revision + artifacts + scenario context
-       -> SSH / agent debugging
-~~~
-
-This can be valuable even when the provider is not used for the original benchmark execution.
-
-### Blacksmith and Actions-compatible providers
-
-Actions-compatible compute remains useful for organizations already invested in GitHub Actions or for BYOC-style deployments.
-
-It should not become the architectural foundation of managed RunDiff because RunDiff already owns its own durable execution scheduler, leases, cancellation, and provider boundary.
-
-## Do not run everything A/B
-
-RunDiff is not CI x 2.
-
-### Candidate-only by default
-
-Examples:
-
-- lint;
-- formatting;
-- static type checks;
-- most static security analysis;
-- other checks where baseline execution adds no behavioral meaning.
-
-### A/B by default when relevant
-
-Examples:
-
-- HTTP/API scenarios;
-- browser/user flows;
-- selected tests whose runtime evidence is useful;
-- SQL/query behavior;
-- background jobs;
-- external side effects;
-- latency;
-- memory/resource behavior;
-- network behavior;
-- runtime traces/profiles;
-- file/process behavior.
-
-The execution planner should make this classification explicit.
-
-## Candidate and baseline reuse
-
-If the customer already executed an equivalent candidate check in CI, RunDiff should eventually import that evidence rather than rerun it when identity and provenance are strong enough.
-
-Reuse requires at least:
-
-- exact commit SHA;
-- exact scenario/test identity;
-- compatible runtime/environment profile;
-- compatible instrumentation/evidence contract;
-- trustworthy provenance.
-
-A green exit code alone is not enough.
-
-Baseline execution should also be reusable across candidates when the identity includes all relevant environment and fixture inputs.
-
-Potential baseline cache identity:
-
-~~~text
-baseline commit SHA
-scenario identity
-subject environment
-runtime/toolchain identity
-instrumentation profile
-fixture/database identity
-relevant secrets/emulator profile
-~~~
-
-RunDiff must never silently reuse a baseline captured under an incompatible environment.
-
-## Customer UX
-
-Most users should not choose a provider.
-
-Default:
+Most customers should see:
 
 ~~~text
 Execution
   Automatic - recommended
 ~~~
 
-The product-facing configuration is instead:
+They should primarily choose:
 
 ~~~text
 Review volume
-  Preview | 250 | 500 | 1000 | Enterprise
+  Preview | Review 250 | Review 500 | Review 1000 | Enterprise
 
 Evidence depth
   Standard | Performance | Deep
 ~~~
 
-Advanced or Enterprise users may optionally choose or constrain execution:
+The UI may later expose advanced policy:
 
 ~~~text
 Execution policy
-  Automatic
+  automatic
   RunDiff managed only
-  GitHub Actions
-  approved provider list
-  Customer Hosted
+  customer CI
+  customer hosted
+  approved providers only
+  EU-only
+  stability over cost
 ~~~
 
-This separation prevents implementation detail from leaking into the pricing model.
+Customers buy RunDiff outcomes, not Cloudflare or E2B product complexity.
 
-## Cost model
+## Implementation sequence
 
-The important distinction is:
+### Phase 1 - Make the model explicit
 
-~~~text
-customer GitHub bill
-!=
-RunDiff infrastructure cost
-~~~
+- introduce WorkloadProfile;
+- introduce ExecutionPlan;
+- represent orchestrator separately from compute;
+- represent optional runner backend/provenance;
+- add explicit parallelism fields;
+- keep GitHub Actions Preview;
+- keep existing portable Request / Result contract;
+- collect placement and usage telemetry.
 
-Preview intentionally uses customer GitHub Actions where practical.
+### Phase 2 - First managed placement
 
-Paid Review plans consume managed execution minutes and RunDiff pays the selected managed provider.
+- implement one direct Compute Adapter;
+- add deterministic Placement Engine;
+- add capability records;
+- add fallback;
+- add Review Credit accounting prototype;
+- show estimated Behavioral Reviews from repository history.
 
-Real cost depends on clone/bootstrap, dependency caching, baseline reuse, candidate-result reuse, database preparation, scenario count and duration, CPU/RAM class, browser usage, evidence depth, evidence/artifact size, retries/fallback, provider availability, and idle capacity.
+### Phase 3 - Multi-provider Performance
 
-Public provider prices are inputs to the Placement Engine and unit-economics work, not durable architecture.
+- benchmark a second managed compute provider;
+- add calibration;
+- add same-lease pairing;
+- add controlled parallelism;
+- add Performance confidence gating;
+- add repository-specific placement history.
 
-RunDiff should not sell "Cloudflare minutes" or "Namespace minutes". It should sell managed Review capacity and evidence capability.
+### Phase 4 - External orchestrator bridges
 
-## Usage metering
+Priority based on customer demand:
 
-Operational metering is outside the portable behavioral Result contract.
+- GitHub Actions first;
+- Buildkite as a strong enterprise candidate;
+- GitLab CI / CircleCI next where justified;
+- import existing candidate evidence;
+- preserve customer sharding where safe.
 
-It should answer:
+### Phase 5 - Controlled fleet and Deep
 
-~~~text
-cost per Behavioral Review
-cost per repository/customer
-cost by evidence depth
-gross margin by product plan
-compute avoided through reuse
-provider success/failure rate
-provider stability by workload class
-placement accuracy
-~~~
-
-Metering must never persist repository capabilities, credentials, or customer secrets.
-
-## LLM boundary
-
-The core path remains:
-
-~~~text
-instrumentation
-  -> structured evidence
-  -> deterministic behavioral diff
-  -> policy
-  -> optional LLM explanation
-  -> human / agent review
-~~~
-
-An LLM is not required to decide whether deterministic evidence changed, to calculate environment noise, or to choose an execution provider in the initial Placement Engine.
-
-## Suggested implementation sequence
-
-### Phase 1
-
-- keep GitHub Actions Preview path;
-- introduce explicit ExecutionProvider capability model;
-- add WorkloadProfile;
-- add rule-based PlacementEngine;
-- collect placement/metering evidence;
-- route eligible paid executions to one managed provider;
-- retain provider fallback.
-
-### Phase 2
-
-- add second managed provider;
-- add calibration suite;
-- implement Performance confidence gating;
-- implement same-lease paired execution and interleaving;
-- build repository-specific placement history.
-
-### Phase 3
-
-- introduce controlled RunDiff Fleet;
-- move Go executor to host-supervisor form where appropriate;
-- add stronger cgroup/process signals;
-- introduce Firecracker or another microVM backend if justified by isolation and lifecycle tests.
-
-### Phase 4
-
-- Deep evidence on controlled hosts;
+- RunDiff Fleet;
+- host-level Go executor;
+- stronger cgroup/process evidence;
+- Firecracker or another microVM runtime where justified;
 - eBPF sensors;
-- reference execution tier;
-- richer BYOC;
-- interactive reproduction integrations;
-- predictive placement only if data shows a clear advantage over deterministic rules.
+- reference execution tier.
+
+### Phase 6 - Snapshot/fork and predictive placement
+
+- baseline environment snapshots;
+- one baseline to many candidates;
+- interactive reproduction environments;
+- predictive scheduling only if empirical data proves value over deterministic rules.
 
 ## Consequences
 
 ### Positive
 
-- Preview can be useful without RunDiff-funded compute.
-- Paid plans have clean unit economics based on managed minutes.
-- Evidence quality is no longer accidentally coupled to plan volume.
-- Provider competition remains available.
-- Provider failures can be learned from instead of repeatedly rediscovered.
-- RunDiff can choose the cheapest compatible environment without exposing infrastructure complexity to most users.
-- Same-lease paired execution improves performance comparison even on variable cloud hardware.
-- Deep evidence has an explicit home on controlled infrastructure.
-- Firecracker can be adopted for security without pretending it solves hardware noise.
-- BYOC remains compatible with the same Request / Result boundary.
+- architecture no longer conflates CI orchestrators with raw compute;
+- one vendor can safely occupy multiple roles;
+- RunDiff can support mature customer CI without duplicating it;
+- managed compute remains independently replaceable;
+- runner vendors do not require one-off top-level integrations;
+- parallelism becomes explicit for both evidence and billing;
+- pricing can move away from misleading wall-clock minutes;
+- Behavioral Review remains useful in high-volume AI workflows;
+- capability-based placement can improve from empirical data;
+- Performance claims have an explicit confidence model;
+- Deep evidence has a clear controlled-infrastructure home;
+- snapshots and one-baseline-many-candidates fit naturally.
 
 ### Costs
 
-- placement, capability discovery, and fallback become first-class systems;
-- RunDiff must collect and retain operational execution metadata;
-- Performance claims need calibration and confidence logic;
-- provider-specific incompatibilities need clear reason codes;
-- managed fleet operation remains necessary for the strongest evidence depth;
-- provider routing increases testing surface area.
+- Execution Plan is more complex than a flat provider field;
+- capability discovery must be maintained;
+- orchestration bridges need provider-specific lifecycle logic;
+- parallelism and metering require careful accounting;
+- managed provider routing expands the test matrix;
+- confidence gating requires calibration data;
+- repository history creates additional operational state.
+
+## Non-goals
+
+This RFC does not:
+
+- commit to one permanent managed compute vendor;
+- commit to exact Review Credit conversion rates;
+- claim Deep support on any third-party provider without proof;
+- require integrating every CI or runner vendor;
+- require Firecracker for the first managed execution;
+- make provider pricing a product contract;
+- require ML/AI for placement;
+- replace the portable Request / Result boundary;
+- replace RFC 0006's evidence-provider model;
+- turn RunDiff into a generic CI platform.
 
 ## Open questions
 
-1. Which managed provider should be the first production target for paid Review plans?
-2. What exact capability schema should every Provider Adapter expose?
-3. What stability thresholds should gate Performance conclusions?
-4. What minimum sample count and interleaving strategy should Performance use by default?
-5. Which workloads should automatically escalate from Cloudflare-class compute to Namespace-class or RunDiff Fleet?
-6. What exact host capabilities are required for the first Deep profile?
-7. When does Firecracker provide enough isolation/lifecycle value to justify operating it?
-8. What exact policy should govern automatic provider fallback versus immediate INFRA_FAILURE?
-9. Which repository-history fields are safe and useful for long-term placement learning?
-10. Which interactive reproduction provider, if any, should be integrated first?
+1. What exact ExecutionPlan schema belongs in control-plane storage?
+2. Which fields, if any, should become part of the portable executor request?
+3. Which direct compute candidate should be benchmarked first: Cloudflare, E2B, Vercel Sandbox, Fly Machines, Namespace, Daytona, or another system?
+4. What is the first standard resource shape used for Review Credit normalization?
+5. Should memory and disk have explicit Review Credit weights, or should normalization track actual provider cost behind one stable customer unit?
+6. What minimum repository history is required before showing a personalized Behavioral Review estimate?
+7. What default parallelism mode should Performance use for existing test suites?
+8. When should RunDiff preserve external CI sharding versus rerun a controlled experiment?
+9. What exact stability threshold is required before a Performance claim can block a change?
+10. What capabilities define Deep v1?
+11. Which snapshot/fork system should be used for the first one-baseline-many-candidates experiment?
+12. Which customer CI bridge should follow GitHub Actions first?
+13. What provider fallback classes are safe without changing the semantics of the experiment?
+14. How should runner provenance be cryptographically or operationally trusted when importing evidence?
 
 ## Related work
 
 - ADR 0002: Execution is the core abstraction
 - ADR 0004: OpenTelemetry and W3C context
-- ADR 0006: Separate execution provider, runtime, and evidence depth
+- ADR 0006: historical flat provider model, superseded by ADR 0008
 - ADR 0007: Automatic placement and paired performance execution
+- ADR 0008: Execution Plan is the composition boundary
 - RFC 0002: Runner adapter contract
 - RFC 0003: One baseline, many candidates
 - RFC 0006: Portable execution and multi-source evidence
 - docs/executor.md
-- docs/production-runtime.md
 - docs/subject-environments.md
-- #76 managed executor strategy
-- #77 provider benchmarks and cost model
-- #78 candidate reuse and A/B execution policy
-- #79 eBPF/runtime evidence boundary
-- #80 usage metering
-- #81 customer BYOC providers
-- #82 managed disposable executor prototype
-- #83 executor-provider configuration
-- #84 commercial pricing assumptions
-- #85 RFC tracking issue
+- docs/production-runtime.md
