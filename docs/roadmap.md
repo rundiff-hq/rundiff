@@ -290,3 +290,30 @@ Success:
 > RunDiff remains economical and useful when AI systems generate many candidate changes per human decision.
 
 See RFC 0003, RFC 0004, RFC 0008, and RFC 0009.
+
+
+## Long-term horizon - controlled execution experiments
+
+The long-term product direction is intentionally broader than comparing two Git commits, but it must not expand the current production slice prematurely.
+
+The progression is:
+
+```text
+code-induced runtime diff
+  -> runtime-induced behavioral diff
+  -> controlled execution experiments
+```
+
+Today, the primary controlled variable is code in a pull request. A later product horizon may hold code and scenario constant while changing runtime conditions such as CPU, memory, storage, network behavior, database placement, dependency versions, configuration, or controlled failure conditions.
+
+The durable primitive is:
+
+```text
+comparable executions
++ same scenario
++ controlled change
+-> evidence
+-> behavioral diff
+```
+
+This is a product horizon, not an active V1 scope commitment. See `docs/product-vision.md` for the canonical product and messaging vision.
