@@ -2,7 +2,7 @@ module RunDiff
   module Github
     class PullRequestExecutionPublisher
       DEFAULT_CHECK_NAME = "RunDiff / Behavioral Review".freeze
-      DEFAULT_BOT_LOGIN = "rundiff-development[bot]".freeze
+      DEFAULT_BOT_LOGIN = "rundiff[bot]".freeze
 
       def initialize(
         token:,
