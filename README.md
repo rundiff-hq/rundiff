@@ -96,6 +96,7 @@ See `docs/onboarding.md` for the current five-minute onboarding shape and delibe
 
 ## Repository map
 
+- `docs/product-vision.md` - canonical product direction, brand language, messaging surfaces, and CTA snapshot
 - `docs/` - product thesis, architecture, decisions, RFCs, demo, roadmap
 - `schemas/` - machine-readable execution/result contracts
 - `lib/rundiff/` - portable core plus Rails adapters/probes behind explicit namespaces
