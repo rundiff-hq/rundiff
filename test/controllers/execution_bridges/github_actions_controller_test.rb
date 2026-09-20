@@ -127,7 +127,8 @@ class ExecutionBridgesGithubActionsControllerTest < ActionDispatch::IntegrationT
         "delivery_id" => "delivery",
         "baseline_ref" => "main",
         "candidate_ref" => "feature",
-        "candidate_repository" => "acme/app"
+        "candidate_repository" => "acme/app",
+        "execution_orchestrator" => "github_actions"
       }
     )
     assert execution.claim!
