@@ -68,19 +68,24 @@ GitHub Actions
   -> RunDiff Executor
 ~~~
 
-Shortest path to finish:
+Current proof state:
 
-1. Cloudflare local spike: Worker + D1 + Workflow + fake executor result.
-2. Persist and render one Behavioral Review from React.
-3. Port GitHub webhook dedupe/exact identity semantics.
-4. Connect the GitHub Actions execution bridge.
-5. Deploy Worker/D1/Workflow/R2 production resources.
-6. Verify authoritative domain, then bind the production custom domain.
-7. Install the production GitHub App on an external repository.
-8. Real `pull_request/opened` -> deliberate regression -> BLOCK.
-9. Push fix to the same PR -> `synchronize` -> ALLOW.
-10. Prove stale/superseded result rejection and executor timeout -> INFRA_FAILURE.
-11. Retain exact proof identities and actual Cloudflare cost.
+- [x] Cloudflare local spike: Worker + D1 + Workflow + Result lifecycle.
+- [x] Durable D1 Behavioral Review + React Review Detail.
+- [x] GitHub webhook signature verification and delivery deduplication.
+- [x] Exact repository/PR/base/head identity semantics.
+- [x] Current-candidate authority, supersede/stale guards, attempt/result identity, and finalization fencing.
+- [x] GitHub Actions portable Request/Result bridge.
+- [x] Remote Worker + D1 + Workflow + R2 deployment.
+- [x] Remote BLOCK and ALLOW synthetic bridge proofs.
+- [x] Duplicate Result idempotency, conflicting Result rejection, executor failure, and timeout -> INFRA_FAILURE.
+- [ ] Resolve GitHub Actions account billing/spending block so hosted jobs can start.
+- [ ] Configure deployed Worker with production GitHub App credentials and proof scenario.
+- [ ] Install the production App on an external demo repository.
+- [ ] Real `pull_request/opened` -> deliberate regression -> BLOCK.
+- [ ] Push fix to the same PR -> `synchronize` -> ALLOW.
+- [ ] Retain Production Proof v2 identities and actual Cloudflare/GitHub cost.
+- [ ] Verify authoritative domain and bind a custom domain after the external proof; this is not required to validate the Worker lifecycle itself.
 
 Not required for VS1: Durable Objects, Queues, Containers executor, Rails parity, PostgreSQL, Temporal, Performance/Deep evidence, billing, RCA/causal graph.
 
