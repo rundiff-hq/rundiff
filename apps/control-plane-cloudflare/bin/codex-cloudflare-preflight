@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+APP="$ROOT/apps/control-plane-cloudflare"
+
+say() {
+  printf '%-34s %s\n' "$1" "$2"
+}
+
+need() {
+  if command -v "$1" >/dev/null 2>&1; then
+    say "$1" "ok"
+  else
+    say "$1" "MISSING"
+    return 1
+  fi
+}
+
+echo "RunDiff Cloudflare Codex preflight"
+echo "root=$ROOT"
+echo
+
+need git
+need node
+need npm
+need codex
+
+cd "$APP"
+
+echo
+say "node" "$(node --version)"
+say "npm" "$(npm --version)"
+say "codex" "$(codex --version | head -n 1)"
+
+if [[ ! -d node_modules ]]; then
+  echo
+  echo "node_modules is missing."
+  echo "Run: cd apps/control-plane-cloudflare && npm install"
+  exit 2
+fi
+
+say "wrangler" "$(npx wrangler --version | head -n 1)"
+
+echo
+echo "Checking Wrangler authentication without printing credentials..."
+if npx wrangler auth token --json >/dev/null 2>&1; then
+  say "wrangler auth" "ok"
+else
+  say "wrangler auth" "NOT AUTHENTICATED"
+  echo "Use: npx wrangler login"
+  echo "or:  npx wrangler login --device"
+  exit 3
+fi
+
+echo
+echo "Read-only Cloudflare inventory checks:"
+npx wrangler d1 list >/dev/null
+say "D1 list" "ok"
+
+npx wrangler r2 bucket list >/dev/null
+say "R2 list" "ok"
+
+npx wrangler workflows list >/dev/null
+say "Workflows list" "ok"
+
+echo
+echo "Local project checks:"
+npm run typecheck
+npm run build
+
+echo
+echo "Preflight complete."
+echo "No Cloudflare resources were created, changed, or deleted by this script."
