@@ -2,7 +2,9 @@
 
 **Tests passed. Behavior changed.**
 
-RunDiff is a behavioral change validation platform. It runs the same scenario against two software subjects, captures execution evidence, and explains what changed.
+**Pre-merge behavioral diffing for pull requests.**
+
+RunDiff compares the runtime behavior of a baseline and candidate under the same scenario, captures execution evidence, and surfaces meaningful behavioral changes before merge.
 
 The product starts as a Rails 8.1 monolith on purpose. Portable contracts and comparison logic stay outside Rails-specific code so the CLI, protocol, recorders, drivers, and ingestion components can be extracted later without redesigning the model.
 
