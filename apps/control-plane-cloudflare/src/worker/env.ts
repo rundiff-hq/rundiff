@@ -3,4 +3,5 @@ export interface Env {
   ARTIFACTS: R2Bucket;
   REVIEW_WORKFLOW: Workflow;
   RUNDIFF_SPIKE_TOKEN?: string;
+  RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN?: string;
 }
