@@ -1,0 +1,193 @@
+# Proof-only customer workflow for the first GitHub Actions execution bridge.
+#
+# Repository configuration required:
+#
+# Secret:
+#   RUNDIFF_BRIDGE_TOKEN
+#
+# Variables:
+#   RUNDIFF_CONTROL_PLANE_URL=https://app.rundiff.com
+#   RUNDIFF_EXECUTOR_IMAGE=ghcr.io/rundiff-hq/rundiff:sha-<immutable-sha>
+#
+# The executor image must be pullable by this repository. For the first
+# external public demo, prefer a public immutable image.
+name: RunDiff Behavioral Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rundiff-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rundiff:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    env:
+      RUNDIFF_CONTROL_PLANE_URL: ${{ vars.RUNDIFF_CONTROL_PLANE_URL }}
+      RUNDIFF_EXECUTOR_IMAGE: ${{ vars.RUNDIFF_EXECUTOR_IMAGE }}
+      RUNDIFF_BRIDGE_TOKEN: ${{ secrets.RUNDIFF_BRIDGE_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      BASELINE_SHA: ${{ github.event.pull_request.base.sha }}
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+      GITHUB_REPOSITORY_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Validate configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "$RUNDIFF_CONTROL_PLANE_URL"
+          test -n "$RUNDIFF_EXECUTOR_IMAGE"
+          test -n "$RUNDIFF_BRIDGE_TOKEN"
+
+      - name: Claim exact RunDiff execution
+        id: claim
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          payload="$(jq -nc             --arg repository "$REPOSITORY"             --argjson pull_request_number "$PULL_REQUEST_NUMBER"             --arg baseline_sha "$BASELINE_SHA"             --arg candidate_sha "$CANDIDATE_SHA"             '{
+              repository: $repository,
+              pull_request_number: $pull_request_number,
+              baseline_sha: $baseline_sha,
+              candidate_sha: $candidate_sha
+            }')"
+
+          claimed=0
+          for attempt in $(seq 1 20); do
+            status="$(curl --silent --show-error               --output claim.json               --write-out '%{http_code}'               --request POST               --header "Authorization: Bearer $RUNDIFF_BRIDGE_TOKEN"               --header "Content-Type: application/json"               --data "$payload"               "$RUNDIFF_CONTROL_PLANE_URL/v1/execution-bridges/github-actions/claim")"
+
+            if [[ "$status" == "200" ]]; then
+              claimed=1
+              break
+            fi
+
+            if [[ "$status" != "409" ]]; then
+              echo "RunDiff claim failed with HTTP $status" >&2
+              cat claim.json >&2 || true
+              exit 1
+            fi
+
+            sleep 3
+          done
+
+          if [[ "$claimed" != "1" ]]; then
+            echo "RunDiff execution was not ready before the claim deadline" >&2
+            cat claim.json >&2 || true
+            exit 1
+          fi
+
+          jq '.request' claim.json > request.json
+          execution_id="$(jq -r '.request.execution_id' claim.json)"
+          attempt_number="$(jq -r '.request.attempt_number' claim.json)"
+
+          test -n "$execution_id"
+          test "$execution_id" != "null"
+          test "$attempt_number" -ge 1
+
+          echo "execution_id=$execution_id" >> "$GITHUB_OUTPUT"
+          echo "attempt_number=$attempt_number" >> "$GITHUB_OUTPUT"
+
+      - name: Start executor database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          docker network create rundiff-proof
+
+          docker run --detach             --name rundiff-postgres             --network rundiff-proof             --env POSTGRES_PASSWORD=postgres             postgres:17
+
+          for attempt in $(seq 1 30); do
+            if docker exec rundiff-postgres pg_isready -U postgres >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          docker exec rundiff-postgres createdb -U postgres rundiff_executor
+          docker exec rundiff-postgres createdb -U postgres rundiff_queue
+
+      - name: Start existing RunDiff executor service
+        id: executor
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          docker pull "$RUNDIFF_EXECUTOR_IMAGE"
+
+          executor_token="$(openssl rand -hex 32)"
+          secret_key_base="$(openssl rand -hex 64)"
+
+          echo "::add-mask::$executor_token"
+          echo "executor_token=$executor_token" >> "$GITHUB_OUTPUT"
+
+          docker run --detach             --name rundiff-executor             --network rundiff-proof             --publish 127.0.0.1:3001:3000             --env RUNDIFF_RUNTIME_ROLE=executor_service             --env RUNDIFF_EXECUTOR_SERVICE_ADAPTER=git_clone             --env RUNDIFF_EXECUTOR_SERVICE_TOKEN="$executor_token"             --env DATABASE_URL=postgres://postgres:postgres@rundiff-postgres:5432/rundiff_executor             --env SOLID_QUEUE_DATABASE_URL=postgres://postgres:postgres@rundiff-postgres:5432/rundiff_queue             --env RUNDIFF_LOCAL_POSTGRES_URL=postgres://postgres:postgres@rundiff-postgres:5432/postgres             --env SECRET_KEY_BASE="$secret_key_base"             "$RUNDIFF_EXECUTOR_IMAGE"             bin/start-executor
+
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:3001/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Executor did not become ready" >&2
+          docker logs rundiff-executor >&2 || true
+          exit 1
+
+      - name: Execute portable request
+        id: execute
+        shell: bash
+        env:
+          EXECUTOR_TOKEN: ${{ steps.executor.outputs.executor_token }}
+          EXECUTION_ID: ${{ steps.claim.outputs.execution_id }}
+          ATTEMPT_NUMBER: ${{ steps.claim.outputs.attempt_number }}
+        run: |
+          set -Eeuo pipefail
+
+          status="$(curl --silent --show-error             --output result.json             --write-out '%{http_code}'             --request POST             --header "Authorization: Bearer $EXECUTOR_TOKEN"             --header "Content-Type: application/json"             --header "Accept: application/json"             --header "Idempotency-Key: $EXECUTION_ID:$ATTEMPT_NUMBER"             --header "RunDiff-Repository-Authorization: Bearer $GITHUB_REPOSITORY_TOKEN"             --data-binary @request.json             http://127.0.0.1:3001/v1/executions)"
+
+          if [[ ! "$status" =~ ^2 ]]; then
+            echo "Local RunDiff executor returned HTTP $status" >&2
+            cat result.json >&2 || true
+            docker logs rundiff-executor >&2 || true
+            exit 1
+          fi
+
+          jq -e '.schema_version == "1" and (.status == "succeeded" or .status == "failed")' result.json
+
+      - name: Return portable result to control plane
+        shell: bash
+        env:
+          EXECUTION_ID: ${{ steps.claim.outputs.execution_id }}
+          ATTEMPT_NUMBER: ${{ steps.claim.outputs.attempt_number }}
+        run: |
+          set -Eeuo pipefail
+
+          status="$(curl --silent --show-error             --output submit.json             --write-out '%{http_code}'             --request POST             --header "Authorization: Bearer $RUNDIFF_BRIDGE_TOKEN"             --header "Content-Type: application/json"             --data-binary @result.json             "$RUNDIFF_CONTROL_PLANE_URL/v1/execution-bridges/github-actions/executions/$EXECUTION_ID/attempts/$ATTEMPT_NUMBER/result")"
+
+          if [[ "$status" != "202" ]]; then
+            echo "RunDiff result submission failed with HTTP $status" >&2
+            cat submit.json >&2 || true
+            exit 1
+          fi
+
+      - name: Executor logs on failure
+        if: failure()
+        shell: bash
+        run: docker logs rundiff-executor || true
+
+      - name: Cleanup local executor
+        if: always()
+        shell: bash
+        run: |
+          docker rm --force rundiff-executor rundiff-postgres 2>/dev/null || true
+          docker network rm rundiff-proof 2>/dev/null || true
