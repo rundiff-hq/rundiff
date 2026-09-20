@@ -117,7 +117,11 @@ Rails / Node / Java / Go / Python / .NET
 
 RunDiff should prefer OpenTelemetry and W3C Trace Context for distributed causality, consistent with ADR 0004.
 
-OpenTelemetry is a provider and correlation standard, not the RunDiff storage or comparison model.
+Where a suitable OpenTelemetry Semantic Convention exists, normalized evidence should prefer that vocabulary rather than inventing a competing telemetry name. Semantic convention stability/version must be tracked where relevant.
+
+OpenTelemetry is a provider and evidence/correlation vocabulary, not the RunDiff storage, Finding, Diagnosis, or Decision model.
+
+See RFC 0010 for the analysis taxonomy boundary.
 
 ### Layer 3: host and process evidence
 
@@ -396,6 +400,7 @@ This RFC does not:
 - ADR 0004: OpenTelemetry and W3C context
 - RFC 0002: Runner adapter contract
 - RFC 0004: Compute and executor strategy
+- RFC 0010: Behavioral analysis, finding taxonomy, and investigation semantics
 - `docs/subject-environments.md`
 - `docs/arbitrary-rails-bootstrap.md`
 - `docs/current-state.md`
