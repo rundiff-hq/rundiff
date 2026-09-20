@@ -50,6 +50,13 @@ class RunDiffGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
     )
   end
 
+  test "uses the production RunDiff bot login by default" do
+    assert_equal(
+      "rundiff[bot]",
+      RunDiff::Github::PullRequestExecutionPublisher::DEFAULT_BOT_LOGIN
+    )
+  end
+
   test "publishes infrastructure failure as a failed rerunnable check" do
     check = CheckRecorder.new
     comment = CommentRecorder.new
