@@ -58,6 +58,7 @@ module RunDiff
           )
           .where("context ->> 'repository' = ?", repository.to_s)
           .where("context ->> 'pull_request_number' = ?", Integer(pull_request_number).to_s)
+          .where("context ->> 'execution_orchestrator' = ?", "github_actions")
           .order(created_at: :desc)
           .first
       end
