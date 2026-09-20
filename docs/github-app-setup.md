@@ -96,3 +96,30 @@ It requires a valid `X-Hub-Signature-256` generated with `RUNDIFF_GITHUB_WEBHOOK
 ## Promotion policy
 
 Bootstrap and dogfood `RunDiff Development` first. Create `RunDiff Staging` when we need a persistent pre-production environment. Create production `RunDiff` only after the development flow is green end-to-end and the production public URL and secret store are ready.
+
+
+## Repository-content permission policy
+
+The production direction is to keep repository file contents read-only for the normal RunDiff App.
+
+Current manifest capability:
+
+~~~text
+Contents read
+~~~
+
+must not be expanded to Contents write merely to create or update /rundiff.yml.
+
+Configuration onboarding should use the user-confirmed GitHub browser handoff described in RFC 0007:
+
+~~~text
+RunDiff control panel
+  -> generate configuration
+  -> open GitHub browser UI
+  -> user commits on a branch
+  -> user opens PR
+~~~
+
+This keeps repository configuration changes attributable to the authenticated GitHub user and preserves native branch protection and CODEOWNERS behavior.
+
+Checks and pull-request presentation permissions are separate from repository file-content permission and may remain writable where required by RunDiff's review surfaces.
