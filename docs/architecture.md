@@ -56,12 +56,20 @@ RunDiff Rails Control Plane
                 +--> Evidence Providers
                 |
                 v
-          portable evidence/result
+          portable Executor::Result
                 |
                 v
-          Behavioral Diff
+             Evidence
                 |
-                +--> policy / decision
+                v
+          Rule / Behavioral Diff
+                |
+                +--> Findings
+                +--> Diagnoses
+                +--> Relations / causal graph
+                |
+                v
+             Decision
                 |
                 +--> Ownership Resolver
                 |
@@ -137,6 +145,64 @@ driver artifacts --------+
 No evidence provider owns the RunDiff domain model.
 
 See RFC 0006.
+
+## Behavioral analysis model
+
+RunDiff separates transport, evidence, analysis, diagnosis, and policy.
+
+~~~text
+Executor::Request
+      |
+      v
+Execution
+      |
+      v
+Executor::Result
+      |
+      v
+Evidence
+      |
+      v
+Rule
+      |
+      v
+Finding
+      |
+      +--> Diagnosis
+      +--> Relations / causal graph
+      |
+      v
+Decision
+~~~
+
+Execution Failure is separate from Finding.
+
+Examples:
+
+~~~text
+Execution Failure
+  provider timeout
+  OOM
+  clone failure
+
+Finding
+  database.query.count.regression
+  17 -> 31 queries
+
+Diagnosis
+  probable N+1
+
+Decision
+  BLOCK
+~~~
+
+Findings use orthogonal facets rather than one category tree. Useful facets include domain, quality dimension, resource, scope, change kind, and causal role.
+
+OpenTelemetry Semantic Conventions inform normalized evidence vocabulary where appropriate. SARIF informs Rule/Finding/export design. ISO/IEC 25010:2023 informs high-level quality dimensions. IEC 62740 informs future investigation/root-cause semantics. RunDiff retains its own internal domain model.
+
+Current schema v1 reason codes remain compatible while stable dotted Rule IDs are introduced incrementally.
+
+See RFC 0010 and docs/rules/README.md.
 
 ## Correlation
 
