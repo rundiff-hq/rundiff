@@ -33,7 +33,7 @@ api implementation: HTTP/gRPC
 Git provider / customer change
         |
         v
-RunDiff Rails Control Plane
+RunDiff Control Plane
         |
         +--> repository config (/rundiff.yml)
         |
@@ -224,7 +224,7 @@ Do not put execution_id on metric labels. It is high cardinality; use exemplars 
 
 ## Source-code boundary
 
-The Rails control plane should not need to persist a customer repository checkout.
+The Control Plane should not persist a customer repository checkout.
 
 Preferred managed path:
 
@@ -282,11 +282,33 @@ Ownership is not causality.
 
 See RFC 0008.
 
+## Control Plane implementation boundary
+
+RunDiff Control Plane is an implementation-independent product/domain authority.
+
+The first hosted production implementation is Cloudflare-native:
+
+~~~text
+React SPA
+  -> Hono Worker API
+      +-> D1
+      +-> Cloudflare Workflows
+      +-> R2
+      +-> GitHub API/App
+      +-> Execution Dispatcher
+~~~
+
+Rails remains a proven reference/fallback implementation. Cloudflare bindings must stay behind adapters so a future Rails/PostgreSQL/Temporal or other implementation can preserve the same domain contracts.
+
+See ADR 0016 and RFC 0011.
+
 ## Storage
 
-PostgreSQL holds durable product metadata.
+Durable product metadata is stored through a persistence adapter.
 
-Large immutable evidence belongs in object storage such as R2/S3, including Playwright traces, screenshots/video, rrweb recordings, HAR, profiles, compressed logs, mobile recordings, and other retained artifacts.
+Production v1 uses D1. A future implementation may use PostgreSQL or another transactional store without redefining the RunDiff domain model.
+
+Large immutable evidence belongs in an artifact store such as R2/S3, including Playwright traces, screenshots/video, rrweb recordings, HAR, profiles, compressed logs, mobile recordings, and other retained artifacts.
 
 Repository source code should not be treated as a durable control-plane storage object by default.
 
