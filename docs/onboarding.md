@@ -110,3 +110,32 @@ This slice does not add arbitrary setup commands, shell hooks, customer secrets,
 Those capabilities should be introduced from real onboarding requirements. In particular, customer-authored commands would require a separate trust and execution-policy design; `rundiff.yml` currently carries declarative scenario and persistence metadata only.
 
 See #73, #65, #57 and `docs/subject-environments.md`.
+
+
+## Planned generalized onboarding direction
+
+The v0.1 flow above is the currently proven Rails slice. The accepted post-v0.1 direction is broader and is defined in RFC 0007.
+
+Target hosted flow:
+
+~~~text
+Sign in to RunDiff
+  -> install RunDiff GitHub App
+  -> select repository
+  -> discover workload in an execution environment
+  -> configure Review Workload in the control panel
+  -> preview /rundiff.yml
+  -> Open configuration on GitHub
+  -> authenticated user creates branch/commit/PR
+  -> merge configuration through normal repository policy
+~~~
+
+The target experience should not require manual YAML copy/paste.
+
+The main RunDiff GitHub App should keep repository file Contents read-only for this setup path. The user performs the Git change through GitHub's own browser UI.
+
+The generalized Review Workload may select explicit tests/scenarios, changed/related workload, or the full suite. It is not required to duplicate the entire repository CI pipeline.
+
+The control plane should not persist a private source checkout merely to enumerate tests. Workload discovery belongs in the execution/customer-CI boundary and returns only the derived metadata needed by policy.
+
+See RFC 0007 and docs/definitions.md.
