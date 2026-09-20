@@ -30,3 +30,4 @@ Read in this order:
 26. rfcs/0010-behavioral-analysis-finding-taxonomy.md
 27. rules/README.md
 28. roadmap.md
+29. marketing/runtime-regression-library.md
