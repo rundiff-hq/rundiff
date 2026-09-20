@@ -75,3 +75,171 @@ CLI/process, Maestro/agent-device, Cypress/Capybara, k6, service emulation, opti
 
 ## Slice 6 - Agent loop
 MCP, rerun/investigate tools, continuation policy, automated repair feedback.
+
+
+## Strategic product/execution roadmap
+
+The slices above describe the original capability evolution. The accepted architecture now adds the following product-shaped sequence.
+
+### Slice 7 - Repository-owned Review Workload
+
+Goal: stop treating full CI as the default RunDiff workload.
+
+Deliver:
+
+- canonical /rundiff.yml;
+- Review Workload model;
+- explicit / changed / related / full selection;
+- RSpec/Minitest discovery first;
+- workload catalog metadata;
+- control-panel visual editor;
+- source-code discovery inside execution boundary.
+
+Success:
+
+> A customer can choose what RunDiff reviews without copying their whole CI pipeline.
+
+See RFC 0007.
+
+### Slice 8 - GitHub configuration handoff
+
+Deliver:
+
+- read-only repository Contents permission;
+- configuration preview in control panel;
+- Open configuration on GitHub CTA;
+- GitHub-native branch/commit/PR confirmation;
+- existing-config/update flow;
+- no manual YAML copy/paste on the happy path.
+
+Success:
+
+> RunDiff config is created through normal Git review without giving the main App permanent repository-content write access.
+
+See ADR 0011 and RFC 0007.
+
+### Slice 9 - Managed placement and Review Credits
+
+Deliver:
+
+- Workload Profile;
+- Execution Plan;
+- capability catalog;
+- deterministic Placement Engine;
+- first direct managed compute adapter;
+- usage telemetry;
+- Review Credit prototype;
+- estimated Behavioral Reviews.
+
+Success:
+
+> Paid RunDiff can place compatible workloads automatically and explain both placement and expected usage.
+
+See RFC 0004 and docs/pricing.md.
+
+### Slice 10 - Managed Go Executor
+
+Deliver:
+
+- standalone Go executor;
+- explicit lifecycle phases;
+- process supervision;
+- cgroup v2 resource accounting on controlled Linux;
+- Resource Journal;
+- two-phase cleanup with sweeper;
+- cancellation/supersede termination;
+- OTLP/local evidence bus foundation.
+
+Success:
+
+> A failed or cancelled customer execution cannot leave unmanaged process/resource state behind.
+
+See RFC 0009.
+
+### Slice 11 - Performance confidence
+
+Deliver:
+
+- calibration suite;
+- Execution Stability Profile;
+- paired same-lease BASE/PR;
+- controlled/frozen parallelism;
+- repeated/interleaved sampling;
+- confidence-gated result semantics;
+- INCONCLUSIVE when signal does not exceed measured noise.
+
+Success:
+
+> RunDiff does not claim a performance regression that the execution environment cannot distinguish from noise.
+
+See RFC 0004.
+
+### Slice 12 - Multi-provider and external orchestrator bridges
+
+Deliver based on customer demand:
+
+- second managed compute provider;
+- GitHub Actions Preview path;
+- Buildkite bridge candidate;
+- later GitLab/CircleCI bridges where justified;
+- runner provenance;
+- candidate evidence import;
+- provider fallback learning.
+
+Success:
+
+> RunDiff can use customer CI or managed compute without changing the Behavioral Review contract.
+
+See RFC 0004.
+
+### Slice 13 - Ownership-aware routing
+
+Deliver:
+
+- CODEOWNERS resolver;
+- ownership reasons;
+- ownership display in RunDiff review;
+- Slack + generic webhook first external adapters;
+- severity/confidence routing;
+- INFRA_FAILURE operational routing;
+- deduplication.
+
+Success:
+
+> A meaningful regression reaches the people who own the affected behavior without broadcasting every finding.
+
+See RFC 0008.
+
+### Slice 14 - Controlled fleet / Deep
+
+Deliver:
+
+- RunDiff Fleet;
+- stronger namespaces/isolation;
+- optional Firecracker runtime;
+- eBPF/out-of-process sensors;
+- Deep Evidence capability;
+- reference execution tier.
+
+Success:
+
+> RunDiff can provide host/kernel evidence on infrastructure whose capabilities it actually controls.
+
+See RFC 0004, RFC 0006, and RFC 0009.
+
+### Slice 15 - Snapshot/fork and high-volume agent workflows
+
+Deliver:
+
+- prepared environment snapshots where safe;
+- one baseline -> many candidates;
+- candidate fan-out;
+- interactive reproduction;
+- repository-specific placement learning;
+- agent action routing.
+
+Success:
+
+> RunDiff remains economical and useful when AI systems generate many candidate changes per human decision.
+
+See RFC 0003, RFC 0004, RFC 0008, and RFC 0009.
