@@ -1,5 +1,7 @@
 import { FormEvent, useState } from "react";
 
+import { Landing } from "./Landing";
+
 type Review = {
   id: string;
   projectId: string;
@@ -12,6 +14,12 @@ type Review = {
 };
 
 export function App() {
+  if (window.location.pathname === "/") return <Landing />;
+
+  return <ReviewApp />;
+}
+
+function ReviewApp() {
   const [reviewId, setReviewId] = useState("");
   const [review, setReview] = useState<Review | null>(null);
   const [error, setError] = useState<string | null>(null);
