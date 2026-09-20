@@ -93,13 +93,13 @@ app.post("/api/github/webhooks", async (c) => {
   );
   if (await repo.current(accepted.executionId)) {
     // Idempotent recovery when the database commit succeeded but Workflow creation did not.
-    const instance = await c.env.REVIEW_WORKFLOW.get(accepted.reviewId);
     let exists = false;
     try {
+      const instance = await c.env.REVIEW_WORKFLOW.get(accepted.reviewId);
       await instance.status();
       exists = true;
     } catch {
-      /* A missing instance must be created. */
+      /* Workflow.get throws when the instance does not exist. */
     }
     if (!exists)
       await c.env.REVIEW_WORKFLOW.create({
