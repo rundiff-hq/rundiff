@@ -12,9 +12,10 @@ GitHub organization rundiff-hq
 Main repository     rundiff-hq/rundiff
 Config              rundiff.yml
 Environment prefix  RUNDIFF_
-Control plane       https://app.rundiff.com
-Executor            https://executor.rundiff.com
-Production image    ghcr.io/rundiff-hq/rundiff
+Control plane       implementation-independent; Cloudflare-native selected for production v1
+Hosted endpoint      custom domain binding pending authoritative DNS/domain verification
+Executor             GitHub Actions first; managed providers later
+Rails image          ghcr.io/rundiff-hq/rundiff (reference/fallback implementation)
 ```
 
 Pre-RunDiff product names and configuration names are historical only. They must not appear in active operator/customer instructions.
@@ -108,13 +109,14 @@ Operator replay, curl, or another locally synthesized webhook cannot satisfy thi
 
 These are the actual current production blockers:
 
-1. configure the production remote Terraform state/backend and real provider credentials;
-2. perform the first guarded production infrastructure apply (#92);
-3. deploy live control plane and executor;
-4. complete the external GitHub App/Cloudflare identity cutover (#121);
-5. install the public App from an account or organization outside `rundiff-hq`;
-6. execute the GitHub-originated same-PR BLOCK -> fix -> ALLOW flow;
-7. collect and retain Production Proof v2 (#75).
+1. prove the Cloudflare Worker + D1 + Workflow spike;
+2. deploy the Cloudflare-native Control Plane v1;
+3. complete the GitHub Actions external execution bridge against that Control Plane;
+4. verify the authoritative production domain before any DNS/custom-domain mutation;
+5. complete the external GitHub App identity cutover;
+6. install the public App on a repository/account outside `rundiff-hq`;
+7. execute the GitHub-originated same-PR BLOCK -> fix -> ALLOW flow;
+8. collect and retain Production Proof v2 and actual monthly cost.
 
 Until those are complete, RunDiff has a convincing product-shaped system and preproduction proof, but not the final external production proof.
 
@@ -127,7 +129,7 @@ The following statements are no longer current:
 - production acceptance uses one regression PR plus a separate neutral PR;
 - `bin/replay-github-pr` or `bin/prove-github-app-demo` can close external production acceptance;
 - production proof v1 is the current evidence format;
-- concrete production IaC still needs to be designed;
+- the first production proof requires a permanent VM/PostgreSQL/Solid Queue topology;
 - executor deployment isolation still needs proof;
 - a separate-process control-plane -> executor-service `git_clone` path still needs proof.
 
@@ -153,6 +155,7 @@ Do not remove these simply because they are not part of the immediate #75 path:
 - ownership-aware finding routing through CODEOWNERS and external delivery adapters from RFC 0008.
 - managed Go Executor host runtime, resource journal/sweeper cleanup, local evidence bus, and controlled-host isolation from RFC 0009.
 - behavioral Rule/Finding/Diagnosis/Relation taxonomy and investigation model from RFC 0010.
+- implementation-independent Control Plane with Cloudflare-native production v1 from ADR 0016 / RFC 0011.
 
 These are real future capabilities or architectural records, not blockers for the first external product proof unless an issue explicitly says otherwise.
 
