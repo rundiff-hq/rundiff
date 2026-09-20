@@ -31,3 +31,4 @@ Read in this order:
 27. rules/README.md
 28. roadmap.md
 29. marketing/runtime-regression-library.md
+30. marketing/homepage-positioning-chat-snapshot.md
