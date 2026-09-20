@@ -370,3 +370,18 @@ Execution Failure is not a behavioral Finding about the candidate unless that fa
 The versioned collection of stable RunDiff Rules.
 
 Current runtime policy still lives in `RunDiff::BehavioralDiff::SIGNALS`; RFC 0010 defines the migration toward a Rule Registry with stable dotted `rule_id` values and faceted classification.
+
+
+## Control Plane
+
+The implementation-independent RunDiff authority for durable product state and policy.
+
+It owns concepts such as Behavioral Review identity, execution/current-attempt authority, stale/supersede/finalization semantics, publication state, project/install metadata, and execution planning.
+
+A Control Plane implementation may use Rails/PostgreSQL, Cloudflare Workers/D1/Workflows, or another runtime.
+
+Infrastructure primitives are adapters and must not redefine the RunDiff domain model.
+
+The selected hosted production-v1 implementation is Cloudflare-native; the existing Rails application remains a proven reference/fallback implementation.
+
+See ADR 0016 and RFC 0011.
