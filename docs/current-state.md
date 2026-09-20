@@ -166,7 +166,13 @@ PR #149 remains the current live RunDiff SQL-regression demo and is intentionall
 
 ## Source-of-truth order
 
-When records disagree, use this order:
+Source of truth is scoped by concern:
+
+- `docs/current-state.md` is canonical for what is implemented, proven, deployed, or currently blocked;
+- `docs/product-vision.md` is canonical for product direction, brand spelling, positioning, messaging, and CTA language;
+- `docs/roadmap.md` is canonical for planned execution order and capability sequencing.
+
+When records disagree about implementation truth, use this order:
 
 1. executable code/schemas and green CI;
 2. `docs/current-state.md`;
