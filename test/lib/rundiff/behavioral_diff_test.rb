@@ -14,6 +14,12 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
     assert_includes reason_codes, "PERFORMANCE_REGRESSION"
     assert_includes reason_codes, "DATABASE_QUERY_REGRESSION"
     assert_includes reason_codes, "SIDE_EFFECT_CHANGED"
+
+    rule_ids = result.fetch("findings").map { |finding| finding.fetch("rule_id") }
+    assert_includes rule_ids, "performance.wall_time.regression"
+    assert_includes rule_ids, "database.query.count.regression"
+    assert_includes rule_ids, "side_effect.background_job.count.changed"
+    assert_includes rule_ids, "side_effect.email.count.changed"
   end
 
   test "ignores large percentage timing changes below the absolute noise floor" do
@@ -37,7 +43,9 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
     result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
 
     assert result.fetch("signals").fetch("duration_ms").fetch("regression")
-    assert_equal "PERFORMANCE_REGRESSION", result.fetch("findings").first.fetch("reason_code")
+    finding = result.fetch("findings").first
+    assert_equal "PERFORMANCE_REGRESSION", finding.fetch("reason_code")
+    assert_equal "performance.wall_time.regression", finding.fetch("rule_id")
     assert_equal "block", result.fetch("merge_recommendation")
   end
 
