@@ -4,6 +4,30 @@
 
 Prove the selected hosted Control Plane implementation without coupling the RunDiff domain to Cloudflare.
 
+## Current status
+
+Cloudflare platform spike: **Proven locally and remotely.**
+
+Remaining acceptance gate: **real GitHub-originated same-PR BLOCK -> fix -> ALLOW**.
+
+External blockers as of 2026-09-20:
+
+- GitHub Actions run 35532900122 could not start because the account reports failed payments or an insufficient spending limit;
+- production GitHub App credentials/proof scenario are not yet configured in the deployed Worker;
+- an external demo repository/App installation is not yet configured.
+
+Deployed proof endpoint:
+
+~~~text
+https://rundiff-control-plane.sergii-ponomarov.workers.dev
+~~~
+
+Worker version:
+
+~~~text
+ddd46bf8-43f9-4a1b-b9ec-a1437ac96f17
+~~~
+
 ## Phase A - local lifecycle spike
 
 Deliver:
