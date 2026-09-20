@@ -2,9 +2,11 @@
 
 ## ADR 0001 - Rails monolith first
 
-Status: Accepted
+Status: Superseded for the hosted control-plane implementation by ADR 0016. Retained as implementation history.
 
-Build the initial product in a Rails 8.1 monolith. Keep portable comparison/protocol code free of Rails dependencies when practical.
+The initial product was built in a Rails 8.1 monolith to prove the behavioral model, GitHub integration, execution lifecycle, and production contracts quickly. Portable comparison/protocol code was intentionally kept outside Rails-specific boundaries.
+
+The Rails implementation remains a valid reference and future alternate control-plane implementation; Rails is no longer the Control Plane architectural contract.
 
 ## ADR 0002 - Execution is the core abstraction
 
@@ -202,3 +204,63 @@ Use OpenTelemetry Semantic Conventions as preferred evidence vocabulary where ap
 Schema v1 remains compatible: legacy `reason_code` stays valid while stable dotted `rule_id` values are introduced incrementally.
 
 See RFC 0010.
+
+
+## ADR 0016 - Control Plane is implementation-independent; Cloudflare-native is production v1
+
+Status: Accepted
+
+Define **RunDiff Control Plane** as a product/domain authority, not as a Rails application, Worker, database, queue, or vendor-specific runtime.
+
+The Control Plane owns durable product semantics such as:
+
+- Behavioral Review identity and lifecycle;
+- exact repository/base/candidate identity;
+- GitHub delivery deduplication;
+- execution creation and current-attempt authority;
+- stale/supersede checks;
+- finalization fencing;
+- policy/decision authority;
+- GitHub publication state;
+- user/project/install metadata;
+- placement/execution-plan state;
+- retained evidence metadata.
+
+Implementations satisfy those responsibilities through explicit ports/adapters. Infrastructure-specific primitives must not become the RunDiff domain model.
+
+The selected **first production proof implementation** is Cloudflare-native:
+
+~~~text
+React SPA
+  + Hono Worker API
+  + D1 durable relational state
+  + Cloudflare Workflows for durable execution lifecycle
+  + R2 for large retained artifacts/evidence
+  + Workers secrets/configuration
+
+Execution:
+  GitHub Actions first
+  Cloudflare Containers later
+~~~
+
+Cloudflare Workflows replace Solid Queue/lease-reaper mechanics only inside this implementation. They do not redefine the portable execution lifecycle or Executor Request/Result contracts.
+
+D1 is the v1 state adapter. It is not the permanent RunDiff database contract.
+
+R2 is the v1 artifact adapter. It is not the permanent artifact-storage contract.
+
+Durable Objects and Cloudflare Queues are intentionally deferred until a concrete need appears:
+
+- Durable Objects for serialized project/repository coordination when D1 + Workflow lifecycle is insufficient;
+- Queues for fan-out, notification/event delivery, or high-volume asynchronous streams.
+
+The current Rails implementation remains in the repository as:
+
+- a proven reference implementation;
+- a behavioral/runtime dogfood target;
+- a fallback path for a future Rails/PostgreSQL/VPS control plane;
+- a source of tested lifecycle semantics that the Cloudflare implementation must preserve.
+
+A future implementation may use Rails/PostgreSQL/Temporal, Go, another database, another workflow engine, or another cloud without changing RunDiff's public/domain contracts.
+
+See RFC 0011.
