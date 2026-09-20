@@ -451,6 +451,47 @@ confirmed
 
 Performance Evidence additionally carries environment/noise confidence as defined in RFC 0004.
 
+## Implementation depth budget
+
+RunDiff intentionally stops analysis-model implementation after a minimal production-useful foundation:
+
+~~~text
+stable Rule IDs
++ orthogonal Finding facets
++ stable Finding fingerprint
++ explicit baseline/candidate evidence references
+~~~
+
+This is the current implementation ceiling.
+
+The following work is deliberately deferred until a concrete product trigger exists:
+
+- persistent causal graph;
+- generic Root Cause Analysis engine;
+- broad Diagnosis entity lifecycle;
+- hypothesis -> confirmation workflow;
+- SARIF exporter/importer;
+- ontology database/editor;
+- customer-authored taxonomy DSL;
+- generic multi-dimensional confidence framework;
+- AI-generated root-cause conclusions;
+- IEC 62740 process/conformance implementation;
+- automatic graph ranking of causes;
+- generic cross-finding causal inference.
+
+Deferred means architecturally reserved, not scheduled.
+
+Re-entry requires a concrete use case such as:
+
+- a live production Behavioral Review that cannot be explained with the current Finding model;
+- Performance/Deep evidence producing multiple related findings that require relations;
+- a repair agent needing durable investigation state;
+- ownership/routing requiring stronger identity/deduplication;
+- an external integration requiring SARIF;
+- a customer RCA requirement.
+
+Until one of these exists, deeper analysis work must not delay the first external production BLOCK -> fix -> ALLOW proof, Control Panel review detail, Review Workload configuration, or second execution provider.
+
 ## Standards mapping
 
 RunDiff should reuse established semantics where they help, but should not force its domain model into one external standard.
@@ -721,13 +762,16 @@ source:
   end_line: 42
 
 evidence_refs:
-  - evidence-017
-  - evidence-018
+  - kind: measurement
+    role: baseline
+    execution_id: main
+    signal: sql_queries
+  - kind: measurement
+    role: candidate
+    execution_id: candidate
+    signal: sql_queries
 
-causal_role: symptom
-relations: []
-
-fingerprint: database.query.count.regression:checkout.create-order
+fingerprint: sha256:<stable-logical-finding-hash>
 ~~~
 
 ## Candidate future Diagnosis shape
@@ -872,13 +916,21 @@ Implemented by PR #174:
 - emit additive Finding facets;
 - preserve current thresholds/decisions.
 
-### Phase 2 - normalized Finding model
+### Phase 2 - production-useful Finding identity
 
-- add facets;
-- explicit evidence references;
-- split side-effect rules;
-- formalize confidence dimensions;
-- add stable fingerprints.
+Implemented in the final Finding slice before the analysis-depth pause:
+
+- stable logical Finding fingerprint based on scenario + rule + signal identity;
+- explicit baseline/candidate measurement evidence references;
+- fingerprints remain stable across rerun execution IDs and changed measurement values;
+- evidence references remain occurrence-specific and point at the exact execution measurements.
+
+Deliberately deferred from this phase:
+
+- generalized confidence framework;
+- causal relations;
+- rich Diagnosis persistence;
+- exporter/ontology work.
 
 ### Phase 3 - exporters and UI
 
