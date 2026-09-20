@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft.
+Accepted direction. Implementation is incremental.
 
 ## Context
 
@@ -225,17 +225,64 @@ Generic subject
 
 The current Rails + PostgreSQL/SQLite path remains the first supported vertical slice. Non-Rails support is future work and must not be claimed as current product capability.
 
-## Executor language independence
+## Executor implementation and language independence
 
-The RunDiff Executor is a protocol/runtime role, not a language choice.
+The RunDiff Executor remains a protocol/runtime role whose customer-facing contracts are language-neutral.
 
-It may be implemented in Ruby, Go, Rust, Node, Zig, C/C++, or another suitable language as long as it preserves the execution contracts.
+The concrete managed executor implementation direction is Go.
+
+The choice is specific to RunDiff's execution-supervisor workload:
+
+- supervision of foreign OS processes;
+- cascading cancellation;
+- container/runtime orchestration;
+- cgroups and namespaces;
+- OpenTelemetry integration;
+- Docker/containerd/OCI ecosystem fit;
+- eBPF control-plane libraries;
+- simple static deployment;
+- operational debugging of hangs.
+
+The executor is primarily an orchestrator and supervisor, not a CPU-bound data plane.
+
+RunDiff Sensors remain separate processes/components behind a language-neutral evidence contract.
+
+Working rule:
+
+~~~text
+Executor:
+  Go
+
+Sensors:
+  separate processes
+  Go first when practical
+  Rust only where a measured low-level need justifies it
+
+cgo:
+  do not use
+~~~
+
+Avoid cgo in the managed executor. If a capability requires a native component, prefer an out-of-process sensor or another explicit boundary over embedding C dependencies into the supervisor.
+
+Rust remains appropriate for a future sensor or low-level component only when a measured requirement makes it materially better. Do not introduce a second systems language merely for novelty.
+
+This implementation decision does not change the public architecture names.
+
+Use:
+
+~~~text
+RunDiff Executor
+RunDiff Sensor
+RunDiff Evidence Provider
+~~~
+
+Do not make implementation language part of the customer contract.
 
 The executor may need to:
 
 - clone exact revisions;
 - manage worktrees;
-- spawn processes;
+- spawn and supervise process trees;
 - build/start containers;
 - manage filesystems;
 - manage network/process isolation;
@@ -243,27 +290,6 @@ The executor may need to:
 - access host capabilities such as eBPF;
 - enforce cancellation, timeouts and cleanup;
 - return portable Result contracts.
-
-Go is a plausible implementation choice for orchestration because of deployment simplicity, concurrency and systems tooling. Rust is a plausible choice for low-level sensors and eBPF work. Neither language is part of the product contract.
-
-Do not name architectural components by their implementation language.
-
-Use:
-
-```text
-RunDiff Executor
-RunDiff Sensor
-RunDiff Evidence Provider
-```
-
-not:
-
-```text
-Go Executor
-Rust Sensor
-```
-
-unless describing a concrete implementation.
 
 ## Rails runner is not the RunDiff runner
 
@@ -357,7 +383,7 @@ This RFC does not:
 
 - claim current non-Rails customer support;
 - require rewriting the current Rails implementation;
-- select Go or Rust as a mandatory implementation language;
+- make the Go implementation choice part of the public customer contract;
 - require eBPF for the first production proof;
 - replace deterministic RunDiff evidence with an LLM;
 - define a universal customer shell-command configuration language;
