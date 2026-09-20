@@ -243,3 +243,32 @@ Derived metadata can still be sensitive and must be treated as customer data.
 The standard hosted setup/update flow where RunDiff generates rundiff.yml and opens GitHub's browser UI so the authenticated user reviews and commits the change through Git.
 
 Normal configuration onboarding should not require permanent repository Contents: write permission for the RunDiff App.
+
+
+## RunDiff Sensor
+
+Out-of-process or separately deployed evidence collector used by the managed Executor.
+
+Examples may include eBPF, process, network, or runtime-specific sensors.
+
+Sensors communicate through explicit language-neutral evidence/IPC contracts and must not require cgo inside the Go supervisor.
+
+## Resource Journal
+
+Executor-local append-only record of resources created for an execution so teardown can be retried after crashes.
+
+Typical resource classes include workspaces, cgroups, namespaces, processes, containers, microVMs, and temporary artifacts.
+
+The Resource Journal is operational recovery state, not Behavioral Review evidence.
+
+## Sweeper
+
+Independent cleanup/reconciliation mechanism that removes leaked executor resources after a lease is terminal/expired or an executor process disappears.
+
+The sweeper must preserve exact execution/lease fencing and must never reap resources belonging to a live execution.
+
+## External Orchestrator Bridge
+
+Execution path in which RunDiff delegates job execution to an existing customer orchestration system such as GitHub Actions, Buildkite, GitLab CI, or CircleCI while retaining RunDiff control-plane authority for the Behavioral Review.
+
+This is distinct from a direct Compute Provider integration.
