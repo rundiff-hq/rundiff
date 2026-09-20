@@ -1,0 +1,74 @@
+name: RunDiff Executor Bridge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rundiff-executor-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  execute:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rundiff_bridge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rundiff_bridge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_bridge
+      SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_bridge_queue
+      RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
+      RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+
+      - name: Verify bridge secret
+        run: |
+          if [[ -z "$RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN" ]]; then
+            echo "::error::RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN is not configured"
+            exit 1
+          fi
+
+      - name: Prepare RunDiff database
+        run: bin/rails db:prepare
+
+      - name: Claim and execute RunDiff request
+        run: apps/control-plane-cloudflare/bin/github-actions-bridge
+
+      - name: Upload bridge diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-executor-bridge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            log/test.log
+            tmp/rundiff
+          if-no-files-found: ignore
+          retention-days: 7

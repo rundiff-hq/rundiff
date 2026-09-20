@@ -37,8 +37,10 @@ jobs:
             bin/start-executor \
             bin/verify-production-cutover \
             bin/verify-production-identity \
-            bin/verify-production-topology
+            bin/verify-production-topology \
+            apps/control-plane-cloudflare/bin/github-actions-bridge
           ruby -c bin/collect-production-proof
+          ruby -c script/run_cloudflare_executor_bridge.rb
           find lab -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
       - name: Demo portable behavioral diff
