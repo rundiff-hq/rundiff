@@ -1,4 +1,4 @@
-require "test_helper"
+<sub>require "test_helper"
 
 class RunDiffRuleRegistryTest < ActiveSupport::TestCase
   test "provides stable dotted rule ids for current decision signals" do
@@ -27,3 +27,4 @@ class RunDiffRuleRegistryTest < ActiveSupport::TestCase
     assert_equal %w[network external_service], rule.fetch(:resources)
   end
 end
+</sub>
