@@ -88,6 +88,8 @@ github_actions  leave the claimed execution available to the external bridge
 
 Default remains `native`.
 
+The selected orchestrator is persisted in durable execution context as control-plane provenance and is deliberately excluded from portable Request v1.
+
 No existing production default changes.
 
 ## Bridge API
@@ -203,11 +205,60 @@ jobs:
 
 No customer source checkout by the control plane is required.
 
+## Lease and liveness
+
+The existing native execution path schedules a control-plane heartbeat while a local/remote executor job is in flight.
+
+The GitHub Actions bridge deliberately does not reuse that blind heartbeat. Otherwise the control plane could keep a dead external runner alive forever.
+
+For v1:
+
+~~~text
+execution claimed
+  -> fixed control-plane lease
+  -> GitHub Actions must return Result before expiry
+  -> otherwise normal lease reaper => INFRA_FAILURE
+~~~
+
+The current default lease is 30 minutes, which is sufficient for the first small proof workload.
+
+A later external-orchestrator contract should add worker-origin heartbeat/progress authenticated by GitHub OIDC.
+
+For superseded PR revisions, the control plane still cancels the durable old attempt. The example workflow also uses GitHub Actions concurrency with cancel-in-progress so a newer revision stops the older job without requiring Actions API write permission.
+
+## Minimal Control Panel slice
+
+Do not build a large dashboard before this execution bridge is proven.
+
+The first useful authenticated Control Panel view should expose one Behavioral Review / Execution detail:
+
+~~~text
+repository + PR
+decision / status
+
+BASE SHA -> candidate SHA
+
+execution provenance
+  orchestrator: GitHub Actions
+  compute: GitHub-hosted
+  evidence: Standard
+
+attempt
+started / finished
+failure / finding summary
+~~~
+
+The durable `execution_orchestrator` provenance added by this slice is the first seed of the later full Execution Plan snapshot.
+
+Do not expose repository history publicly. The review/history UI should land after GitHub user authentication + installation authorization is in place (ADR 0014).
+
+Until then, GitHub remains the human decision surface and PostgreSQL remains the persistent control-plane history.
+
 ## PoC limitations
 
 1. A repository-owned workflow file is required for this first bridge proof.
 2. Authentication to the bridge is a repository secret, not GitHub OIDC yet.
-3. Control-plane cancellation is durable, but v1 does not cancel the GitHub Actions run through the Actions API.
+3. Control-plane cancellation is durable, but v1 does not call the GitHub Actions cancellation API. Superseded same-PR jobs are instead stopped by workflow concurrency.
 4. Fork PRs are out of scope because repository secrets and token semantics differ.
 5. One scenario/current Review Workload is enough for the first proof.
 6. The executor image must be pullable by the external demo workflow (public package or explicit package credential).
