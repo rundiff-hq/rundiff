@@ -50,6 +50,12 @@ npx wrangler d1 migrations apply rundiff-control-plane --local
 npm run dev
 ~~~
 
+5. Run the focused invariant suite:
+
+~~~bash
+npm test
+~~~
+
 ## Spike flow
 
 Create:
@@ -147,11 +153,31 @@ waiting_for_executor
 
 Target before public customer use: GitHub Actions OIDC.
 
+The production GitHub webhook path also requires these Worker secrets/variables:
+
+~~~text
+RUNDIFF_GITHUB_APP_ID
+RUNDIFF_GITHUB_APP_PRIVATE_KEY
+RUNDIFF_GITHUB_WEBHOOK_SECRET
+RUNDIFF_GITHUB_SCENARIO_ID
+~~~
+
+It verifies `X-Hub-Signature-256`, deduplicates `X-GitHub-Delivery`, accepts
+`pull_request` opened/synchronize/reopened events, and fences claim, result,
+finalization, Check publication, and PR comment publication against the exact
+current candidate SHA. VS1 currently accepts same-repository pull requests.
+
 Never commit GitHub App private keys, webhook secrets, API tokens, or real Wrangler secret values.
 
 ## Production
 
 Do not bind a custom domain until the authoritative RunDiff production domain is explicitly verified.
+
+The verified spike deployment uses the default Workers hostname:
+
+~~~text
+https://rundiff-control-plane.sergii-ponomarov.workers.dev
+~~~
 
 See:
 - ADR 0016

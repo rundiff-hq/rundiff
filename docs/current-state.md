@@ -77,6 +77,10 @@ The following are implementation facts, not future assumptions:
 - Terraform/Cloudflare/Hetzner infrastructure contract in `rundiff-hq/infra`;
 - production identity, Cloudflare and topology verifiers;
 - Production Proof v2 collector.
+- Cloudflare Worker + D1 + Workflow + R2 remote spike deployment;
+- remote portable bridge BLOCK and ALLOW lifecycles with durable D1 state;
+- local duplicate/conflicting Result, timeout, executor-failure, stale candidate,
+  supersede, and finalization-fence verification.
 
 ## Production Proof v2
 
@@ -109,14 +113,14 @@ Operator replay, curl, or another locally synthesized webhook cannot satisfy thi
 
 These are the actual current production blockers:
 
-1. prove the Cloudflare Worker + D1 + Workflow spike;
-2. deploy the Cloudflare-native Control Plane v1;
-3. complete the GitHub Actions external execution bridge against that Control Plane;
-4. verify the authoritative production domain before any DNS/custom-domain mutation;
-5. complete the external GitHub App identity cutover;
-6. install the public App on a repository/account outside `rundiff-hq`;
-7. execute the GitHub-originated same-PR BLOCK -> fix -> ALLOW flow;
-8. collect and retain Production Proof v2 and actual monthly cost.
+1. configure the deployed Worker with the production GitHub App credentials and
+   proof scenario;
+2. complete the GitHub Actions workflow against the deployed bridge;
+3. verify the authoritative production domain before any DNS/custom-domain mutation;
+4. complete the external GitHub App identity cutover;
+5. install the public App on a repository/account outside `rundiff-hq`;
+6. execute the GitHub-originated same-PR BLOCK -> fix -> ALLOW flow;
+7. collect and retain Production Proof v2 and actual monthly cost.
 
 Until those are complete, RunDiff has a convincing product-shaped system and preproduction proof, but not the final external production proof.
 
