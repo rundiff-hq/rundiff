@@ -1404,3 +1404,15 @@ This RFC does not:
 - docs/executor.md
 - docs/subject-environments.md
 - docs/production-runtime.md
+
+
+## Cross-cutting references added by later decisions
+
+Execution planning in this RFC assumes two additional boundaries:
+
+- RFC 0007 defines repository-owned /rundiff.yml, Review Workload selection/discovery, GitHub browser configuration handoff, and the source-code/data boundary.
+- RFC 0008 defines ownership-aware finding routing after Behavioral Diff.
+
+Canonical terminology is summarized in docs/definitions.md.
+
+These RFCs refine adjacent product/control-plane boundaries without replacing Execution Plan as the infrastructure composition boundary.
