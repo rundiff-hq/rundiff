@@ -147,7 +147,10 @@ Do not remove these simply because they are not part of the immediate #75 path:
 - successful Production Lab timing summary (#140);
 - worker-host heartbeat/hard termination;
 - fork-PR multi-repository capability model;
-- non-Rails runtimes and broader customer setup policy.
+- non-Rails runtimes and broader customer setup policy;
+- composable Execution Plan / managed placement / Review Credit model from RFC 0004;
+- repository-owned /rundiff.yml, Review Workload discovery/selection, and source-code boundary from RFC 0007;
+- ownership-aware finding routing through CODEOWNERS and external delivery adapters from RFC 0008.
 
 These are real future capabilities or architectural records, not blockers for the first external product proof unless an issue explicitly says otherwise.
 
