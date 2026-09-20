@@ -1,5 +1,23 @@
 # Executor boundary
 
+## Current implementation versus managed target
+
+This document describes the currently proven portable Request/Result boundary and the current Rails executor-service implementation.
+
+The accepted managed execution direction is a standalone Go Executor with host-level lifecycle, resource journal/sweeper cleanup, cgroup/namespace support, out-of-process sensors, and optional Firecracker isolation. That target is defined in RFC 0009.
+
+The two documents are complementary:
+
+~~~text
+docs/executor.md
+  -> current protocol/trust/lifecycle boundary
+
+RFC 0009
+  -> target managed host implementation
+~~~
+
+The Go migration must preserve the portable contracts, cancellation/finalization fencing, repository-capability isolation, and control-plane authority documented here.
+
 RunDiff's Rails control plane owns GitHub authentication, durable execution state, stale guards, policy, cancellation authority, and publication. The executor owns only the act of producing behavioral evidence for one exact execution request.
 
 ```text
