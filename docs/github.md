@@ -116,3 +116,79 @@ Annotation -> Where is a confidently attributed runtime source?
 RunDiff UI -> Why did it happen?
 API/MCP    -> What should an agent do next?
 ```
+
+
+## Repository configuration onboarding
+
+Planned hosted onboarding keeps repository file contents read-only from the RunDiff App.
+
+Canonical configuration is:
+
+~~~text
+/rundiff.yml
+~~~
+
+The control panel acts as a visual editor for repository-owned configuration.
+
+Preferred flow:
+
+~~~text
+configure in RunDiff UI
+  -> preview rundiff.yml
+  -> Open configuration on GitHub
+  -> authenticated user reviews file
+  -> user creates branch/commit
+  -> user opens PR against default branch
+~~~
+
+RunDiff should not request permanent repository Contents: write merely to create or update this file.
+
+The normal happy path should not require manual copy/paste. GitHub browser URL generation must be encapsulated because undocumented prefill query parameters are not a durable API contract.
+
+The committed repository revision remains the source of truth. A SaaS-side draft must not silently override the checked-in file.
+
+See RFC 0007.
+
+## Workload discovery boundary
+
+The control plane should not clone private source merely to enumerate tests.
+
+Preferred path:
+
+~~~text
+short-lived read capability
+  -> execution environment
+       -> clone
+       -> discover tests/scenarios
+       -> emit derived catalog
+       -> cleanup
+  -> control plane
+~~~
+
+Catalog metadata such as test names, paths, tags, and duration estimates is still customer data.
+
+See RFC 0007.
+
+## Ownership-aware routing
+
+GitHub remains the primary review surface, but findings may later route to the owning team.
+
+CODEOWNERS is the preferred first ownership source.
+
+Ownership does not imply causality.
+
+A finding may carry explainable ownership context such as:
+
+~~~text
+@acme/api
+  reason: owns changed source
+
+@acme/payments
+  reason: owns affected scenario
+~~~
+
+External Slack, Teams, Discord, Telegram, email, webhook, incident, or agent delivery is policy-controlled.
+
+Infrastructure failures should route to CI/RunDiff operations ownership rather than application CODEOWNERS by default.
+
+See RFC 0008.
