@@ -60,18 +60,6 @@ export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
         throw new Error("executor result identity mismatch");
       }
 
-function validateWorkflowExecutorResult(resultJson: string) {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(resultJson);
-  } catch {
-    throw new Error("executor result event contains invalid JSON");
-  }
-
-  return validateExecutorResult(parsed);
-}
-
       const result = validateWorkflowExecutorResult(payload.resultJson);
       const decision = decisionFromExecutorResult(result);
 
@@ -119,4 +107,16 @@ function validateWorkflowExecutorResult(resultJson: string) {
       };
     }
   }
+}
+
+function validateWorkflowExecutorResult(resultJson: string) {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(resultJson);
+  } catch {
+    throw new Error("executor result event contains invalid JSON");
+  }
+
+  return validateExecutorResult(parsed);
 }
