@@ -1,3 +1,5 @@
+require_relative "finding_identity"
+
 module RunDiff
   class ExecutionPair
     def self.call(baseline:, candidate:, changed_paths: [])
@@ -17,6 +19,7 @@ module RunDiff
         candidate: @candidate.fetch("measurements")
       )
       attach_trusted_sources!(result)
+      attach_finding_identity!(result)
 
       {
         "schema_version" => "1",
@@ -50,6 +53,17 @@ module RunDiff
           baseline_attributions.fetch(signal, [])
         )
         finding["source"] = source if source
+      end
+    end
+
+    def attach_finding_identity!(result)
+      result.fetch("findings").each do |finding|
+        FindingIdentity.enrich!(
+          finding:,
+          scenario_id: @baseline.fetch("scenario_id"),
+          baseline: @baseline,
+          candidate: @candidate
+        )
       end
     end
 
