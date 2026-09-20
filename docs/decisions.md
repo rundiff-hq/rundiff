@@ -150,3 +150,28 @@ Do not use cgo in the managed executor. If a capability needs native code, prefe
 This is an implementation decision, not part of the public RunDiff protocol or customer contract.
 
 See RFC 0006 and RFC 0009.
+
+
+## ADR 0014 - GitHub identity and repository installation are separate boundaries
+
+Status: Accepted
+
+Treat GitHub user authentication and GitHub App installation as separate product/security concerns.
+
+GitHub authentication answers:
+
+> Who is this RunDiff user?
+
+GitHub App installation answers:
+
+> Which repositories may RunDiff observe and review?
+
+The ordinary login flow should request only the identity/profile permissions needed for RunDiff account access. It should not request broad repository write scope merely so RunDiff can create or update /rundiff.yml.
+
+Repository access comes from the GitHub App installation and remains repository-scoped according to installation selection and App permissions.
+
+Configuration changes use the user-confirmed GitHub browser handoff from ADR 0011 / RFC 0007 rather than a broad OAuth repository-write token stored by RunDiff.
+
+This separation keeps authentication lightweight, repository authorization explicit, and repository-content writes outside the permanent RunDiff credential set.
+
+See RFC 0007 and docs/github-app-setup.md.
