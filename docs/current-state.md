@@ -152,6 +152,7 @@ Do not remove these simply because they are not part of the immediate #75 path:
 - repository-owned /rundiff.yml, Review Workload discovery/selection, and source-code boundary from RFC 0007;
 - ownership-aware finding routing through CODEOWNERS and external delivery adapters from RFC 0008.
 - managed Go Executor host runtime, resource journal/sweeper cleanup, local evidence bus, and controlled-host isolation from RFC 0009.
+- behavioral Rule/Finding/Diagnosis/Relation taxonomy and investigation model from RFC 0010.
 
 These are real future capabilities or architectural records, not blockers for the first external product proof unless an issue explicitly says otherwise.
 
