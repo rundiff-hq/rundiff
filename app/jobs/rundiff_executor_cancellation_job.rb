@@ -6,6 +6,7 @@ class RunDiffExecutorCancellationJob < ApplicationJob
     return unless execution
     return unless execution.status == "cancelled"
     return unless execution.attempt_count == Integer(attempt_number)
+    return if execution.context["execution_orchestrator"] == "github_actions"
 
     executor.cancel(
       execution_id:,
