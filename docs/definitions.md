@@ -272,3 +272,101 @@ The sweeper must preserve exact execution/lease fencing and must never reap reso
 Execution path in which RunDiff delegates job execution to an existing customer orchestration system such as GitHub Actions, Buildkite, GitLab CI, or CircleCI while retaining RunDiff control-plane authority for the Behavioral Review.
 
 This is distinct from a direct Compute Provider integration.
+
+
+## Evidence
+
+A recorded observation or measurement produced by an execution/evidence provider.
+
+Examples include SQL counts, latency, CPU time, memory, network activity, errors, traces, or artifacts.
+
+Evidence answers:
+
+> What did RunDiff actually observe?
+
+Evidence preserves provenance and is distinct from interpretation.
+
+## Rule
+
+A stable reusable analysis definition.
+
+Example:
+
+~~~text
+database.query.count.regression
+~~~
+
+A Rule defines semantics such as signal, comparison direction, default severity, evidence requirements, and classification facets.
+
+Rule IDs are durable machine contracts; human titles/messages may evolve.
+
+## Finding
+
+One concrete application of a Rule to one Behavioral Review.
+
+Example:
+
+~~~text
+database.query.count.regression
+17 -> 31 SQL queries
++82.4%
+~~~
+
+A Finding is evidence-backed and may influence policy, but it is not automatically a root cause.
+
+## Diagnosis
+
+An interpretation of one or more Findings/Evidence items.
+
+Examples include CPU-bound request, queue-dominated latency, probable N+1, or downstream dependency slowdown.
+
+Diagnosis carries explicit confidence/basis and may be deterministic, inferred, hypothetical, or confirmed.
+
+## Relation
+
+A typed edge connecting findings, diagnoses, dependencies, or evidence-derived entities.
+
+Examples:
+
+~~~text
+depends_on
+contributes_to
+causes
+correlates_with
+upstream_of
+downstream_of
+same_cause_as
+~~~
+
+Relations carry epistemic status such as observed, inferred, hypothesis, or confirmed.
+
+Correlation must not be promoted to causation without sufficient evidence.
+
+## Decision
+
+The policy outcome of a Behavioral Review.
+
+Examples:
+
+~~~text
+ALLOW
+REVIEW
+BLOCK
+INFRA_FAILURE
+~~~
+
+Decision is distinct from Finding and Diagnosis.
+
+## Execution Failure
+
+A failure of execution infrastructure/workload setup to produce the intended evidence contract.
+
+Examples include provider failure, capability mismatch, bootstrap/build failure, timeout, OOM, cancellation, sensor failure, or cleanup failure.
+
+Execution Failure is not a behavioral Finding about the candidate unless that failure is itself the behavior under comparison.
+
+## Rule Registry
+
+The versioned collection of stable RunDiff Rules.
+
+Current runtime policy still lives in `RunDiff::BehavioralDiff::SIGNALS`; RFC 0010 defines the migration toward a Rule Registry with stable dotted `rule_id` values and faceted classification.
