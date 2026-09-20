@@ -1,0 +1,29 @@
+id: database.query.count.regression
+title: Database query count increased
+kind: regression
+
+legacy_reason_codes:
+  - DATABASE_QUERY_REGRESSION
+
+signal: db.query.count
+
+facets:
+  domains:
+    - database
+  quality_dimensions:
+    - performance_efficiency
+  resources:
+    - database
+    - io
+
+default_scope:
+  role: request
+
+default_severity: high
+
+comparison:
+  direction: increase
+  threshold_percent: 25
+
+notes:
+  - This is a design example. Runtime policy still lives in BehavioralDiff::SIGNALS.
