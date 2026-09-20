@@ -32,6 +32,27 @@ GitHub webhook
   -> GitHub Check + PR comment
 ```
 
+## Request/Result naming versus behavioral analysis
+
+`RunDiff::Executor::Request` and `RunDiff::Executor::Result` remain the portable transport/execution contract.
+
+They should not absorb the full behavioral analysis ontology.
+
+Conceptually:
+
+~~~text
+Executor::Request
+  -> execution
+  -> Executor::Result
+  -> Evidence
+  -> Finding / Diagnosis / Relations
+  -> Decision
+~~~
+
+Current schema v1 may contain nested historical `result` payloads. A future breaking schema revision may prefer a domain name such as `assessment`, but v1 is not renamed merely for naming purity.
+
+See RFC 0010.
+
 ## Portable request
 
 The control plane converts `RunDiffExecution` into `RunDiff::Executor::Request` before dispatch. Schema version `1` contains:
