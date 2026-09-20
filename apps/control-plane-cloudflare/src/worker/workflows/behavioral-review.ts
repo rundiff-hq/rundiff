@@ -8,7 +8,7 @@ import { D1ExecutionRepository } from "../../adapters/d1/execution-repository";
 import { D1ReviewRepository } from "../../adapters/d1/review-repository";
 import {
   decisionFromExecutorResult,
-  type ExecutorResultV1,
+  validateExecutorResult,
 } from "../../domain/executor";
 import type { Env } from "../env";
 
@@ -21,7 +21,7 @@ export type BehavioralReviewWorkflowParams = {
 type ExecutorResultEvent = {
   executionId: string;
   attemptNumber: number;
-  result: ExecutorResultV1;
+  resultJson: string;
 };
 
 export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
@@ -60,14 +60,27 @@ export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
         throw new Error("executor result identity mismatch");
       }
 
-      const decision = decisionFromExecutorResult(payload.result);
+function validateWorkflowExecutorResult(resultJson: string) {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(resultJson);
+  } catch {
+    throw new Error("executor result event contains invalid JSON");
+  }
+
+  return validateExecutorResult(parsed);
+}
+
+      const result = validateWorkflowExecutorResult(payload.resultJson);
+      const decision = decisionFromExecutorResult(result);
 
       await step.do("finalize review", async () => {
         const now = new Date().toISOString();
         const reviews = new D1ReviewRepository(this.env.DB);
         const executions = new D1ExecutionRepository(this.env.DB);
 
-        await reviews.finalize(reviewId, decision, payload.result, now);
+        await reviews.finalize(reviewId, decision, result, now);
         await executions.markTerminal(
           executionId,
           attemptNumber,
