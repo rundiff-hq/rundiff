@@ -123,3 +123,29 @@ RunDiff control panel
 This keeps repository configuration changes attributable to the authenticated GitHub user and preserves native branch protection and CODEOWNERS behavior.
 
 Checks and pull-request presentation permissions are separate from repository file-content permission and may remain writable where required by RunDiff's review surfaces.
+
+
+## User authentication versus App installation
+
+The hosted product should treat user authentication and App installation as separate steps.
+
+~~~text
+Sign in with GitHub
+  -> establishes RunDiff user identity/session
+
+Install RunDiff GitHub App
+  -> grants repository-scoped RunDiff access
+~~~
+
+Do not use broad OAuth repository write scope as a shortcut for repository configuration.
+
+The normal config flow remains:
+
+~~~text
+control panel
+  -> generate /rundiff.yml
+  -> open GitHub browser UI
+  -> user commits/opens PR
+~~~
+
+This keeps the persistent RunDiff repository credential set read-oriented for repository contents while still providing a modern no-copy/paste configuration experience.
