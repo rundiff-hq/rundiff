@@ -166,5 +166,8 @@ GitHub remains the primary PR review surface. External Slack, Teams, Discord, Te
 16. Ownership is routing context, not blame.
 17. Route important findings intentionally; do not broadcast everything.
 18. LLM explanation is optional and downstream of deterministic evidence.
+19. Separate Evidence, Finding, Diagnosis, Relation, and Decision.
+20. Prefer stable Rule IDs and faceted taxonomy over an unstructured reason-code list.
+21. Correlation, ownership, and source attribution do not by themselves prove causality.
 
 RunDiff is not a new test framework. Playwright, Capybara, Cypress, Maestro, RSpec, Minitest, pytest, Jest, Go tests, cargo test, arbitrary CLI commands, k6 profiles, and agent-driven flows can all participate in a RunDiff Behavioral Review.
