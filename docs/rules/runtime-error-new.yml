@@ -1,0 +1,25 @@
+id: runtime.error.new
+title: New runtime error appeared
+kind: regression
+
+legacy_reason_codes:
+  - NEW_RUNTIME_ERROR
+
+signal: runtime.error.count
+
+facets:
+  domains:
+    - runtime
+    - application
+  quality_dimensions:
+    - reliability
+  resources: []
+
+default_severity: critical
+
+comparison:
+  direction: increase
+  threshold_absolute: 0
+
+notes:
+  - Error evidence is distinct from executor/infra failure.
