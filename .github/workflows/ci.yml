@@ -44,7 +44,12 @@ jobs:
         env:
           CGO_ENABLED: "0"
         run: |
-          test -z "$(gofmt -l .)"
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            echo "gofmt required for:"
+            echo "$unformatted"
+            exit 1
+          fi
           go test ./...
           go vet ./...
           go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
