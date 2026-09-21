@@ -153,7 +153,8 @@ module RunDiff
             role: "base",
             configuration: capture_configuration,
             setup_configuration: baseline_setup_configuration,
-            runtime_env: prepared_runtime_env("base")
+            runtime_env: prepared_runtime_env("base"),
+            prepared_env: prepared_subject_env("base")
           ) do |baseline_subject|
             capture_subject!(
               execution:,
@@ -176,7 +177,8 @@ module RunDiff
             role: "candidate",
             configuration: capture_configuration,
             setup_configuration: capture_configuration,
-            runtime_env: prepared_runtime_env("candidate")
+            runtime_env: prepared_runtime_env("candidate"),
+            prepared_env: prepared_subject_env("candidate")
           ) do |candidate_subject|
             capture_subject!(
               execution:,
@@ -276,13 +278,29 @@ module RunDiff
       end
 
       def prepared_runtime_env(role)
+        prepared_env(
+          role:,
+          base_key: "RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON",
+          candidate_key: "RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON"
+        )
+      end
+
+      def prepared_subject_env(role)
+        prepared_env(
+          role:,
+          base_key: "RUNDIFF_PREPARED_BASELINE_SUBJECT_ENV_JSON",
+          candidate_key: "RUNDIFF_PREPARED_CANDIDATE_SUBJECT_ENV_JSON"
+        )
+      end
+
+      def prepared_env(role:, base_key:, candidate_key:)
         key = case role
         when "base"
-          "RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON"
+          base_key
         when "candidate"
-          "RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON"
+          candidate_key
         else
-          raise Error, "Unsupported prepared runtime role #{role.inspect}"
+          raise Error, "Unsupported prepared environment role #{role.inspect}"
         end
         raw = ENV[key].to_s
         return if raw.empty?

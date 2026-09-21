@@ -85,6 +85,32 @@ func (r Process) Run(
 			string(body),
 		)
 	}
+	if prepared.BaselineSubjectEnvironment != nil {
+		body, marshalErr := json.Marshal(
+			prepared.BaselineSubjectEnvironment,
+		)
+		if marshalErr != nil {
+			return protocol.ResultV1{}, marshalErr
+		}
+		command.Env = setEnv(
+			command.Env,
+			"RUNDIFF_PREPARED_BASELINE_SUBJECT_ENV_JSON",
+			string(body),
+		)
+	}
+	if prepared.CandidateSubjectEnvironment != nil {
+		body, marshalErr := json.Marshal(
+			prepared.CandidateSubjectEnvironment,
+		)
+		if marshalErr != nil {
+			return protocol.ResultV1{}, marshalErr
+		}
+		command.Env = setEnv(
+			command.Env,
+			"RUNDIFF_PREPARED_CANDIDATE_SUBJECT_ENV_JSON",
+			string(body),
+		)
+	}
 	command.Stdout = r.Stdout
 	command.Stderr = r.Stderr
 

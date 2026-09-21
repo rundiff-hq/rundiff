@@ -25,7 +25,8 @@ module RunDiff
         role:,
         configuration:,
         setup_configuration: configuration,
-        runtime_env: nil
+        runtime_env: nil,
+        prepared_env: nil
       )
         setup_plan = timed(execution:, role:, stage: "setup_plan") do
           compile_setup_plan(root:, configuration: setup_configuration)
@@ -42,8 +43,12 @@ module RunDiff
         service_session = nil
 
         begin
-          capture_env = timed(execution:, role:, stage: "environment_prepare") do
-            environment.prepare(root:, execution:, role:)
+          capture_env = if prepared_env
+            prepared_env.dup
+          else
+            timed(execution:, role:, stage: "environment_prepare") do
+              environment.prepare(root:, execution:, role:)
+            end
           end.merge(configuration.capture_env)
           service_result = timed(execution:, role:, stage: "services_start") do
             @service_executor.start(

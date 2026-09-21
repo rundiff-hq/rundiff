@@ -16,6 +16,7 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/metrics"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/runner"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/subjectprepare"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
 
@@ -82,6 +83,11 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	metricsPath := flags.String("metrics", "", "Phase metrics JSONL path")
 	nativeWorkspace := flags.Bool("native-workspace", false, "Prepare baseline/candidate worktrees in Go")
 	nativeBootstrap := flags.Bool("native-bootstrap", false, "Bootstrap Ruby dependencies in Go")
+	nativeSubjectPrepare := flags.Bool(
+		"native-subject-prepare",
+		false,
+		"Prepare Rails subject database state in Go",
+	)
 	cwd := flags.String("cwd", ".", "Working directory for the reference adapter")
 	timeout := flags.Duration("timeout", 35*time.Minute, "Overall reference execution timeout")
 	if err := flags.Parse(args); err != nil {
@@ -93,6 +99,13 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	}
 	if *nativeBootstrap && !*nativeWorkspace {
 		fmt.Fprintln(stderr, "--native-bootstrap requires --native-workspace")
+		return 2
+	}
+	if *nativeSubjectPrepare && !*nativeBootstrap {
+		fmt.Fprintln(
+			stderr,
+			"--native-subject-prepare requires --native-bootstrap",
+		)
 		return 2
 	}
 	command := flags.Args()
@@ -147,6 +160,9 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 		)
 		if *nativeBootstrap {
 			engine = engine.WithBootstrapper(bootstrap.NewRubyBundle(*cwd))
+		}
+		if *nativeSubjectPrepare {
+			engine = engine.WithSubjectPreparer(subjectprepare.NewRailsDB())
 		}
 	}
 	result, err := engine.Execute(ctx, request)
@@ -231,7 +247,9 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		phaseMetrics,
 		processRunner,
 		workspace.NewGitWorktrees(*cwd),
-	).WithBootstrapper(bootstrap.NewRubyBundle(*cwd))
+	).
+		WithBootstrapper(bootstrap.NewRubyBundle(*cwd)).
+		WithSubjectPreparer(subjectprepare.NewRailsDB())
 	managed := &agent.Agent{
 		ControlPlane: &controlplane.Client{
 			BaseURL: *controlPlaneURL,

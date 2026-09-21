@@ -16,8 +16,9 @@ type Phase string
 const (
 	PhasePrepare   Phase = "Prepare"
 	PhaseClone     Phase = "Clone"
-	PhaseBootstrap Phase = "Bootstrap"
-	PhaseBuild     Phase = "Build"
+	PhaseBootstrap      Phase = "Bootstrap"
+	PhaseSubjectPrepare Phase = "SubjectPrepare"
+	PhaseBuild          Phase = "Build"
 	PhaseStart     Phase = "Start"
 	PhaseReady     Phase = "Ready"
 	PhaseScenario  Phase = "Scenario"
@@ -42,6 +43,16 @@ type Bootstrapper interface {
 	) (map[string]string, error)
 }
 
+type SubjectPreparer interface {
+	Prepare(
+		context.Context,
+		protocol.RequestV1,
+		string,
+		string,
+		map[string]string,
+	) (map[string]string, error)
+}
+
 type Builder interface {
 	Build(
 		context.Context,
@@ -56,8 +67,9 @@ type Executor struct {
 	metrics      metrics.Recorder
 	runner       Runner
 	workspace    workspace.Manager
-	bootstrapper Bootstrapper
-	builder      Builder
+	bootstrapper  Bootstrapper
+	subjectPrepare SubjectPreparer
+	builder       Builder
 }
 
 func New(recorder journal.Recorder, runner Runner) *Executor {
@@ -87,6 +99,13 @@ func NewManaged(
 
 func (e *Executor) WithBootstrapper(bootstrapper Bootstrapper) *Executor {
 	e.bootstrapper = bootstrapper
+	return e
+}
+
+func (e *Executor) WithSubjectPreparer(
+	subjectPreparer SubjectPreparer,
+) *Executor {
+	e.subjectPrepare = subjectPreparer
 	return e
 }
 
@@ -187,6 +206,48 @@ func (e *Executor) Execute(
 					)
 				},
 			)
+			if err != nil {
+				return protocol.ResultV1{}, err
+			}
+		}
+
+		if e.subjectPrepare != nil {
+			prepared.BaselineSubjectEnvironment, err =
+				e.phaseWithEnvironment(
+					request,
+					PhaseSubjectPrepare,
+					"go",
+					"base",
+					func() (map[string]string, error) {
+						return e.subjectPrepare.Prepare(
+							ctx,
+							request,
+							"base",
+							prepared.BaselineRoot,
+							prepared.BaselineEnvironment,
+						)
+					},
+				)
+			if err != nil {
+				return protocol.ResultV1{}, err
+			}
+
+			prepared.CandidateSubjectEnvironment, err =
+				e.phaseWithEnvironment(
+					request,
+					PhaseSubjectPrepare,
+					"go",
+					"candidate",
+					func() (map[string]string, error) {
+						return e.subjectPrepare.Prepare(
+							ctx,
+							request,
+							"candidate",
+							prepared.CandidateRoot,
+							prepared.CandidateEnvironment,
+						)
+					},
+				)
 			if err != nil {
 				return protocol.ResultV1{}, err
 			}
@@ -406,6 +467,8 @@ func metricPhase(phase Phase) string {
 		return "clone"
 	case PhaseBootstrap:
 		return "bootstrap"
+	case PhaseSubjectPrepare:
+		return "subject_prepare"
 	case PhaseBuild:
 		return "build"
 	case PhaseStart:

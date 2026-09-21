@@ -18,8 +18,10 @@ type Prepared struct {
 	BaselineRoot         string
 	CandidateRoot        string
 	Environment          []string
-	BaselineEnvironment  map[string]string
-	CandidateEnvironment map[string]string
+	BaselineEnvironment          map[string]string
+	CandidateEnvironment         map[string]string
+	BaselineSubjectEnvironment   map[string]string
+	CandidateSubjectEnvironment  map[string]string
 }
 
 type Manager interface {
