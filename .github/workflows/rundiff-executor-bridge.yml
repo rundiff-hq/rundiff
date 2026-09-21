@@ -39,6 +39,8 @@ jobs:
       RUNDIFF_LOCAL_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432
       RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
       RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
+      RUNDIFF_EXECUTOR_SUPERVISOR: go
+      RUNDIFF_GO_EXECUTOR_BIN: /tmp/rundiff-executor
 
     steps:
       - uses: actions/checkout@v6
@@ -49,6 +51,17 @@ jobs:
         with:
           ruby-version: "3.4.10"
           bundler-cache: true
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Build Go executor supervisor
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
 
       - name: Verify bridge secret
         run: |

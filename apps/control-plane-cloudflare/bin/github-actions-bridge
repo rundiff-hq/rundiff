@@ -80,10 +80,45 @@ attempt_number="$(jq -r '.attempt_number' "$request_path")"
 echo "bridge_claimed_execution=$execution_id"
 echo "bridge_claimed_attempt=$attempt_number"
 
-(
-  cd "$ROOT"
-  RUNDIFF_EXECUTOR_REQUEST_PATH="$request_path"   RUNDIFF_EXECUTOR_RESULT_PATH="$result_path"     bundle exec ruby script/run_cloudflare_executor_bridge.rb
-)
+supervisor="${RUNDIFF_EXECUTOR_SUPERVISOR:-ruby}"
+case "$supervisor" in
+  go)
+    go_executor_bin="${RUNDIFF_GO_EXECUTOR_BIN:-}"
+    if [[ -z "$go_executor_bin" || ! -x "$go_executor_bin" ]]; then
+      echo "RUNDIFF_GO_EXECUTOR_BIN must point to an executable when RUNDIFF_EXECUTOR_SUPERVISOR=go" >&2
+      exit 64
+    fi
+
+    journal_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.journal.jsonl"
+    mkdir -p "$(dirname "$journal_path")"
+
+    (
+      cd "$ROOT"
+      "$go_executor_bin" reference \
+        --request "$request_path" \
+        --result "$result_path" \
+        --journal "$journal_path" \
+        --cwd "$ROOT" \
+        -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+    )
+
+    echo "bridge_supervisor=go"
+    echo "bridge_go_journal_entries=$(wc -l < "$journal_path" | tr -d ' ')"
+    ;;
+  ruby)
+    (
+      cd "$ROOT"
+      RUNDIFF_EXECUTOR_REQUEST_PATH="$request_path" \
+      RUNDIFF_EXECUTOR_RESULT_PATH="$result_path" \
+        bundle exec ruby script/run_cloudflare_executor_bridge.rb
+    )
+    echo "bridge_supervisor=ruby"
+    ;;
+  *)
+    echo "Unsupported RUNDIFF_EXECUTOR_SUPERVISOR: $supervisor" >&2
+    exit 64
+    ;;
+esac
 
 submit_status="$(
   curl -sS     -o "$submit_response"     -w '%{http_code}'     -X POST "$CONTROL_PLANE_URL/api/executions/$execution_id/attempts/$attempt_number/result"     -H "authorization: Bearer $TOKEN"     -H 'content-type: application/json'     --data-binary "@$result_path"

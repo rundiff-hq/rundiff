@@ -21,11 +21,16 @@ The reference process adapter can supervise the existing Ruby reference executor
 Example from the repository root:
 
 ~~~bash
-go run ./apps/executor-go/cmd/rundiff-executor reference \
+(
+  cd apps/executor-go
+  CGO_ENABLED=0 go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+)
+
+/tmp/rundiff-executor reference \
   --request /tmp/request.json \
   --result /tmp/result.json \
   --journal /tmp/resource-journal.jsonl \
-  --cwd . \
+  --cwd "$PWD" \
   -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
 ~~~
 
