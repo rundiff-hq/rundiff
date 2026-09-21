@@ -11,7 +11,7 @@ module RunDiff
       end
 
       def upsert(repository:, head_sha:, name:, external_id:, details_url:, conclusion:, title:, summary:, annotations: [])
-        existing = find_existing(repository:, head_sha:, name:)
+        existing = find_existing(repository:, head_sha:, name:, external_id:)
         output = { title:, summary: }
         output[:annotations] = annotations.first(50) unless annotations.empty?
         body = {
@@ -34,13 +34,13 @@ module RunDiff
 
       private
 
-      def find_existing(repository:, head_sha:, name:)
+      def find_existing(repository:, head_sha:, name:, external_id:)
         encoded_name = URI.encode_www_form_component(name)
         response = request(
           :get,
           "/repos/#{repository}/commits/#{head_sha}/check-runs?check_name=#{encoded_name}&filter=latest"
         )
-        response.fetch("check_runs", []).find { |check_run| check_run.fetch("name") == name }
+        response.fetch("check_runs", []).find do |check_run|\n          check_run.fetch("name") == name && check_run["external_id"] == external_id\n        end
       end
 
       def request(method, path, body: nil)

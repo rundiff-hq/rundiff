@@ -31,7 +31,7 @@ class RunDiffGithubCheckPublisherTest < ActiveSupport::TestCase
   test "updates the existing RunDiff check on the same head" do
     list_path = "/repos/rundiff/rundiff/commits/head/check-runs?check_name=RunDiff+%2F+Behavioral+Diff&filter=latest"
     publisher = FakePublisher.new(
-      [ :get, list_path ] => { "check_runs" => [ { "id" => 42, "name" => "RunDiff / Behavioral Diff" } ] }
+      [ :get, list_path ] => { "check_runs" => [ { "id" => 42, "name" => "RunDiff / Behavioral Diff", "external_id" => "run-1" } ] }
     )
 
     action = publisher.upsert(**attributes)
