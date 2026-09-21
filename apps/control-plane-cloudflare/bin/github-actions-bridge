@@ -120,6 +120,9 @@ if [[ "$supervisor" == "go" ]]; then
   echo "bridge_supervisor=go"
   echo "bridge_managed_lifecycle=exact_attempt"
   echo "bridge_go_journal_entries=$(wc -l < "$journal_path" | tr -d ' ')"
+  echo "bridge_lease_claims=$(awk '/"kind":"lease_claimed"/ {count++} END {print count+0}' "$journal_path")"
+  echo "bridge_lease_renewals=$(awk '/"kind":"lease_renewed"/ {count++} END {print count+0}' "$journal_path")"
+  echo "bridge_result_submissions=$(awk '/"kind":"result_submitted"/ {count++} END {print count+0}' "$journal_path")"
   echo "bridge_result_status=$(jq -r '.status' "$result_path")"
   exit 0
 fi
