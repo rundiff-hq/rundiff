@@ -254,9 +254,8 @@ func (g *GitWorktrees) prepareRemoteRepository(
 		ctx,
 		repositoryRoot,
 		nil,
-		"remote",
-		"add",
-		"origin",
+		"config",
+		"remote.origin.url",
 		baseURL+"/"+request.Context.Repository+".git",
 	); err != nil {
 		return err
@@ -439,9 +438,19 @@ func (g *GitWorktrees) runAt(
 	if environment != nil {
 		command.Env = environment
 	}
-	_, err := command.CombinedOutput()
+	output, err := command.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s %s: %w", commandName, strings.Join(args, " "), err)
+		detail := strings.TrimSpace(string(output))
+		if detail == "" {
+			return fmt.Errorf("%s %s: %w", commandName, strings.Join(args, " "), err)
+		}
+		return fmt.Errorf(
+			"%s %s: %w: %s",
+			commandName,
+			strings.Join(args, " "),
+			err,
+			detail,
+		)
 	}
 	return nil
 }
