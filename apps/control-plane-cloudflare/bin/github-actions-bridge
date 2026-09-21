@@ -45,6 +45,85 @@ jq -n   --arg repository "$REPOSITORY"   --argjson pull_request_number "$PULL_RE
     candidate_sha: $candidate_sha
   }' > "$claim_payload"
 
+supervisor="${RUNDIFF_EXECUTOR_SUPERVISOR:-ruby}"
+
+if [[ "$supervisor" == "go" ]]; then
+  go_executor_bin="${RUNDIFF_GO_EXECUTOR_BIN:-}"
+  if [[ -z "$go_executor_bin" || ! -x "$go_executor_bin" ]]; then
+    echo "RUNDIFF_GO_EXECUTOR_BIN must point to an executable when RUNDIFF_EXECUTOR_SUPERVISOR=go" >&2
+    exit 64
+  fi
+
+  resolve_response="$tmp_dir/resolve-response.json"
+  resolved=false
+  for attempt in $(seq 1 40); do
+    status="$(
+      curl -sS \
+        -o "$resolve_response" \
+        -w '%{http_code}' \
+        -X POST "$CONTROL_PLANE_URL/api/execution-bridges/github-actions/resolve" \
+        -H "authorization: Bearer $TOKEN" \
+        -H 'content-type: application/json' \
+        --data-binary "@$claim_payload"
+    )"
+
+    case "$status" in
+      200)
+        resolved=true
+        break
+        ;;
+      409)
+        sleep 3
+        ;;
+      *)
+        echo "RunDiff assignment resolution failed with HTTP $status" >&2
+        cat "$resolve_response" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ "$resolved" != "true" ]]; then
+    echo "RunDiff execution was not resolvable after retries" >&2
+    cat "$resolve_response" >&2
+    exit 1
+  fi
+
+  execution_id="$(jq -r '.execution_id' "$resolve_response")"
+  attempt_number="$(jq -r '.attempt_number' "$resolve_response")"
+  if [[ -z "$execution_id" || "$execution_id" == "null" || ! "$attempt_number" =~ ^[1-9][0-9]*$ ]]; then
+    echo "RunDiff resolve returned invalid exact assignment" >&2
+    cat "$resolve_response" >&2
+    exit 1
+  fi
+
+  journal_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.journal.jsonl"
+  mkdir -p "$(dirname "$journal_path")"
+
+  echo "bridge_resolved_execution=$execution_id"
+  echo "bridge_resolved_attempt=$attempt_number"
+
+  (
+    cd "$ROOT"
+    "$go_executor_bin" agent \
+      --control-plane-url "$CONTROL_PLANE_URL" \
+      --token-env RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN \
+      --execution-id "$execution_id" \
+      --attempt "$attempt_number" \
+      --result "$result_path" \
+      --journal "$journal_path" \
+      --cwd "$ROOT" \
+      --heartbeat-interval "${RUNDIFF_EXECUTOR_HEARTBEAT_INTERVAL:-20s}" \
+      -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+  )
+
+  echo "bridge_supervisor=go"
+  echo "bridge_managed_lifecycle=exact_attempt"
+  echo "bridge_go_journal_entries=$(wc -l < "$journal_path" | tr -d ' ')"
+  echo "bridge_result_status=$(jq -r '.status' "$result_path")"
+  exit 0
+fi
+
 claimed=false
 for attempt in $(seq 1 40); do
   status="$(
@@ -80,7 +159,6 @@ attempt_number="$(jq -r '.attempt_number' "$request_path")"
 echo "bridge_claimed_execution=$execution_id"
 echo "bridge_claimed_attempt=$attempt_number"
 
-supervisor="${RUNDIFF_EXECUTOR_SUPERVISOR:-ruby}"
 case "$supervisor" in
   go)
     go_executor_bin="${RUNDIFF_GO_EXECUTOR_BIN:-}"
