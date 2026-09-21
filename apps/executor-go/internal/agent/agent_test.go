@@ -182,7 +182,6 @@ func requestFixture() protocol.RequestV1 {
 	}
 }
 
-
 func TestAgentScopesRepositoryCapabilityToExecutionContext(t *testing.T) {
 	request := requestFixture()
 	cp := &fakeControlPlane{
