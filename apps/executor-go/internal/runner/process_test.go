@@ -26,7 +26,10 @@ func TestProcessRunsReferenceAdapterWithPortablePaths(t *testing.T) {
 	recorder := &memoryRecorder{}
 	process := Process{
 		Command: []string{os.Args[0], "-test.run=TestProcessHelper"},
-		Env:     []string{"RUNDIFF_GO_PROCESS_HELPER=1"},
+		Env: []string{
+			"RUNDIFF_GO_PROCESS_HELPER=1",
+			"RUNDIFF_GO_PROCESS_HELPER_EXPECT_PREPARED=1",
+		},
 		Stdout:  io.Discard,
 		Stderr:  io.Discard,
 	}
@@ -34,7 +37,14 @@ func TestProcessRunsReferenceAdapterWithPortablePaths(t *testing.T) {
 	result, err := process.Run(
 		context.Background(),
 		testRequest(),
-		workspace.Prepared{},
+		workspace.Prepared{
+			BaselineEnvironment: map[string]string{
+				"BUNDLE_PATH": "/tmp/base-bundle",
+			},
+			CandidateEnvironment: map[string]string{
+				"BUNDLE_PATH": "/tmp/candidate-bundle",
+			},
+		},
 		recorder,
 	)
 	if err != nil {
@@ -71,6 +81,22 @@ func TestProcessHelper(t *testing.T) {
 	}
 	if _, err := protocol.LoadRequest(requestPath); err != nil {
 		os.Exit(92)
+	}
+	if os.Getenv("RUNDIFF_GO_PROCESS_HELPER_EXPECT_PREPARED") == "1" {
+		var baseline map[string]string
+		if err := json.Unmarshal(
+			[]byte(os.Getenv("RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON")),
+			&baseline,
+		); err != nil || baseline["BUNDLE_PATH"] != "/tmp/base-bundle" {
+			os.Exit(94)
+		}
+		var candidate map[string]string
+		if err := json.Unmarshal(
+			[]byte(os.Getenv("RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON")),
+			&candidate,
+		); err != nil || candidate["BUNDLE_PATH"] != "/tmp/candidate-bundle" {
+			os.Exit(95)
+		}
 	}
 
 	result := protocol.ResultV1{

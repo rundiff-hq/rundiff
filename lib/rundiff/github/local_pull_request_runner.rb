@@ -152,7 +152,8 @@ module RunDiff
             execution:,
             role: "base",
             configuration: capture_configuration,
-            setup_configuration: baseline_setup_configuration
+            setup_configuration: baseline_setup_configuration,
+            runtime_env: prepared_runtime_env("base")
           ) do |baseline_subject|
             capture_subject!(
               execution:,
@@ -174,7 +175,8 @@ module RunDiff
             execution:,
             role: "candidate",
             configuration: capture_configuration,
-            setup_configuration: capture_configuration
+            setup_configuration: capture_configuration,
+            runtime_env: prepared_runtime_env("candidate")
           ) do |candidate_subject|
             capture_subject!(
               execution:,
@@ -271,6 +273,29 @@ module RunDiff
           ENV["RUNDIFF_PREPARED_WORKSPACE_ROOT"].present? &&
           ENV["RUNDIFF_PREPARED_BASELINE_ROOT"].present? &&
           ENV["RUNDIFF_PREPARED_CANDIDATE_ROOT"].present?
+      end
+
+      def prepared_runtime_env(role)
+        key = case role
+        when "base"
+          "RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON"
+        when "candidate"
+          "RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON"
+        else
+          raise Error, "Unsupported prepared runtime role #{role.inspect}"
+        end
+        raw = ENV[key].to_s
+        return if raw.empty?
+
+        payload = JSON.parse(raw)
+        unless payload.is_a?(Hash) &&
+          payload.all? { |env_key, value| env_key.is_a?(String) && value.is_a?(String) }
+          raise Error, "#{key} must contain a JSON object of string values"
+        end
+
+        payload
+      rescue JSON::ParserError
+        raise Error, "#{key} must contain valid JSON"
       end
 
       def verify_prepared_worktree!(path:, sha:)

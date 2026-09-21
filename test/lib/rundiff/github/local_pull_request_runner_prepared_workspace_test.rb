@@ -33,6 +33,24 @@ class RunDiffGithubLocalPullRequestRunnerPreparedWorkspaceTest < ActiveSupport::
     end
   end
 
+  test "parses Go-prepared runtime environment by role" do
+    with_env(
+      "RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON" => '{"BUNDLE_PATH":"/tmp/base"}',
+      "RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON" => '{"BUNDLE_PATH":"/tmp/candidate"}'
+    ) do
+      runner = RunDiff::Github::LocalPullRequestRunner.allocate
+
+      assert_equal(
+        { "BUNDLE_PATH" => "/tmp/base" },
+        runner.send(:prepared_runtime_env, "base")
+      )
+      assert_equal(
+        { "BUNDLE_PATH" => "/tmp/candidate" },
+        runner.send(:prepared_runtime_env, "candidate")
+      )
+    end
+  end
+
   private
 
   def with_env(values)

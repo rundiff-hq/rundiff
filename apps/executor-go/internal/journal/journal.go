@@ -16,6 +16,7 @@ type Entry struct {
 	ExecutionID    string    `json:"execution_id"`
 	AttemptNumber  int       `json:"attempt_number"`
 	Phase          string    `json:"phase,omitempty"`
+	Role           string    `json:"role,omitempty"`
 	ResourceKind   string    `json:"resource_kind,omitempty"`
 	Resource       string    `json:"resource,omitempty"`
 	Message        string    `json:"message,omitempty"`

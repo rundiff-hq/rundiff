@@ -19,13 +19,21 @@ module RunDiff
         @stage_timer = stage_timer
       end
 
-      def open(root:, execution:, role:, configuration:, setup_configuration: configuration)
+      def open(
+        root:,
+        execution:,
+        role:,
+        configuration:,
+        setup_configuration: configuration,
+        runtime_env: nil
+      )
         setup_plan = timed(execution:, role:, stage: "setup_plan") do
           compile_setup_plan(root:, configuration: setup_configuration)
         end
         runtime_env = timed(execution:, role:, stage: "bootstrap") do
           bootstrap(root:, setup_plan:)
-        end
+        end if runtime_env.nil?
+        runtime_env ||= {}
         environment = timed(execution:, role:, stage: "environment_resolve") do
           resolve_environment(root:, configuration: setup_configuration, runtime_env:)
         end

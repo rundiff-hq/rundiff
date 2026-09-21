@@ -71,7 +71,7 @@ run_one() {
     --cwd "$ROOT"
   )
   if [[ "$mode" == "go" ]]; then
-    args+=(--native-workspace)
+    args+=(--native-workspace --native-bootstrap)
   fi
 
   echo "::group::benchmark pair=$pair mode=$mode"

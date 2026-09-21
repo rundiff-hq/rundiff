@@ -14,10 +14,12 @@ import (
 )
 
 type Prepared struct {
-	Root          string
-	BaselineRoot  string
-	CandidateRoot string
-	Environment   []string
+	Root                 string
+	BaselineRoot         string
+	CandidateRoot        string
+	Environment          []string
+	BaselineEnvironment  map[string]string
+	CandidateEnvironment map[string]string
 }
 
 type Manager interface {

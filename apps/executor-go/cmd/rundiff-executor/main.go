@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/agent"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/bootstrap"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/controlplane"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/executor"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
@@ -80,6 +81,7 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	journalPath := flags.String("journal", "", "Resource Journal JSONL path")
 	metricsPath := flags.String("metrics", "", "Phase metrics JSONL path")
 	nativeWorkspace := flags.Bool("native-workspace", false, "Prepare baseline/candidate worktrees in Go")
+	nativeBootstrap := flags.Bool("native-bootstrap", false, "Bootstrap Ruby dependencies in Go")
 	cwd := flags.String("cwd", ".", "Working directory for the reference adapter")
 	timeout := flags.Duration("timeout", 35*time.Minute, "Overall reference execution timeout")
 	if err := flags.Parse(args); err != nil {
@@ -87,6 +89,10 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	}
 	if *requestPath == "" || *resultPath == "" {
 		fmt.Fprintln(stderr, "reference requires --request and --result")
+		return 2
+	}
+	if *nativeBootstrap && !*nativeWorkspace {
+		fmt.Fprintln(stderr, "--native-bootstrap requires --native-workspace")
 		return 2
 	}
 	command := flags.Args()
@@ -139,6 +145,9 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 			processRunner,
 			workspace.NewGitWorktrees(*cwd),
 		)
+		if *nativeBootstrap {
+			engine = engine.WithBootstrapper(bootstrap.NewRubyBundle(*cwd))
+		}
 	}
 	result, err := engine.Execute(ctx, request)
 	if err != nil {
@@ -222,7 +231,7 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		phaseMetrics,
 		processRunner,
 		workspace.NewGitWorktrees(*cwd),
-	)
+	).WithBootstrapper(bootstrap.NewRubyBundle(*cwd))
 	managed := &agent.Agent{
 		ControlPlane: &controlplane.Client{
 			BaseURL: *controlPlaneURL,

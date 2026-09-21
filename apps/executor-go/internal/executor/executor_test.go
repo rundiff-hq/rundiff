@@ -45,6 +45,34 @@ func (r staticRunner) Run(
 
 type fakeWorkspace struct{}
 
+type fakeBootstrapper struct{}
+
+func (fakeBootstrapper) Bootstrap(
+	_ context.Context,
+	role string,
+	root string,
+) (map[string]string, error) {
+	return map[string]string{
+		"BUNDLE_GEMFILE": root + "/Gemfile",
+		"RUNDIFF_ROLE":   role,
+	}, nil
+}
+
+type recordingRunner struct {
+	result   protocol.ResultV1
+	prepared workspace.Prepared
+}
+
+func (r *recordingRunner) Run(
+	_ context.Context,
+	_ protocol.RequestV1,
+	prepared workspace.Prepared,
+	_ journal.Recorder,
+) (protocol.ResultV1, error) {
+	r.prepared = prepared
+	return r.result, nil
+}
+
 func (fakeWorkspace) Prepare(
 	context.Context,
 	protocol.RequestV1,
@@ -139,5 +167,55 @@ func requestFixture() protocol.RequestV1 {
 			Repository:        "demo/shop",
 			PullRequestNumber: 42,
 		},
+	}
+}
+
+
+func TestExecutorBootstrapsBothPreparedSubjectsInGo(t *testing.T) {
+	recorder := &memoryJournal{}
+	phaseMetrics := &memoryMetrics{}
+	result := protocol.ResultV1{
+		SchemaVersion: protocol.SchemaVersion,
+		Status:        "succeeded",
+		Payload:       json.RawMessage(`{"result":{"merge_recommendation":"allow","findings":[]}}`),
+	}
+	run := &recordingRunner{result: result}
+	engine := NewManaged(
+		recorder,
+		phaseMetrics,
+		run,
+		fakeWorkspace{},
+	).WithBootstrapper(fakeBootstrapper{})
+
+	actual, err := engine.Execute(context.Background(), requestFixture())
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if actual.Status != "succeeded" {
+		t.Fatalf("expected succeeded, got %q", actual.Status)
+	}
+	if run.prepared.BaselineEnvironment["RUNDIFF_ROLE"] != "base" {
+		t.Fatalf("missing base bootstrap environment: %+v", run.prepared)
+	}
+	if run.prepared.CandidateEnvironment["RUNDIFF_ROLE"] != "candidate" {
+		t.Fatalf("missing candidate bootstrap environment: %+v", run.prepared)
+	}
+
+	var baseBootstrap bool
+	var candidateBootstrap bool
+	for _, event := range phaseMetrics.events {
+		if event.Phase == "bootstrap" &&
+			event.Implementation == "go" &&
+			event.Role == "base" {
+			baseBootstrap = true
+		}
+		if event.Phase == "bootstrap" &&
+			event.Implementation == "go" &&
+			event.Role == "candidate" {
+			candidateBootstrap = true
+		}
+	}
+	if !baseBootstrap || !candidateBootstrap {
+		t.Fatalf("missing Go bootstrap metrics: %+v", phaseMetrics.events)
 	}
 }

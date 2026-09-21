@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -61,6 +62,28 @@ func (r Process) Run(
 	}
 	for _, item := range prepared.Environment {
 		command.Env = setRawEnv(command.Env, item)
+	}
+	if prepared.BaselineEnvironment != nil {
+		body, marshalErr := json.Marshal(prepared.BaselineEnvironment)
+		if marshalErr != nil {
+			return protocol.ResultV1{}, marshalErr
+		}
+		command.Env = setEnv(
+			command.Env,
+			"RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON",
+			string(body),
+		)
+	}
+	if prepared.CandidateEnvironment != nil {
+		body, marshalErr := json.Marshal(prepared.CandidateEnvironment)
+		if marshalErr != nil {
+			return protocol.ResultV1{}, marshalErr
+		}
+		command.Env = setEnv(
+			command.Env,
+			"RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON",
+			string(body),
+		)
 	}
 	command.Stdout = r.Stdout
 	command.Stderr = r.Stderr

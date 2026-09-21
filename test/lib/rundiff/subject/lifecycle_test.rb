@@ -162,6 +162,31 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
     ], events
   end
 
+  test "uses prebootstrapped runtime environment without invoking bootstrap" do
+    events = []
+    environment = RecordingEnvironment.new(events:)
+    bootstrap = lambda do |root:, setup_plan:|
+      flunk "Ruby bootstrap must not run for Go-prepared runtime environment"
+    end
+    lifecycle = RunDiff::Subject::Lifecycle.new(
+      discovery: RecordingDiscovery.new(events:, environment:),
+      bootstrap:
+    )
+
+    lifecycle.open(
+      root: Pathname("/tmp/subject"),
+      execution: Object.new,
+      role: "base",
+      configuration: Configuration.new(capture_env: {}),
+      runtime_env: { "BUNDLE_PATH" => "/tmp/prepared-bundle" }
+    ) do
+      events << :capture
+    end
+
+    assert_includes events, [ :discover, { "BUNDLE_PATH" => "/tmp/prepared-bundle" } ]
+    refute events.any? { |event| event.is_a?(Array) && event.first == :bootstrap }
+  end
+
   test "emits deterministic stage timings for one subject role" do
     events = []
     environment = RecordingEnvironment.new(events:)
