@@ -5,7 +5,6 @@ on:
     paths:
       - "app/**"
       - "apps/executor-go/**"
-      - "apps/executor-go/**"
       - "bin/lab"
       - "config/**"
       - "db/**"
@@ -22,6 +21,7 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "apps/executor-go/**"
       - "bin/lab"
       - "config/**"
       - "db/**"

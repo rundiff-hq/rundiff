@@ -49,7 +49,11 @@ docker build -f "$ROOT/Dockerfile.compose-provider" -t "$RUNDIFF_PROVIDER_IMAGE"
 
 docker volume create "$RUNDIFF_PROVIDER_VOLUME" >/dev/null
 
-docker run -d --name "$PROVIDER_CONTAINER"   -v /var/run/docker.sock:/var/run/docker.sock   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider"   -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET"   "$RUNDIFF_PROVIDER_IMAGE" >/dev/null
+docker run -d --name "$PROVIDER_CONTAINER" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+  -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+  "$RUNDIFF_PROVIDER_IMAGE" >/dev/null
 
 for attempt in $(seq 1 60); do
   if docker exec "$PROVIDER_CONTAINER" test -S "$RUNDIFF_COMPOSE_PROVIDER_SOCKET"; then
@@ -65,9 +69,16 @@ for attempt in $(seq 1 60); do
   sleep 1
 done
 
-docker run --rm   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider"   "$RUNDIFF_EXECUTOR_IMAGE"   sh -c 'test ! -S /var/run/docker.sock && ! command -v docker'
+docker run --rm \
+  -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+  "$RUNDIFF_EXECUTOR_IMAGE" \
+  sh -c 'test ! -S /var/run/docker.sock && ! command -v docker'
 
-docker run --rm --user 10001:10001   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider"   -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET"   "$RUNDIFF_EXECUTOR_IMAGE"   ruby -rsocket -e '
+docker run --rm --user 10001:10001 \
+  -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+  -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+  "$RUNDIFF_EXECUTOR_IMAGE" \
+  ruby -rsocket -e '
     begin
       UNIXSocket.new(ENV.fetch("RUNDIFF_COMPOSE_PROVIDER_SOCKET"))
       abort "subject UID unexpectedly opened provider control socket"
@@ -76,7 +87,11 @@ docker run --rm --user 10001:10001   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-p
     end
   ' | tee "$ARTIFACT_DIR/privilege-boundary.log"
 
-docker run --rm --network host   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider"   -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET"   "$RUNDIFF_EXECUTOR_IMAGE"   ruby script/prove_isolated_compose_provider.rb |
+docker run --rm --network host \
+  -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+  -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+  "$RUNDIFF_EXECUTOR_IMAGE" \
+  ruby script/prove_isolated_compose_provider.rb |
   tee "$ARTIFACT_DIR/provider-proof.log"
 
 docker run --rm --network host \
@@ -85,22 +100,9 @@ docker run --rm --network host \
   -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
   -e RUNDIFF_GO_COMPOSE_E2E=1 \
   "$RUNDIFF_EXECUTOR_IMAGE" \
-  /tmp/rundiff-go-services-test -test.run '^TestIsolatedComposeProviderEndToEnd
-
-if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^rundiff-' ; then
-  echo "Compose containers leaked after proof" >&2
-  docker ps -a >&2
-  exit 1
-fi
-
-if docker network ls --filter label=com.docker.compose.project --format '{{.Name}}' | grep '^rundiff-' ; then
-  echo "Compose networks leaked after proof" >&2
-  docker network ls >&2
-  exit 1
-fi
-
-echo "isolated_compose_provider_proof=passed"
- -test.v |
+  /tmp/rundiff-go-services-test \
+    -test.run '^TestIsolatedComposeProviderEndToEnd$' \
+    -test.v |
   tee "$ARTIFACT_DIR/go-provider-proof.log"
 
 if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^rundiff-' ; then
@@ -116,3 +118,4 @@ if docker network ls --filter label=com.docker.compose.project --format '{{.Name
 fi
 
 echo "isolated_compose_provider_proof=passed"
+echo "go_isolated_compose_provider_proof=passed"
