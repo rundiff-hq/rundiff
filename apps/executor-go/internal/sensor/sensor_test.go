@@ -24,7 +24,6 @@ func TestRegistryResolvesPortableRails(t *testing.T) {
 	}
 }
 
-
 func TestRegistryResolvesSubjectOwnedRails(t *testing.T) {
 	root := t.TempDir()
 	files := append([]string{"config/environment.rb"}, railsSubjectOwnedMarkers...)
