@@ -98,6 +98,7 @@ if [[ "$supervisor" == "go" ]]; then
   fi
 
   journal_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.journal.jsonl"
+  metrics_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.metrics.jsonl"
   mkdir -p "$(dirname "$journal_path")"
 
   echo "bridge_resolved_execution=$execution_id"
@@ -112,6 +113,7 @@ if [[ "$supervisor" == "go" ]]; then
       --attempt "$attempt_number" \
       --result "$result_path" \
       --journal "$journal_path" \
+      --metrics "$metrics_path" \
       --cwd "$ROOT" \
       --heartbeat-interval "${RUNDIFF_EXECUTOR_HEARTBEAT_INTERVAL:-20s}" \
       -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
@@ -123,6 +125,10 @@ if [[ "$supervisor" == "go" ]]; then
   echo "bridge_lease_claims=$(awk '/"kind":"lease_claimed"/ {count++} END {print count+0}' "$journal_path")"
   echo "bridge_lease_renewals=$(awk '/"kind":"lease_renewed"/ {count++} END {print count+0}' "$journal_path")"
   echo "bridge_result_submissions=$(awk '/"kind":"result_submitted"/ {count++} END {print count+0}' "$journal_path")"
+  echo "bridge_phase_metric_count=$(wc -l < "$metrics_path" | tr -d ' ')"
+  while IFS= read -r metric; do
+    echo "bridge_phase_metric=$metric"
+  done < "$metrics_path"
   echo "bridge_result_status=$(jq -r '.status' "$result_path")"
   exit 0
 fi

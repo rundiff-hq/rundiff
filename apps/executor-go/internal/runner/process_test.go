@@ -10,6 +10,7 @@ import (
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
 
 type memoryRecorder struct {
@@ -30,7 +31,12 @@ func TestProcessRunsReferenceAdapterWithPortablePaths(t *testing.T) {
 		Stderr:  io.Discard,
 	}
 
-	result, err := process.Run(context.Background(), testRequest(), recorder)
+	result, err := process.Run(
+		context.Background(),
+		testRequest(),
+		workspace.Prepared{},
+		recorder,
+	)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -88,7 +94,12 @@ func TestProcessConvertsMissingResultToFailedPortableResult(t *testing.T) {
 		Command: []string{script},
 		Stdout:  io.Discard,
 		Stderr:  io.Discard,
-	}).Run(context.Background(), testRequest(), &memoryRecorder{})
+	}).Run(
+		context.Background(),
+		testRequest(),
+		workspace.Prepared{},
+		&memoryRecorder{},
+	)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}

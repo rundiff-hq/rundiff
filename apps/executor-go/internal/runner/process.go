@@ -11,6 +11,7 @@ import (
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
 
 type Process struct {
@@ -21,7 +22,12 @@ type Process struct {
 	Stderr  io.Writer
 }
 
-func (r Process) Run(ctx context.Context, request protocol.RequestV1, recorder journal.Recorder) (protocol.ResultV1, error) {
+func (r Process) Run(
+	ctx context.Context,
+	request protocol.RequestV1,
+	prepared workspace.Prepared,
+	recorder journal.Recorder,
+) (protocol.ResultV1, error) {
 	if len(r.Command) == 0 {
 		return protocol.ResultV1{}, fmt.Errorf("reference process command is required")
 	}
@@ -51,6 +57,9 @@ func (r Process) Run(ctx context.Context, request protocol.RequestV1, recorder j
 	command.Env = setEnv(command.Env, "RUNDIFF_EXECUTOR_REQUEST_PATH", requestPath)
 	command.Env = setEnv(command.Env, "RUNDIFF_EXECUTOR_RESULT_PATH", resultPath)
 	for _, item := range r.Env {
+		command.Env = setRawEnv(command.Env, item)
+	}
+	for _, item := range prepared.Environment {
 		command.Env = setRawEnv(command.Env, item)
 	}
 	command.Stdout = r.Stdout

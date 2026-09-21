@@ -19,6 +19,9 @@ type Entry struct {
 	ResourceKind  string    `json:"resource_kind,omitempty"`
 	Resource      string    `json:"resource,omitempty"`
 	Message       string    `json:"message,omitempty"`
+	Implementation string    `json:"implementation,omitempty"`
+	DurationMillis int64     `json:"duration_ms,omitempty"`
+	Outcome        string    `json:"outcome,omitempty"`
 }
 
 type Recorder interface {

@@ -12,8 +12,10 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/controlplane"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/executor"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/metrics"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/runner"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
 
 func main() {
@@ -74,6 +76,8 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	requestPath := flags.String("request", "", "Request v1 JSON path")
 	resultPath := flags.String("result", "", "Result v1 JSON path")
 	journalPath := flags.String("journal", "", "Resource Journal JSONL path")
+	metricsPath := flags.String("metrics", "", "Phase metrics JSONL path")
+	nativeWorkspace := flags.Bool("native-workspace", false, "Prepare baseline/candidate worktrees in Go")
 	cwd := flags.String("cwd", ".", "Working directory for the reference adapter")
 	timeout := flags.Duration("timeout", 35*time.Minute, "Overall reference execution timeout")
 	if err := flags.Parse(args); err != nil {
@@ -91,6 +95,9 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	if *journalPath == "" {
 		*journalPath = *resultPath + ".journal.jsonl"
 	}
+	if *metricsPath == "" {
+		*metricsPath = *resultPath + ".metrics.jsonl"
+	}
 
 	request, err := protocol.LoadRequest(*requestPath)
 	if err != nil {
@@ -105,15 +112,32 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	}
 	defer resourceJournal.Close()
 
+	phaseMetrics, err := metrics.Open(*metricsPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "open phase metrics: %v\n", err)
+		return 1
+	}
+	defer phaseMetrics.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	engine := executor.New(resourceJournal, runner.Process{
+	processRunner := runner.Process{
 		Command: command,
 		Dir:     *cwd,
+		Env:     []string{"RUNDIFF_STAGE_METRICS_PATH=" + *metricsPath},
 		Stdout:  stdout,
 		Stderr:  stderr,
-	})
+	}
+	engine := executor.New(resourceJournal, processRunner)
+	if *nativeWorkspace {
+		engine = executor.NewManaged(
+			resourceJournal,
+			phaseMetrics,
+			processRunner,
+			workspace.NewGitWorktrees(*cwd),
+		)
+	}
 	result, err := engine.Execute(ctx, request)
 	if err != nil {
 		result = protocol.Failed("RunDiff::Executor::GoSupervisorError", err.Error())
@@ -142,6 +166,7 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	attemptNumber := flags.Int("attempt", 0, "Exact attempt number")
 	resultPath := flags.String("result", "", "Optional Result v1 JSON output path")
 	journalPath := flags.String("journal", "", "Resource Journal JSONL path")
+	metricsPath := flags.String("metrics", "", "Phase metrics JSONL path")
 	cwd := flags.String("cwd", ".", "Working directory for the reference adapter")
 	heartbeatInterval := flags.Duration("heartbeat-interval", 20*time.Second, "Heartbeat interval")
 	timeout := flags.Duration("timeout", 35*time.Minute, "Overall execution timeout")
@@ -165,6 +190,9 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	if *journalPath == "" {
 		*journalPath = fmt.Sprintf("tmp/rundiff/go-executor/%s.%d.journal.jsonl", *executionID, *attemptNumber)
 	}
+	if *metricsPath == "" {
+		*metricsPath = fmt.Sprintf("tmp/rundiff/go-executor/%s.%d.metrics.jsonl", *executionID, *attemptNumber)
+	}
 
 	resourceJournal, err := journal.Open(*journalPath)
 	if err != nil {
@@ -173,12 +201,26 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	}
 	defer resourceJournal.Close()
 
-	engine := executor.New(resourceJournal, runner.Process{
+	phaseMetrics, err := metrics.Open(*metricsPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "open phase metrics: %v\n", err)
+		return 1
+	}
+	defer phaseMetrics.Close()
+
+	processRunner := runner.Process{
 		Command: command,
 		Dir:     *cwd,
+		Env:     []string{"RUNDIFF_STAGE_METRICS_PATH=" + *metricsPath},
 		Stdout:  stdout,
 		Stderr:  stderr,
-	})
+	}
+	engine := executor.NewManaged(
+		resourceJournal,
+		phaseMetrics,
+		processRunner,
+		workspace.NewGitWorktrees(*cwd),
+	)
 	managed := &agent.Agent{
 		ControlPlane: &controlplane.Client{
 			BaseURL: *controlPlaneURL,

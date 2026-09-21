@@ -12,7 +12,8 @@ class RunDiffExecutionStageTimerTest < ActiveSupport::TestCase
     logger = FakeLogger.new([])
     timer = RunDiff::ExecutionStageTimer.new(
       logger:,
-      clock: -> { values.shift }
+      clock: -> { values.shift },
+      metrics_path: nil
     )
 
     result = timer.measure(
@@ -26,6 +27,7 @@ class RunDiffExecutionStageTimerTest < ActiveSupport::TestCase
     assert_equal "secret-result", result
     message = logger.messages.fetch(0)
     assert_includes message, 'execution_id="github-123"'
+    assert_includes message, 'implementation="ruby"'
     assert_includes message, 'stage="bootstrap"'
     assert_includes message, 'role="base"'
     assert_includes message, "elapsed_ms=125"
@@ -38,7 +40,8 @@ class RunDiffExecutionStageTimerTest < ActiveSupport::TestCase
     logger = FakeLogger.new([])
     timer = RunDiff::ExecutionStageTimer.new(
       logger:,
-      clock: -> { values.shift }
+      clock: -> { values.shift },
+      metrics_path: nil
     )
 
     error = assert_raises(RuntimeError) do
@@ -56,5 +59,41 @@ class RunDiffExecutionStageTimerTest < ActiveSupport::TestCase
     assert_includes message, 'outcome="error"'
     assert_includes message, 'error_class="RuntimeError"'
     refute_includes message, "do-not-log-this-message"
+  end
+end
+
+
+class RunDiffExecutionStageTimerMetricsTest < ActiveSupport::TestCase
+  FakeLogger = Struct.new(:messages) do
+    def info(message)
+      messages << message
+    end
+  end
+
+  test "appends safe JSONL phase metrics" do
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, "phase-metrics.jsonl")
+      values = [ 1.0, 1.25 ]
+      timer = RunDiff::ExecutionStageTimer.new(
+        logger: FakeLogger.new([]),
+        clock: -> { values.shift },
+        metrics_path: path
+      )
+
+      timer.measure(
+        execution_id: "github-metric",
+        stage: "clone",
+        implementation: "ruby"
+      ) { :ok }
+
+      event = JSON.parse(File.read(path))
+      assert_equal "1", event.fetch("schema_version")
+      assert_equal "github-metric", event.fetch("execution_id")
+      assert_equal "ruby", event.fetch("implementation")
+      assert_equal "clone", event.fetch("phase")
+      assert_equal 250, event.fetch("duration_ms")
+      assert_equal "ok", event.fetch("outcome")
+      refute event.key?("payload")
+    end
   end
 end

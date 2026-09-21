@@ -67,3 +67,47 @@ VS1 does **not** claim that managed host isolation is complete. The next slices 
 8. OTLP / local evidence bus.
 
 The Ruby executor remains the behavioral oracle until Go produces equivalent evidence for the same golden scenarios.
+
+
+## Phase timing and Ruby/Go comparison
+
+Executor timing is recorded as append-only JSONL using one internal schema for both implementations:
+
+~~~json
+{"schema_version":"1","execution_id":"...","implementation":"go","phase":"clone","duration_ms":412,"outcome":"ok"}
+{"schema_version":"1","execution_id":"...","implementation":"ruby","phase":"bootstrap","role":"base","duration_ms":2310,"outcome":"ok"}
+~~~
+
+The stream intentionally contains phase identity and timing only. It must not contain source, request payloads, environment values, credentials, command output, or customer evidence.
+
+Production bridge runs write both:
+
+~~~text
+*.journal.jsonl       resource/lifecycle recovery record
+*.metrics.jsonl       performance measurement stream
+~~~
+
+The metrics JSONL is the local source of truth. An OTLP exporter can consume the same events later without making network delivery part of executor correctness.
+
+For a paired local comparison of repository preparation, run the same Request v1 twice on the same runner and alternate order between repetitions:
+
+~~~bash
+# Ruby owns prepare/clone
+rundiff-executor reference \
+  --request request.json \
+  --result ruby-result.json \
+  --metrics ruby-metrics.jsonl \
+  --cwd "$PWD" \
+  -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+
+# Go owns prepare/clone; Ruby starts after exact worktrees already exist
+rundiff-executor reference \
+  --native-workspace \
+  --request request.json \
+  --result go-result.json \
+  --metrics go-metrics.jsonl \
+  --cwd "$PWD" \
+  -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+~~~
+
+Use at least five alternating pairs and compare median and p95 for `prepare`, `clone`, and total wall time. Do not infer a language speedup from one CI run: Git fetch state, filesystem cache, Bundler cache, Postgres warmup, and runner load can dominate the result.

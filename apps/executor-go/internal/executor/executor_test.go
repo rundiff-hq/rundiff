@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/metrics"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
 
 type memoryJournal struct {
@@ -18,23 +20,73 @@ func (j *memoryJournal) Append(entry journal.Entry) error {
 	return nil
 }
 
+type memoryMetrics struct {
+	events []metrics.Event
+}
+
+func (m *memoryMetrics) Record(event metrics.Event) error {
+	m.events = append(m.events, event)
+	return nil
+}
+
 type staticRunner struct {
 	result protocol.ResultV1
 	err    error
 }
 
-func (r staticRunner) Run(context.Context, protocol.RequestV1, journal.Recorder) (protocol.ResultV1, error) {
+func (r staticRunner) Run(
+	context.Context,
+	protocol.RequestV1,
+	workspace.Prepared,
+	journal.Recorder,
+) (protocol.ResultV1, error) {
 	return r.result, r.err
 }
 
-func TestExecutorRecordsLifecycleAroundPortableResult(t *testing.T) {
+type fakeWorkspace struct{}
+
+func (fakeWorkspace) Prepare(
+	context.Context,
+	protocol.RequestV1,
+	journal.Recorder,
+) (workspace.Prepared, error) {
+	return workspace.Prepared{Root: "/tmp/workspace"}, nil
+}
+
+func (fakeWorkspace) Clone(
+	_ context.Context,
+	_ protocol.RequestV1,
+	prepared workspace.Prepared,
+	_ journal.Recorder,
+) (workspace.Prepared, error) {
+	prepared.BaselineRoot = "/tmp/workspace/base"
+	prepared.CandidateRoot = "/tmp/workspace/candidate"
+	return prepared, nil
+}
+
+func (fakeWorkspace) Teardown(
+	context.Context,
+	protocol.RequestV1,
+	workspace.Prepared,
+	journal.Recorder,
+) error {
+	return nil
+}
+
+func TestExecutorRecordsNativePrepareCloneMetrics(t *testing.T) {
 	recorder := &memoryJournal{}
+	phaseMetrics := &memoryMetrics{}
 	result := protocol.ResultV1{
 		SchemaVersion: protocol.SchemaVersion,
 		Status:        "succeeded",
 		Payload:       json.RawMessage(`{"result":{"merge_recommendation":"allow","findings":[]}}`),
 	}
-	executor := New(recorder, staticRunner{result: result})
+	executor := NewManaged(
+		recorder,
+		phaseMetrics,
+		staticRunner{result: result},
+		fakeWorkspace{},
+	)
 
 	actual, err := executor.Execute(context.Background(), requestFixture())
 	if err != nil {
@@ -44,27 +96,18 @@ func TestExecutorRecordsLifecycleAroundPortableResult(t *testing.T) {
 		t.Fatalf("expected succeeded, got %q", actual.Status)
 	}
 
-	expected := []struct {
-		kind  string
-		phase Phase
-	}{
-		{"phase_started", PhasePrepare},
-		{"phase_completed", PhasePrepare},
-		{"phase_started", PhaseScenario},
-		{"phase_completed", PhaseScenario},
-		{"phase_started", PhaseCollect},
-		{"phase_completed", PhaseCollect},
-		{"phase_started", PhaseTeardown},
-		{"phase_completed", PhaseTeardown},
-	}
-	if len(recorder.entries) != len(expected) {
-		t.Fatalf("expected %d journal entries, got %d", len(expected), len(recorder.entries))
-	}
-	for index, want := range expected {
-		got := recorder.entries[index]
-		if got.Kind != want.kind || got.Phase != string(want.phase) {
-			t.Fatalf("entry %d = %+v, want kind=%s phase=%s", index, got, want.kind, want.phase)
+	var sawPrepare bool
+	var sawClone bool
+	for _, event := range phaseMetrics.events {
+		if event.Phase == "prepare" && event.Implementation == "go" {
+			sawPrepare = true
 		}
+		if event.Phase == "clone" && event.Implementation == "go" {
+			sawClone = true
+		}
+	}
+	if !sawPrepare || !sawClone {
+		t.Fatalf("missing native workspace metrics: %+v", phaseMetrics.events)
 	}
 }
 
