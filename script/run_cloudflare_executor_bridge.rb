@@ -17,3 +17,4 @@ puts "execution_id=#{request.execution_id}"
 puts "attempt_number=#{request.attempt_number}"
 puts "result_status=#{result.status}"
 puts "result_error_class=#{result.error_class}" if result.error_class
+puts "result_error_message=#{result.error_message.to_s.lines.first.to_s.strip}" if result.error_message
