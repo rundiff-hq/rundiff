@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rundiff.com/protocol/sensor/v1/capture.schema.json",
+  "title": "RunDiff Sensor Capture v1",
+  "type": "object",
+  "required": [
+    "sensor", "id", "execution_id", "run_id", "scenario_id", "subject",
+    "ref", "sha", "status", "measurements", "attributions", "durable_observations"
+  ],
+  "properties": {
+    "sensor": {
+      "type": "object",
+      "required": ["schema_version", "adapter", "mode", "runtime"],
+      "properties": {
+        "schema_version": { "const": "1" },
+        "adapter": { "type": "string", "minLength": 1 },
+        "mode": { "type": "string", "minLength": 1 },
+        "runtime": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "id": { "type": "string", "minLength": 1 },
+    "execution_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "scenario_id": { "type": "string", "minLength": 1 },
+    "subject": { "type": "string", "minLength": 1 },
+    "ref": { "type": "string", "minLength": 1 },
+    "sha": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["passed", "failed"] },
+    "measurements": { "type": "object" },
+    "attributions": { "type": "object" },
+    "durable_observations": { "type": "array" }
+  },
+  "additionalProperties": true
+}
