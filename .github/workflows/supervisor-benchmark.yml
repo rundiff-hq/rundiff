@@ -51,6 +51,17 @@ jobs:
           CGO_ENABLED: "0"
         run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
 
+      - name: Prepare delegated cgroup v2 benchmark subtree
+        run: |
+          set -euo pipefail
+          test -f /sys/fs/cgroup/cgroup.controllers
+          CGROUP_ROOT="/sys/fs/cgroup/rundiff-benchmark-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sudo mkdir "$CGROUP_ROOT"
+          sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT"
+          sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT/cgroup.procs"
+          test -f "$CGROUP_ROOT/cpu.stat"
+          echo "RUNDIFF_BENCHMARK_CGROUP_ROOT=$CGROUP_ROOT" >> "$GITHUB_ENV"
+
       - name: Run paired supervisor benchmark
         env:
           PAIRS: ${{ github.event_name == 'workflow_dispatch' && inputs.pairs || '10' }}
@@ -59,6 +70,13 @@ jobs:
           python3 apps/executor-go/bin/supervisor-benchmark.py \
             --pairs "$PAIRS" \
             --concurrency "$CONCURRENCY"
+
+      - name: Cleanup cgroup v2 benchmark subtree
+        if: always()
+        run: |
+          if [[ -n "${RUNDIFF_BENCHMARK_CGROUP_ROOT:-}" && -d "$RUNDIFF_BENCHMARK_CGROUP_ROOT" ]]; then
+            sudo rmdir "$RUNDIFF_BENCHMARK_CGROUP_ROOT" || true
+          fi
 
       - name: Publish summary
         if: always()
