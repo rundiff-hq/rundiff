@@ -60,6 +60,17 @@ jobs:
           sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT"
           sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT/cgroup.procs"
           test -f "$CGROUP_ROOT/cpu.stat"
+
+          # cgroupfs creates child control files as root-owned on the hosted runner.
+          # Pre-create/delegate children before the benchmark so the measured child
+          # can join its cgroup before exec without sudo or helper-process overhead.
+          for i in $(seq 1 256); do
+            child="$CGROUP_ROOT/$(printf 'sample-%04d' "$i")"
+            sudo mkdir "$child"
+            sudo chown "$USER:$(id -gn)" "$child" "$child/cgroup.procs"
+            test -f "$child/cpu.stat"
+          done
+
           echo "RUNDIFF_BENCHMARK_CGROUP_ROOT=$CGROUP_ROOT" >> "$GITHUB_ENV"
 
       - name: Run paired supervisor benchmark
@@ -75,6 +86,7 @@ jobs:
         if: always()
         run: |
           if [[ -n "${RUNDIFF_BENCHMARK_CGROUP_ROOT:-}" && -d "$RUNDIFF_BENCHMARK_CGROUP_ROOT" ]]; then
+            sudo find "$RUNDIFF_BENCHMARK_CGROUP_ROOT" -mindepth 1 -maxdepth 1 -type d -exec rmdir {} + 2>/dev/null || true
             sudo rmdir "$RUNDIFF_BENCHMARK_CGROUP_ROOT" || true
           fi
 
