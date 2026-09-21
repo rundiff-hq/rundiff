@@ -154,7 +154,8 @@ module RunDiff
             configuration: capture_configuration,
             setup_configuration: baseline_setup_configuration,
             runtime_env: prepared_runtime_env("base"),
-            prepared_env: prepared_subject_env("base")
+            prepared_env: prepared_subject_env("base"),
+            services_prepared: prepared_services?
           ) do |baseline_subject|
             capture_subject!(
               execution:,
@@ -178,7 +179,8 @@ module RunDiff
             configuration: capture_configuration,
             setup_configuration: capture_configuration,
             runtime_env: prepared_runtime_env("candidate"),
-            prepared_env: prepared_subject_env("candidate")
+            prepared_env: prepared_subject_env("candidate"),
+            services_prepared: prepared_services?
           ) do |candidate_subject|
             capture_subject!(
               execution:,
@@ -275,6 +277,10 @@ module RunDiff
           ENV["RUNDIFF_PREPARED_WORKSPACE_ROOT"].present? &&
           ENV["RUNDIFF_PREPARED_BASELINE_ROOT"].present? &&
           ENV["RUNDIFF_PREPARED_CANDIDATE_ROOT"].present?
+      end
+
+      def prepared_services?
+        ENV["RUNDIFF_PREPARED_SERVICES_BY"] == "go"
       end
 
       def prepared_runtime_env(role)

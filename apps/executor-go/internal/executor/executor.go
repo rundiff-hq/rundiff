@@ -21,6 +21,7 @@ const (
 	PhaseBuild          Phase = "Build"
 	PhaseStart          Phase = "Start"
 	PhaseReady          Phase = "Ready"
+	PhaseStop           Phase = "Stop"
 	PhaseScenario       Phase = "Scenario"
 	PhaseCollect        Phase = "Collect"
 	PhaseTeardown       Phase = "Teardown"
@@ -53,6 +54,34 @@ type SubjectPreparer interface {
 	) (map[string]string, error)
 }
 
+type ServiceController interface {
+	Start(
+		context.Context,
+		protocol.RequestV1,
+		string,
+		string,
+		map[string]string,
+		journal.Recorder,
+	) (any, map[string]string, error)
+	Ready(
+		context.Context,
+		protocol.RequestV1,
+		string,
+		string,
+		map[string]string,
+		any,
+	) error
+	Stop(
+		context.Context,
+		protocol.RequestV1,
+		string,
+		string,
+		map[string]string,
+		any,
+		journal.Recorder,
+	) error
+}
+
 type Builder interface {
 	Build(
 		context.Context,
@@ -68,8 +97,9 @@ type Executor struct {
 	runner         Runner
 	workspace      workspace.Manager
 	bootstrapper   Bootstrapper
-	subjectPrepare SubjectPreparer
-	builder        Builder
+	subjectPrepare    SubjectPreparer
+	serviceController ServiceController
+	builder           Builder
 }
 
 func New(recorder journal.Recorder, runner Runner) *Executor {
@@ -106,6 +136,13 @@ func (e *Executor) WithSubjectPreparer(
 	subjectPreparer SubjectPreparer,
 ) *Executor {
 	e.subjectPrepare = subjectPreparer
+	return e
+}
+
+func (e *Executor) WithServiceController(
+	serviceController ServiceController,
+) *Executor {
+	e.serviceController = serviceController
 	return e
 }
 
@@ -288,6 +325,118 @@ func (e *Executor) Execute(
 				}
 			}
 		}
+
+		if e.serviceController != nil {
+			type activeService struct {
+				role    string
+				root    string
+				env     map[string]string
+				session any
+			}
+			activeServices := make([]activeService, 0, 2)
+			defer func() {
+				cleanupCtx, cleanupCancel := context.WithTimeout(
+					context.Background(),
+					30*time.Second,
+				)
+				defer cleanupCancel()
+
+				for index := len(activeServices) - 1; index >= 0; index-- {
+					service := activeServices[index]
+					stopErr := e.phaseForRole(
+						request,
+						PhaseStop,
+						"go",
+						service.role,
+						func() error {
+							return e.serviceController.Stop(
+								cleanupCtx,
+								request,
+								service.role,
+								service.root,
+								service.env,
+								service.session,
+								e.journal,
+							)
+						},
+					)
+					if err == nil && stopErr != nil {
+						err = stopErr
+					}
+				}
+			}()
+
+			for _, subject := range []struct {
+				role string
+				root string
+				env  *map[string]string
+			}{
+				{
+					role: "base",
+					root: prepared.BaselineRoot,
+					env:  &prepared.BaselineSubjectEnvironment,
+				},
+				{
+					role: "candidate",
+					root: prepared.CandidateRoot,
+					env:  &prepared.CandidateSubjectEnvironment,
+				},
+			} {
+				session, serviceEnv, startErr := e.phaseWithServiceStart(
+					request,
+					subject.role,
+					func() (any, map[string]string, error) {
+						return e.serviceController.Start(
+							ctx,
+							request,
+							subject.role,
+							subject.root,
+							*subject.env,
+							e.journal,
+						)
+					},
+				)
+				if startErr != nil {
+					return protocol.ResultV1{}, startErr
+				}
+
+				mergedEnv, mergeErr := mergeEnvironment(
+					*subject.env,
+					serviceEnv,
+				)
+				if mergeErr != nil {
+					return protocol.ResultV1{}, mergeErr
+				}
+				*subject.env = mergedEnv
+				activeServices = append(activeServices, activeService{
+					role:    subject.role,
+					root:    subject.root,
+					env:     mergedEnv,
+					session: session,
+				})
+
+				if readyErr := e.phaseForRole(
+					request,
+					PhaseReady,
+					"go",
+					subject.role,
+					func() error {
+						return e.serviceController.Ready(
+							ctx,
+							request,
+							subject.role,
+							subject.root,
+							mergedEnv,
+							session,
+						)
+					},
+				); readyErr != nil {
+					return protocol.ResultV1{}, readyErr
+				}
+			}
+
+			prepared.ServicesPrepared = true
+		}
 	} else {
 		if err := e.phase(
 			request,
@@ -437,6 +586,27 @@ func (e *Executor) phaseWithPrepared(
 	return value, err
 }
 
+func (e *Executor) phaseWithServiceStart(
+	request protocol.RequestV1,
+	role string,
+	call func() (any, map[string]string, error),
+) (any, map[string]string, error) {
+	var session any
+	var environment map[string]string
+	err := e.phaseForRole(
+		request,
+		PhaseStart,
+		"go",
+		role,
+		func() error {
+			var callErr error
+			session, environment, callErr = call()
+			return callErr
+		},
+	)
+	return session, environment, err
+}
+
 func (e *Executor) phaseWithEnvironment(
 	request protocol.RequestV1,
 	phase Phase,
@@ -475,6 +645,8 @@ func metricPhase(phase Phase) string {
 		return "start"
 	case PhaseReady:
 		return "ready"
+	case PhaseStop:
+		return "stop"
 	case PhaseScenario:
 		return "scenario"
 	case PhaseCollect:
@@ -491,4 +663,25 @@ func errorClass(err error) string {
 		return ""
 	}
 	return fmt.Sprintf("%T", err)
+}
+
+
+func mergeEnvironment(
+	base map[string]string,
+	additions map[string]string,
+) (map[string]string, error) {
+	result := make(map[string]string, len(base)+len(additions))
+	for key, value := range base {
+		result[key] = value
+	}
+	for key, value := range additions {
+		if existing, ok := result[key]; ok && existing != value {
+			return nil, fmt.Errorf(
+				"service environment %q would overwrite prepared subject state",
+				key,
+			)
+		}
+		result[key] = value
+	}
+	return result, nil
 }

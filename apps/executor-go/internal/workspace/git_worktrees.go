@@ -22,6 +22,7 @@ type Prepared struct {
 	CandidateEnvironment        map[string]string
 	BaselineSubjectEnvironment  map[string]string
 	CandidateSubjectEnvironment map[string]string
+	ServicesPrepared            bool
 }
 
 type Manager interface {

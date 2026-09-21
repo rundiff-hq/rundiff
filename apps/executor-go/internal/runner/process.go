@@ -111,6 +111,13 @@ func (r Process) Run(
 			string(body),
 		)
 	}
+	if prepared.ServicesPrepared {
+		command.Env = setEnv(
+			command.Env,
+			"RUNDIFF_PREPARED_SERVICES_BY",
+			"go",
+		)
+	}
 	command.Stdout = r.Stdout
 	command.Stderr = r.Stderr
 
