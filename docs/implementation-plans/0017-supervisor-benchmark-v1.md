@@ -97,3 +97,23 @@ It cannot support statements about:
 - 10,000 simultaneous full customer workloads.
 
 Those have separate evidence or remain future work.
+
+
+## VS16.1 - cgroup v2 CPU accounting
+
+The first VS16 proof read process CPU from `/proc/<pid>/stat`. On the GitHub runner, `SC_CLK_TCK=100`, so values below one 10 ms accounting tick appeared as zero.
+
+VS16.1 keeps the same paired benchmark but places every Ruby/Go sample in a fresh cgroup v2 child **before exec** and reads:
+
+~~~text
+cpu.stat
+  usage_usec
+  user_usec
+  system_usec
+~~~
+
+This captures CPU for the whole inherited process tree and reports the kernel's microsecond-valued cgroup accounting field.
+
+The workflow creates one delegated benchmark subtree. The harness creates a fresh child cgroup per sample, moves the child into it before the measured executable starts, samples `cpu.stat` at the ready marker, terminates the process tree, and removes the child cgroup.
+
+The old `/proc/<pid>/stat` calculation remains only as a local fallback when no delegated benchmark cgroup is configured. Published GitHub benchmark evidence must use the cgroup-v2 source.
