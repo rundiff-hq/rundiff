@@ -259,8 +259,8 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		scenarioRunner,
 		workspace.NewGitWorktrees(*cwd),
 	).
-		WithBootstrapper(bootstrap.NewRubyBundle(*cwd)).
-		WithSubjectPreparer(subjectprepare.NewRailsDB()).
+		WithBootstrapper(bootstrap.NewAuto(*cwd)).
+		WithSubjectPreparer(subjectprepare.NewAuto()).
 		WithServiceController(
 			services.NewManager(
 				serviceplan.NewNativeCompiler(),
