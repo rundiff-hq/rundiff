@@ -170,7 +170,6 @@ func requestFixture() protocol.RequestV1 {
 	}
 }
 
-
 func TestExecutorBootstrapsBothPreparedSubjectsInGo(t *testing.T) {
 	recorder := &memoryJournal{}
 	phaseMetrics := &memoryMetrics{}

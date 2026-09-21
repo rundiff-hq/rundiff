@@ -120,13 +120,13 @@ func (b *RubyBundle) Bootstrap(
 	}
 
 	env := map[string]string{
-		"BUNDLE_GEMFILE":                gemfile,
-		"BUNDLE_PATH":                   filepath.Join(cacheRoot, "gems"),
-		"BUNDLE_APP_CONFIG":             filepath.Join(cacheRoot, "config"),
-		"BUNDLE_DEPLOYMENT":             "true",
-		"BUNDLE_FROZEN":                 "true",
-		"RUNDIFF_SUBJECT_RUBY_VERSION":  firstNonEmpty(requestedRubyVersion, rubyVersion),
-		"RUNDIFF_SUBJECT_BUNDLE_SEED":   "miss",
+		"BUNDLE_GEMFILE":               gemfile,
+		"BUNDLE_PATH":                  filepath.Join(cacheRoot, "gems"),
+		"BUNDLE_APP_CONFIG":            filepath.Join(cacheRoot, "config"),
+		"BUNDLE_DEPLOYMENT":            "true",
+		"BUNDLE_FROZEN":                "true",
+		"RUNDIFF_SUBJECT_RUBY_VERSION": firstNonEmpty(requestedRubyVersion, rubyVersion),
+		"RUNDIFF_SUBJECT_BUNDLE_SEED":  "miss",
 	}
 
 	bundlerVersion := bundledWith(lockContents)

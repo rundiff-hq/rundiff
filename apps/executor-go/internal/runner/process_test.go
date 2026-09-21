@@ -30,8 +30,8 @@ func TestProcessRunsReferenceAdapterWithPortablePaths(t *testing.T) {
 			"RUNDIFF_GO_PROCESS_HELPER=1",
 			"RUNDIFF_GO_PROCESS_HELPER_EXPECT_PREPARED=1",
 		},
-		Stdout:  io.Discard,
-		Stderr:  io.Discard,
+		Stdout: io.Discard,
+		Stderr: io.Discard,
 	}
 
 	result, err := process.Run(
