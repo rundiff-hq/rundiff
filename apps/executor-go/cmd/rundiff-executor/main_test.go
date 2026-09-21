@@ -20,3 +20,15 @@ func TestValidateGoldenFixtures(t *testing.T) {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
 }
+
+func TestRunLocalRequiresRequestAndResult(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run([]string{"run-local"}, &stdout, &stderr)
+	if code != 2 {
+		t.Fatalf("run-local exit=%d stderr=%s", code, stderr.String())
+	}
+	if stderr.String() != "run-local requires --request and --result\n" {
+		t.Fatalf("unexpected stderr: %q", stderr.String())
+	}
+}
