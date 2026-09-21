@@ -182,7 +182,7 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 			engine = engine.WithServiceController(
 				services.NewManager(
 					serviceplan.NewRubyCompiler(*cwd),
-					nil,
+					services.ComposeProviderFromEnv(),
 				),
 			)
 		}
@@ -275,7 +275,7 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		WithServiceController(
 			services.NewManager(
 				serviceplan.NewRubyCompiler(*cwd),
-				nil,
+				services.ComposeProviderFromEnv(),
 			),
 		)
 	managed := &agent.Agent{

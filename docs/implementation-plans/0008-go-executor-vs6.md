@@ -43,9 +43,9 @@ Go natively owns:
 
 ## Compose services
 
-The core only defines a ComposeProvider interface.
+The core defines a ComposeProvider interface and the managed executor includes a protocol-v1 Unix-socket client for the existing isolated Compose provider.
 
-Compose remains a privileged provider boundary and must not be implemented as unrestricted Docker access inside executor core. The existing isolated Unix-socket Compose provider is the target adapter.
+Compose remains a privileged provider boundary: the Go executor never receives unrestricted Docker socket access. It sends manifest text plus typed service details to the provider and retains only an opaque handle, loopback host, and published port.
 
 ## Ruby handoff
 
