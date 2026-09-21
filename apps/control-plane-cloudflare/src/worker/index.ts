@@ -283,9 +283,31 @@ app.post(
     const attemptNumber = parseAttemptNumber(c.req.param("attemptNumber"));
     if (!attemptNumber) return c.json({ error: "invalid attempt number" }, 422);
 
+    const executions = new D1ExecutionRepository(c.env.DB);
+    const executionId = c.req.param("executionId");
+    const pending = await executions.get(executionId);
+
+    let repositoryCapability: string | undefined;
+    if (pending && pending.attemptNumber === attemptNumber) {
+      const repository = pending.request.context.repository;
+      if (pending.installationId && repository) {
+        const repositoryName = repository.split("/", 2)[1];
+        if (!repositoryName) {
+          return c.json({ error: "invalid executor repository identity" }, 500);
+        }
+        const github = await GitHubClient.installation(
+          c.env,
+          pending.installationId,
+          undefined,
+          repositoryName,
+        );
+        repositoryCapability = github.accessToken();
+      }
+    }
+
     const leaseSeconds = executorLeaseSeconds(c.env);
-    const execution = await new D1ExecutionRepository(c.env.DB).claimExact({
-      executionId: c.req.param("executionId"),
+    const execution = await executions.claimExact({
+      executionId,
       attemptNumber,
       leaseSeconds,
       now: new Date().toISOString(),
@@ -293,22 +315,6 @@ app.post(
 
     if (!execution || !execution.leaseExpiresAt) {
       return c.json({ error: "execution attempt is not claimable" }, 409);
-    }
-
-    let repositoryCapability: string | undefined;
-    const repository = execution.request.context.repository;
-    if (execution.installationId && repository) {
-      const repositoryName = repository.split("/", 2)[1];
-      if (!repositoryName) {
-        return c.json({ error: "invalid executor repository identity" }, 500);
-      }
-      const github = await GitHubClient.installation(
-        c.env,
-        execution.installationId,
-        undefined,
-        repositoryName,
-      );
-      repositoryCapability = github.accessToken();
     }
 
     return c.json({
