@@ -703,7 +703,6 @@ func intDetail(details map[string]any, key string) (int, error) {
 	return int(value), nil
 }
 
-
 func validateStopPlan(session *Session) error {
 	planned := map[string]string{}
 	for _, step := range session.plan.StepsFor("stop_services") {
