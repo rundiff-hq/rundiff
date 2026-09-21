@@ -125,7 +125,6 @@ func containsEnv(environment []string, expected string) bool {
 	return false
 }
 
-
 func TestGitWorktreesUsesIsolatedRootForRepositoryCapability(t *testing.T) {
 	toolRoot := filepath.Join(t.TempDir(), "tool")
 	remoteRoot := filepath.Join(t.TempDir(), "customer-repositories")
