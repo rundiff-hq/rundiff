@@ -40,11 +40,11 @@ type summary struct {
 }
 
 type report struct {
-	SchemaVersion string  `json:"schema_version"`
-	Root          string  `json:"root"`
-	Namespace     string  `json:"namespace"`
+	SchemaVersion string   `json:"schema_version"`
+	Root          string   `json:"root"`
+	Namespace     string   `json:"namespace"`
 	Samples       []sample `json:"samples"`
-	Summary       summary `json:"summary"`
+	Summary       summary  `json:"summary"`
 }
 
 func main() {
