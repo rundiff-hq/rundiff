@@ -465,7 +465,37 @@ A direct adapter for every runner backend is not an initial requirement.
 
 Candidate for managed burst execution and Standard / confidence-gated Performance workloads.
 
-RunDiff must capability-detect restrictions around networking, nested execution, privileges, architecture, and host visibility.
+Working role mapping:
+
+~~~text
+external orchestration                RunDiff-managed compute
+
+Cloudflare CI                         RunDiff Control Plane
+    |                                      |
+    v                                      v
+RunDiff API / runner bridge          Execution Plan
+                                           |
+                                           v
+                                   Cloudflare compute adapter
+                                           |
+                                           v
+                                   Cloudflare Sandbox
+                                           |
+                                           v
+                                  Cloudflare Containers
+~~~
+
+Cloudflare CI and Cloudflare Containers are deliberately not modeled as the same thing.
+
+Cloudflare CI is an external execution orchestrator, peer to GitHub Actions or Buildkite. It may later invoke RunDiff through a bridge, but it is not a required layer inside the managed executor path.
+
+For direct Cloudflare-managed execution, prefer the Sandbox API as the first adapter surface because it exposes execution-oriented primitives over Cloudflare Containers. Containers remain the underlying compute primitive and may be targeted directly later if Sandbox hides capabilities RunDiff needs.
+
+RunDiff keeps ownership of its own lifecycle and comparison semantics. The Cloudflare adapter must not delegate the meaning of Prepare, Clone, Bootstrap, Build, Start, Ready, Scenario, Collect, Teardown, cancellation, evidence collection, or baseline/candidate comparison to Cloudflare CI.
+
+RunDiff must capability-detect restrictions around networking, nested execution, privileges, architecture, host visibility, performance stability, and available evidence depth. Deep evidence is never inferred from provider identity.
+
+This is intentionally an adapter-level assumption rather than a public protocol dependency. Cloudflare SDK/API changes may alter the adapter without changing the portable Request/Result or Behavioral Review contracts.
 
 #### E2B
 
