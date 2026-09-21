@@ -51,6 +51,39 @@ func TestRegistryRejectsUnsupportedSubject(t *testing.T) {
 	}
 }
 
+
+func TestRegistryResolvesNodeHTTPSensor(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config := `version: 1
+scenario:
+  path: /scenario
+subject:
+  services:
+    - name: app
+      type: process
+      runtime: node
+      entrypoint: server.mjs
+      url_env: NODE_APP_URL
+      readiness:
+        type: http
+        path: /health
+`
+	if err := os.WriteFile(filepath.Join(root, "rundiff.yml"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := NewRegistry("/tool").Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Adapter != "node" || spec.Runtime != "node" ||
+		spec.Mode != "tool_owned_node_http" || spec.TargetURLEnv != "NODE_APP_URL" {
+		t.Fatalf("unexpected Node spec: %#v", spec)
+	}
+}
+
 func TestValidateCaptureFencesSensorAndExecutionIdentity(t *testing.T) {
 	spec := Spec{Adapter: "rails", Mode: "tool_owned_portable_rails", Runtime: "ruby"}
 	capture := map[string]any{
