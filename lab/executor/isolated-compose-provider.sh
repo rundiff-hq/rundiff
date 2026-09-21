@@ -13,6 +13,8 @@ RUNDIFF_PROVIDER_IMAGE="${RUNDIFF_PROVIDER_IMAGE:-rundiff-compose-provider:$run_
 RUNDIFF_PROVIDER_VOLUME="${RUNDIFF_PROVIDER_VOLUME:-rundiff-provider-$run_id-$run_attempt}"
 RUNDIFF_COMPOSE_PROVIDER_SOCKET="${RUNDIFF_COMPOSE_PROVIDER_SOCKET:-/run/rundiff-provider/provider.sock}"
 PROVIDER_CONTAINER="${RUNDIFF_PROVIDER_CONTAINER:-rundiff-compose-provider-$run_id-$run_attempt}"
+GO_PROOF_DIR="$(mktemp -d)"
+GO_SERVICE_TEST="$GO_PROOF_DIR/services.test"
 
 mkdir -p "$ARTIFACT_DIR"
 
@@ -26,6 +28,7 @@ cleanup() {
 
   docker rm -f "$PROVIDER_CONTAINER" >/dev/null 2>&1 || true
   docker volume rm -f "$RUNDIFF_PROVIDER_VOLUME" >/dev/null 2>&1 || true
+  rm -rf "$GO_PROOF_DIR"
 
   exit "$exit_code"
 }
@@ -37,6 +40,12 @@ echo "provider_volume=$RUNDIFF_PROVIDER_VOLUME"
 
 docker build -t "$RUNDIFF_EXECUTOR_IMAGE" "$ROOT"
 docker build -f "$ROOT/Dockerfile.compose-provider" -t "$RUNDIFF_PROVIDER_IMAGE" "$ROOT"
+
+(
+  cd "$ROOT/apps/executor-go"
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go test -c -o "$GO_SERVICE_TEST" ./internal/services
+)
 
 docker volume create "$RUNDIFF_PROVIDER_VOLUME" >/dev/null
 
@@ -69,6 +78,30 @@ docker run --rm --user 10001:10001   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-p
 
 docker run --rm --network host   -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider"   -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET"   "$RUNDIFF_EXECUTOR_IMAGE"   ruby script/prove_isolated_compose_provider.rb |
   tee "$ARTIFACT_DIR/provider-proof.log"
+
+docker run --rm --network host \
+  -v "$RUNDIFF_PROVIDER_VOLUME:/run/rundiff-provider" \
+  -v "$GO_SERVICE_TEST:/tmp/rundiff-go-services-test:ro" \
+  -e RUNDIFF_COMPOSE_PROVIDER_SOCKET="$RUNDIFF_COMPOSE_PROVIDER_SOCKET" \
+  -e RUNDIFF_GO_COMPOSE_E2E=1 \
+  "$RUNDIFF_EXECUTOR_IMAGE" \
+  /tmp/rundiff-go-services-test -test.run '^TestIsolatedComposeProviderEndToEnd
+
+if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^rundiff-' ; then
+  echo "Compose containers leaked after proof" >&2
+  docker ps -a >&2
+  exit 1
+fi
+
+if docker network ls --filter label=com.docker.compose.project --format '{{.Name}}' | grep '^rundiff-' ; then
+  echo "Compose networks leaked after proof" >&2
+  docker network ls >&2
+  exit 1
+fi
+
+echo "isolated_compose_provider_proof=passed"
+ -test.v |
+  tee "$ARTIFACT_DIR/go-provider-proof.log"
 
 if docker ps -a --filter label=com.docker.compose.project --format '{{.Names}}' | grep '^rundiff-' ; then
   echo "Compose containers leaked after proof" >&2

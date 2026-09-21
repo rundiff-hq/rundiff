@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "app/**"
+      - "apps/executor-go/**"
+      - "apps/executor-go/**"
       - "bin/lab"
       - "config/**"
       - "db/**"
@@ -47,6 +49,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
 
       - name: Run isolated Compose provider lab
         run: bin/lab run executor --case isolated-compose-provider
