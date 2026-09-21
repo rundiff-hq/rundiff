@@ -1,0 +1,77 @@
+name: Ruby vs Go Supervisor Benchmark
+
+on:
+  pull_request:
+    paths:
+      - "apps/executor-go/**"
+      - "script/run_cloudflare_executor_bridge.rb"
+      - ".github/workflows/supervisor-benchmark.yml"
+      - "docs/implementation-plans/0017-supervisor-benchmark-v1.md"
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: Paired startup repetitions
+        required: true
+        default: "10"
+      concurrency:
+        description: Idle concurrency cohorts
+        required: true
+        default: "1,5,10"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    env:
+      RAILS_ENV: test
+      RUNDIFF_GO_EXECUTOR_BIN: /tmp/rundiff-executor
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Build Go executor
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+
+      - name: Run paired supervisor benchmark
+        env:
+          PAIRS: ${{ github.event_name == 'workflow_dispatch' && inputs.pairs || '10' }}
+          CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '1,5,10' }}
+        run: |
+          python3 apps/executor-go/bin/supervisor-benchmark.py \
+            --pairs "$PAIRS" \
+            --concurrency "$CONCURRENCY"
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [[ -f tmp/rundiff/supervisor-benchmark/summary.md ]]; then
+            cat tmp/rundiff/supervisor-benchmark/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-supervisor-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/supervisor-benchmark
+          if-no-files-found: error
+          retention-days: 14
