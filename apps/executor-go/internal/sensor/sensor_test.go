@@ -51,7 +51,6 @@ func TestRegistryRejectsUnsupportedSubject(t *testing.T) {
 	}
 }
 
-
 func TestRegistryResolvesNodeHTTPSensor(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte("{}"), 0o600); err != nil {
