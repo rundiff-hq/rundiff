@@ -269,6 +269,7 @@ def run_concurrency(cohorts, go_bin):
 
 def summarize_samples(rows):
     result = {}
+    cpu_tick_ms = 1000.0 / os.sysconf(os.sysconf_names["SC_CLK_TCK"])
     metrics = ("startup_ms", "rss_kb", "pss_kb", "cpu_ms", "threads", "fds")
     for implementation in ("ruby", "go"):
         selected = [row for row in rows if row["implementation"] == implementation]
@@ -288,15 +289,29 @@ def summarize_samples(rows):
     for metric in metrics:
         ruby = result["ruby"][metric]["median"]
         go = result["go"][metric]["median"]
-        comparisons[metric] = {
-            "ruby_over_go": round(ruby / go, 3) if go else None,
-            "absolute_delta": round(ruby - go, 3),
-            "reduction_pct": round((ruby - go) / ruby * 100.0, 2) if ruby else None,
-        }
-    return result, comparisons
+        if metric == "cpu_ms" and go == 0:
+            comparisons[metric] = {
+                "ruby_over_go": None,
+                "absolute_delta": None,
+                "reduction_pct": None,
+                "go_upper_bound_ms": round(cpu_tick_ms, 3),
+                "absolute_delta_lower_bound_ms": round(ruby - cpu_tick_ms, 3),
+                "reduction_pct_lower_bound": round(
+                    (ruby - cpu_tick_ms) / ruby * 100.0,
+                    2,
+                ) if ruby else None,
+                "note": "Go CPU sampled below one Linux scheduler tick; raw 0 ms means less than one tick, not zero CPU.",
+            }
+        else:
+            comparisons[metric] = {
+                "ruby_over_go": round(ruby / go, 3) if go else None,
+                "absolute_delta": round(ruby - go, 3),
+                "reduction_pct": round((ruby - go) / ruby * 100.0, 2) if ruby else None,
+            }
+    return result, comparisons, cpu_tick_ms
 
 
-def derive_scale(summary, concurrency_rows):
+def derive_scale(summary, concurrency_rows, cpu_tick_ms):
     ruby = summary["ruby"]
     go = summary["go"]
     count = 10_000
@@ -321,8 +336,17 @@ def derive_scale(summary, concurrency_rows):
         cpu_ms = summary[implementation]["cpu_ms"]["median"]
         result["startup"][implementation] = {
             "aggregate_startup_wall_seconds": round(startup_ms * count / 1000.0, 3),
-            "aggregate_startup_cpu_seconds": round(cpu_ms * count / 1000.0, 3),
         }
+        if implementation == "go" and cpu_ms == 0:
+            result["startup"][implementation]["aggregate_startup_cpu_seconds_upper_bound"] = round(
+                cpu_tick_ms * count / 1000.0,
+                3,
+            )
+        else:
+            result["startup"][implementation]["aggregate_startup_cpu_seconds"] = round(
+                cpu_ms * count / 1000.0,
+                3,
+            )
         avg_pss_kb = cohort[implementation]["avg_pss_kb"]
         if avg_pss_kb is not None:
             result["memory_model"][implementation] = {
@@ -335,11 +359,18 @@ def derive_scale(summary, concurrency_rows):
         - result["startup"]["go"]["aggregate_startup_wall_seconds"],
         3,
     )
-    result["startup"]["saved_cpu_seconds"] = round(
-        result["startup"]["ruby"]["aggregate_startup_cpu_seconds"]
-        - result["startup"]["go"]["aggregate_startup_cpu_seconds"],
-        3,
-    )
+    if "aggregate_startup_cpu_seconds" in result["startup"]["go"]:
+        result["startup"]["saved_cpu_seconds"] = round(
+            result["startup"]["ruby"]["aggregate_startup_cpu_seconds"]
+            - result["startup"]["go"]["aggregate_startup_cpu_seconds"],
+            3,
+        )
+    else:
+        result["startup"]["saved_cpu_seconds_lower_bound"] = round(
+            result["startup"]["ruby"]["aggregate_startup_cpu_seconds"]
+            - result["startup"]["go"]["aggregate_startup_cpu_seconds_upper_bound"],
+            3,
+        )
     if "ruby" in result["memory_model"] and "go" in result["memory_model"]:
         result["memory_model"]["projected_saved_gib"] = round(
             result["memory_model"]["ruby"]["projected_10000_pss_gib"]
@@ -386,6 +417,9 @@ def write_outputs(output_root, samples, concurrency, summary, comparisons, scale
         writer.writerows(concurrency)
 
     payload = {
+        "measurement_resolution": {
+            "cpu_tick_ms": round(1000.0 / os.sysconf(os.sysconf_names["SC_CLK_TCK"]), 3),
+        },
         "summary": summary,
         "comparisons": comparisons,
         "scale_10000": scale,
@@ -412,9 +446,15 @@ def write_outputs(output_root, samples, concurrency, summary, comparisons, scale
         ruby = summary["ruby"][metric]["median"]
         go = summary["go"][metric]["median"]
         comp = comparisons[metric]
-        ratio = f"{comp['ruby_over_go']:.3f}x" if comp["ruby_over_go"] is not None else "n/a"
-        reduction = f"{comp['reduction_pct']:.2f}%" if comp["reduction_pct"] is not None else "n/a"
-        lines.append(f"| {label} | {ruby} | {go} | {ratio} | {reduction} |")
+        if metric == "cpu_ms" and comp.get("go_upper_bound_ms") is not None:
+            go_display = f"<{comp['go_upper_bound_ms']:.1f}"
+            ratio = "lower-bound only"
+            reduction = f">{comp['reduction_pct_lower_bound']:.2f}%"
+        else:
+            go_display = str(go)
+            ratio = f"{comp['ruby_over_go']:.3f}x" if comp["ruby_over_go"] is not None else "n/a"
+            reduction = f"{comp['reduction_pct']:.2f}%" if comp["reduction_pct"] is not None else "n/a"
+        lines.append(f"| {label} | {ruby} | {go_display} | {ratio} | {reduction} |")
 
     lines += [
         "",
@@ -434,7 +474,11 @@ def write_outputs(output_root, samples, concurrency, summary, comparisons, scale
         "## 10,000-execution derived model",
         "",
         f"- Aggregate startup wall saved: {scale['startup']['saved_wall_seconds']} s",
-        f"- Aggregate startup CPU saved: {scale['startup']['saved_cpu_seconds']} s",
+        (
+            f"- Aggregate startup CPU saved: {scale['startup']['saved_cpu_seconds']} s"
+            if "saved_cpu_seconds" in scale["startup"]
+            else f"- Aggregate startup CPU saved: >{scale['startup']['saved_cpu_seconds_lower_bound']} s"
+        ),
     ]
     if "projected_saved_gib" in scale["memory_model"]:
         lines.append(
@@ -471,8 +515,8 @@ def main():
 
     samples = run_sequential(args.pairs, args.go_bin)
     concurrency = run_concurrency(cohorts, args.go_bin)
-    summary, comparisons = summarize_samples(samples)
-    scale = derive_scale(summary, concurrency)
+    summary, comparisons, cpu_tick_ms = summarize_samples(samples)
+    scale = derive_scale(summary, concurrency, cpu_tick_ms)
     write_outputs(Path(args.output_root), samples, concurrency, summary, comparisons, scale)
 
     print(json.dumps({"summary": summary, "comparisons": comparisons, "scale_10000": scale}, indent=2))
