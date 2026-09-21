@@ -39,7 +39,7 @@ func NewGitWorktrees(repositoryRoot string) *GitWorktrees {
 }
 
 func (g *GitWorktrees) Prepare(
-	_ context.Context,
+	ctx context.Context,
 	request protocol.RequestV1,
 	recorder journal.Recorder,
 ) (Prepared, error) {
@@ -59,8 +59,8 @@ func (g *GitWorktrees) Prepare(
 		CandidateRoot: filepath.Join(root, "candidate"),
 	}
 
-	_ = g.removeWorktree(context.Background(), prepared.BaselineRoot)
-	_ = g.removeWorktree(context.Background(), prepared.CandidateRoot)
+	_ = g.removeWorktree(ctx, prepared.BaselineRoot)
+	_ = g.removeWorktree(ctx, prepared.CandidateRoot)
 	_ = os.RemoveAll(root)
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return Prepared{}, err
@@ -72,6 +72,7 @@ func (g *GitWorktrees) Prepare(
 		"workspace",
 		root,
 	)); err != nil {
+		_ = os.RemoveAll(root)
 		return Prepared{}, err
 	}
 
@@ -198,16 +199,11 @@ func (g *GitWorktrees) removeWorktree(ctx context.Context, path string) error {
 		path,
 	)
 	command.Dir = g.RepositoryRoot
-	if output, err := command.CombinedOutput(); err != nil {
+	if _, err := command.CombinedOutput(); err != nil {
 		if os.IsNotExist(err) || !fileExists(path) {
 			return nil
 		}
-		return fmt.Errorf(
-			"git worktree remove %s: %w: %s",
-			path,
-			err,
-			strings.TrimSpace(string(output)),
-		)
+		return fmt.Errorf("git worktree remove %s: %w", path, err)
 	}
 	return nil
 }
@@ -215,14 +211,9 @@ func (g *GitWorktrees) removeWorktree(ctx context.Context, path string) error {
 func (g *GitWorktrees) git(ctx context.Context, args ...string) error {
 	command := exec.CommandContext(ctx, "git", args...)
 	command.Dir = g.RepositoryRoot
-	output, err := command.CombinedOutput()
+	_, err := command.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf(
-			"git %s: %w: %s",
-			strings.Join(args, " "),
-			err,
-			strings.TrimSpace(string(output)),
-		)
+		return fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 	}
 	return nil
 }

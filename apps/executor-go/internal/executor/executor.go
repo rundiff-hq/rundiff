@@ -90,12 +90,14 @@ func (e *Executor) Execute(
 		}
 
 		defer func() {
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cleanupCancel()
 			teardownErr := e.phase(
 				request,
 				PhaseTeardown,
 				"go",
 				func() error {
-					return e.workspace.Teardown(ctx, request, prepared, e.journal)
+					return e.workspace.Teardown(cleanupCtx, request, prepared, e.journal)
 				},
 			)
 			if err == nil && teardownErr != nil {

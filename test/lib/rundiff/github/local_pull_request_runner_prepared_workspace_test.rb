@@ -36,7 +36,6 @@ class RunDiffGithubLocalPullRequestRunnerPreparedWorkspaceTest < ActiveSupport::
   private
 
   def with_env(values)
-    previous = values.transform_values { |_,| nil }
     previous = values.each_key.to_h { |key| [ key, ENV[key] ] }
     values.each { |key, value| ENV[key] = value }
     yield
