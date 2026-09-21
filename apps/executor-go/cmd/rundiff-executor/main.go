@@ -133,7 +133,6 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-
 func runAgent(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.SetOutput(stderr)
