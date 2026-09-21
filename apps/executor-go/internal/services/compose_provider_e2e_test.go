@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/serviceplan"
 )
