@@ -113,6 +113,7 @@ func TestCapturePairOwnsBaseAndCandidateScenarioOrchestration(t *testing.T) {
 		},
 		workspace.Prepared{
 			Root:                        toolRoot,
+			RepositoryRoot:              toolRoot,
 			BaselineRoot:                base,
 			CandidateRoot:               candidate,
 			BaselineSubjectEnvironment:  map[string]string{"RAILS_ENV": "test"},
