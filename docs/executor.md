@@ -409,3 +409,28 @@ Repository authorization, control-plane heartbeats, finalization fencing, and co
 Deployment isolation and a real separate-process control-plane -> executor-service `git_clone` path are no longer remaining boundaries. They are exercised by `remote_executor_topology` and the hermetic Production Lab.
 
 The live Development App infra-failure Re-run proof was completed in #35. The old workstation Development App clock-domain proof was later retired as a production gate in #51; current production acceptance is #75/#121.
+
+
+## Dependency cache boundary
+
+Dependency installation is supervised by the executor but remains owned semantically by the runtime's native package manager. Moving the managed executor from Ruby to Go therefore does not remove Bundler/npm/pip/uv/Go/Gradle/Maven caching.
+
+Dependency Cache v1 derives a namespace-scoped, content-addressed identity from the runtime, package-manager version, platform/architecture, and committed lockfile digest. Baseline and candidate reuse one entry when that identity is identical; changed dependency identity produces a different entry.
+
+~~~text
+Go Executor
+  -> Dependency Cache
+       -> Ruby / Bundler
+       -> Node / npm
+       -> future runtime package managers
+  -> prepared subject
+  -> runtime sensor
+~~~
+
+Persistent managed/BYOC hosts may keep the cache on local storage. Ephemeral external-CI runners may restore/save the cache through their native cache adapter. The package manager still runs in frozen/locked mode and customer lockfiles remain immutable.
+
+Prepared dependency directories are scoped by repository/tenant trust namespace. Do not share an arbitrary prepared customer environment across tenants solely because lockfile bytes match. Lower-level verified content-addressed package blobs may gain broader reuse in a future cache layer.
+
+Performance evidence must label dependency bootstrap as cold or warm. The observed VS6 Bundler phases were 32.895 seconds cold for baseline and 0.316 seconds warm for candidate; this demonstrates cache importance, not a Go-versus-Ruby language speedup.
+
+See ADR 0017 and implementation plan 0014.
