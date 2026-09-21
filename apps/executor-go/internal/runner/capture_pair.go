@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/comparison"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/serviceplan"
@@ -117,7 +118,6 @@ func (r *CapturePair) Run(
 
 	basePath := filepath.Join(outputRoot, "base.json")
 	candidatePath := filepath.Join(outputRoot, "candidate.json")
-	pairPath := filepath.Join(outputRoot, "pair.json")
 
 	if err := r.capture(
 		ctx,
@@ -146,51 +146,25 @@ func (r *CapturePair) Run(
 		return protocol.ResultV1{}, err
 	}
 
-	changedPathFile := filepath.Join(outputRoot, "changed-paths.json")
 	changedPaths, err := r.changedPaths(ctx, request)
 	if err != nil {
 		return protocol.ResultV1{}, err
 	}
-	changedBody, err := json.Marshal(changedPaths)
-	if err != nil {
-		return protocol.ResultV1{}, err
-	}
-	if err := os.WriteFile(changedPathFile, changedBody, 0o600); err != nil {
-		return protocol.ResultV1{}, err
-	}
-
-	compareScript := filepath.Join(
-		r.ToolRoot,
-		"script",
-		"rundiff_compare_captures.rb",
+	payload, err := comparison.CompareFiles(
+		basePath,
+		candidatePath,
+		changedPaths,
 	)
-	if err := r.commandRunner().Run(ctx, CaptureCommand{
-		Dir: r.ToolRoot,
-		Command: []string{
-			"ruby",
-			compareScript,
-			basePath,
-			candidatePath,
-			changedPathFile,
-			pairPath,
-		},
-		Stdout: r.Stdout,
-		Stderr: r.Stderr,
-	}); err != nil {
-		return protocol.ResultV1{}, fmt.Errorf("compare captures: %w", err)
-	}
-
-	payload, err := os.ReadFile(pairPath)
 	if err != nil {
-		return protocol.ResultV1{}, err
-	}
-	if !json.Valid(payload) {
-		return protocol.ResultV1{}, errors.New("capture comparison returned invalid JSON")
+		return protocol.ResultV1{}, fmt.Errorf(
+			"compare captures: %w",
+			err,
+		)
 	}
 	return protocol.ResultV1{
 		SchemaVersion: protocol.SchemaVersion,
 		Status:        "succeeded",
-		Payload:       json.RawMessage(payload),
+		Payload:       payload,
 	}, nil
 }
 
