@@ -199,6 +199,7 @@ func requestedRubyVersion(root string, lockContents []byte) (string, error) {
 				return "", fmt.Errorf("unsupported Ruby version declaration %q", value)
 			}
 			return value, nil
+		}
 	} else if !os.IsNotExist(err) {
 		return "", err
 	}
