@@ -39,6 +39,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runReference(args[1:], stdout, stderr)
 	case "run-local":
 		return runLocal(args[1:], stdout, stderr)
+	case "supervisor-benchmark-idle":
+		return runSupervisorBenchmarkIdle(args[1:], stdout, stderr)
 	case "agent":
 		return runAgent(args[1:], stdout, stderr)
 	case "metrics-summary":
@@ -280,6 +282,23 @@ func runLocal(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+func runSupervisorBenchmarkIdle(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("supervisor-benchmark-idle", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	hold := flags.Duration("hold", 60*time.Second, "How long to stay resident after reporting ready")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if *hold < 0 {
+		fmt.Fprintln(stderr, "supervisor-benchmark-idle --hold must not be negative")
+		return 2
+	}
+
+	fmt.Fprintln(stdout, "RUNDIFF_SUPERVISOR_READY")
+	time.Sleep(*hold)
+	return 0
+}
+
 func runAgent(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -426,6 +445,7 @@ func usage(writer io.Writer) {
 	fmt.Fprintln(writer, "  validate  validate frozen Request v1 / Result v1 JSON")
 	fmt.Fprintln(writer, "  reference       supervise an existing reference adapter through Request v1 / Result v1")
 	fmt.Fprintln(writer, "  run-local       execute the production managed engine without a control plane")
+	fmt.Fprintln(writer, "  supervisor-benchmark-idle report ready and stay resident for benchmark sampling")
 	fmt.Fprintln(writer, "  agent           claim an exact attempt, heartbeat it, execute, and submit Result v1")
 	fmt.Fprintln(writer, "  metrics-summary summarize one or more phase metrics JSONL files")
 }
