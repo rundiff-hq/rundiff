@@ -98,7 +98,6 @@ func (c *NativeCompiler) Compile(
 	return Plan{SchemaVersion: SchemaVersion, Steps: steps}, nil
 }
 
-
 func ScenarioPath(subjectRoot string) (string, error) {
 	config, found, err := loadConfig(subjectRoot)
 	if err != nil {

@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"os/exec"
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
@@ -29,14 +29,14 @@ func (f *fakeCaptureRunner) Run(
 			"run_id":      command.Env["RUNDIFF_RUN_ID"],
 			"scenario_id": command.Env["RUNDIFF_SCENARIO_ID"],
 			"measurements": map[string]any{
-				"duration_ms":    10,
-				"sql_queries":    1,
+				"duration_ms":     10,
+				"sql_queries":     1,
 				"background_jobs": 0,
-				"emails":         0,
-				"http_requests":  0,
-				"errors":         0,
+				"emails":          0,
+				"http_requests":   0,
+				"errors":          0,
 			},
-			"attributions":        map[string]any{},
+			"attributions":         map[string]any{},
 			"durable_observations": []any{},
 		}
 		body, _ := json.Marshal(payload)
@@ -49,8 +49,8 @@ func (f *fakeCaptureRunner) Run(
 		_ = json.Unmarshal(base, &execution)
 		pair, _ := json.Marshal(map[string]any{
 			"schema_version": "1",
-			"run_id": execution["run_id"],
-			"result": map[string]any{"merge_recommendation": "allow"},
+			"run_id":         execution["run_id"],
+			"result":         map[string]any{"merge_recommendation": "allow"},
 		})
 		return os.WriteFile(command.Command[5], pair, 0o600)
 	}
@@ -99,10 +99,10 @@ func TestCapturePairOwnsBaseAndCandidateScenarioOrchestration(t *testing.T) {
 		context.Background(),
 		protocol.RequestV1{
 			SchemaVersion: protocol.SchemaVersion,
-			ExecutionID: "execution-1",
-			ScenarioID: "scenario-1",
-			BaselineSHA: baseSHA,
-			CandidateSHA: candidateSHA,
+			ExecutionID:   "execution-1",
+			ScenarioID:    "scenario-1",
+			BaselineSHA:   baseSHA,
+			CandidateSHA:  candidateSHA,
 			AttemptNumber: 1,
 			Context: protocol.ContextV1{
 				BaselineRef: "main",
