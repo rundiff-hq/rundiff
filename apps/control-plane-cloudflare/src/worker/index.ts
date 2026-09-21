@@ -177,6 +177,15 @@ app.post("/api/spike/reviews", async (c) => {
 });
 
 app.get("/api/reviews/:id", async (c) => {
+  if (
+    !(await tokenAuthorized(
+      c.req.header("authorization"),
+      c.env.RUNDIFF_SPIKE_TOKEN,
+    ))
+  ) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+
   const review = await new D1ReviewRepository(c.env.DB).get(c.req.param("id"));
   return review
     ? c.json({ review })
