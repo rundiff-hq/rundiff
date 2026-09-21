@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/serviceplan"
 )
 
 const SchemaVersion = "1"
@@ -22,7 +24,8 @@ type Spec struct {
 	Adapter string
 	Mode    string
 	Runtime string
-	Command []string
+	Command      []string
+	TargetURLEnv string
 }
 
 type Registry struct {
@@ -34,26 +37,39 @@ func NewRegistry(toolRoot string) Registry {
 }
 
 func (r Registry) Resolve(root string) (Spec, error) {
-	if !regularFile(filepath.Join(root, "config", "environment.rb")) {
-		return Spec{}, fmt.Errorf("no supported runtime sensor for %s", root)
+	rails := regularFile(filepath.Join(root, "config", "environment.rb"))
+	node := regularFile(filepath.Join(root, "package.json"))
+	if rails && node {
+		return Spec{}, fmt.Errorf("ambiguous runtime sensor for %s", root)
 	}
-
-	mode := "tool_owned_portable_rails"
-	script := "rundiff_capture_portable_rails.rb"
-	if subjectOwnedRails(root) {
-		mode = "subject_owned_rails"
-		script = "rundiff_capture_subject.rb"
+	if node {
+		urlEnv, err := serviceplan.NodeScenarioURLEnv(root)
+		if err != nil {
+			return Spec{}, err
+		}
+		return Spec{
+			Adapter:      "node",
+			Mode:         "tool_owned_node_http",
+			Runtime:      "node",
+			Command:      []string{"node", filepath.Join(r.ToolRoot, "script", "rundiff_capture_node.mjs")},
+			TargetURLEnv: urlEnv,
+		}, nil
 	}
-
-	return Spec{
-		Adapter: "rails",
-		Mode:    mode,
-		Runtime: "ruby",
-		Command: []string{
-			"ruby",
-			filepath.Join(r.ToolRoot, "script", script),
-		},
-	}, nil
+	if rails {
+		mode := "tool_owned_portable_rails"
+		script := "rundiff_capture_portable_rails.rb"
+		if subjectOwnedRails(root) {
+			mode = "subject_owned_rails"
+			script = "rundiff_capture_subject.rb"
+		}
+		return Spec{
+			Adapter: "rails",
+			Mode:    mode,
+			Runtime: "ruby",
+			Command: []string{"ruby", filepath.Join(r.ToolRoot, "script", script)},
+		}, nil
+	}
+	return Spec{}, fmt.Errorf("no supported runtime sensor for %s", root)
 }
 
 type ExpectedCapture struct {

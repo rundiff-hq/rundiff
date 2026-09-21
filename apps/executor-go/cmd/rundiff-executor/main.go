@@ -173,10 +173,10 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 			workspace.NewGitWorktrees(*cwd),
 		)
 		if *nativeBootstrap {
-			engine = engine.WithBootstrapper(bootstrap.NewRubyBundle(*cwd))
+			engine = engine.WithBootstrapper(bootstrap.NewAuto(*cwd))
 		}
 		if *nativeSubjectPrepare {
-			engine = engine.WithSubjectPreparer(subjectprepare.NewRailsDB())
+			engine = engine.WithSubjectPreparer(subjectprepare.NewAuto())
 		}
 		if *nativeServices {
 			engine = engine.WithServiceController(

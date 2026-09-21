@@ -98,6 +98,33 @@ func (c *NativeCompiler) Compile(
 	return Plan{SchemaVersion: SchemaVersion, Steps: steps}, nil
 }
 
+
+func NodeScenarioURLEnv(subjectRoot string) (string, error) {
+	config, found, err := loadConfig(subjectRoot)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", errors.New("Node sensor requires rundiff.yml")
+	}
+	var candidates []string
+	for _, service := range config.Subject.Services {
+		if service.Type == nil || *service.Type != "process" ||
+			service.Runtime == nil || *service.Runtime != "node" ||
+			service.URLEnv == nil || *service.URLEnv == "" {
+			continue
+		}
+		candidates = append(candidates, *service.URLEnv)
+	}
+	if len(candidates) != 1 {
+		return "", fmt.Errorf(
+			"Node sensor requires exactly one explicit Node process service; found %d",
+			len(candidates),
+		)
+	}
+	return candidates[0], nil
+}
+
 func ScenarioPath(subjectRoot string) (string, error) {
 	config, found, err := loadConfig(subjectRoot)
 	if err != nil {

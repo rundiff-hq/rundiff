@@ -191,6 +191,13 @@ func (r *CapturePair) capture(
 	env["RUNDIFF_SENSOR_ADAPTER"] = spec.Adapter
 	env["RUNDIFF_SENSOR_RUNTIME"] = spec.Runtime
 	env["RUNDIFF_SCENARIO_PATH"] = scenarioPath
+	if spec.TargetURLEnv != "" {
+		baseURL := preparedEnv[spec.TargetURLEnv]
+		if baseURL == "" {
+			return fmt.Errorf("capture %s requires service URL environment %s", role, spec.TargetURLEnv)
+		}
+		env["RUNDIFF_SCENARIO_BASE_URL"] = baseURL
+	}
 
 	if err := r.commandRunner().Run(ctx, CaptureCommand{
 		Dir:     root,

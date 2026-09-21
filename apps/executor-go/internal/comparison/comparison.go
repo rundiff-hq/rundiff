@@ -299,7 +299,7 @@ func BehavioralDiff(
 	for _, p := range policies {
 		_, basePresent := baseline[p.signal]
 		_, candidatePresent := candidate[p.signal]
-		if p.optional && !(basePresent && candidatePresent) {
+		if !(basePresent && candidatePresent) {
 			signals[p.signal] = unavailableSignal(
 				baseline,
 				candidate,
