@@ -62,7 +62,7 @@ jobs:
         run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
 
       - name: Run whole-execution cold/warm benchmark
-        run: apps/executor-go/bin/whole-execution-cache-benchmark
+        run: bash apps/executor-go/bin/whole-execution-cache-benchmark
 
       - name: Publish benchmark summary
         if: always()
