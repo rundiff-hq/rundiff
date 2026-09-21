@@ -154,3 +154,56 @@ func writeRubySubject(t *testing.T, root string) {
 		t.Fatalf("write .ruby-version: %v", err)
 	}
 }
+
+
+type bundleCacheRunner struct {
+	installed bool
+}
+
+func (r *bundleCacheRunner) Run(_ context.Context, _ string, _ map[string]string, command []string) ([]byte, error) {
+	switch command[0] {
+	case "ruby":
+		return []byte("3.4.10"), nil
+	case "gem":
+		return []byte("true"), nil
+	case "bundle":
+		last := command[len(command)-1]
+		if last == "check" && !r.installed {
+			return nil, errors.New("bundle cache miss")
+		}
+		if len(command) > 2 && command[2] == "install" {
+			r.installed = true
+		}
+		return []byte("ok"), nil
+	default:
+		return nil, errors.New("unexpected command")
+	}
+}
+
+func TestRubyBundleReportsColdThenWarmSameLock(t *testing.T) {
+	toolRoot := t.TempDir()
+	base := filepath.Join(t.TempDir(), "base")
+	candidate := filepath.Join(t.TempDir(), "candidate")
+	writeRubySubject(t, base)
+	writeRubySubject(t, candidate)
+
+	runner := &bundleCacheRunner{}
+	bootstrap := &RubyBundle{ToolRoot: toolRoot, Runner: runner}
+	baseEnv, err := bootstrap.Bootstrap(context.Background(), "base", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidateEnv, err := bootstrap.Bootstrap(context.Background(), "candidate", candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseEnv["RUNDIFF_DEPENDENCY_CACHE_SEED"] != "miss" {
+		t.Fatalf("base seed = %q, want miss", baseEnv["RUNDIFF_DEPENDENCY_CACHE_SEED"])
+	}
+	if candidateEnv["RUNDIFF_DEPENDENCY_CACHE_SEED"] != "hit" {
+		t.Fatalf("candidate seed = %q, want hit", candidateEnv["RUNDIFF_DEPENDENCY_CACHE_SEED"])
+	}
+	if baseEnv["RUNDIFF_DEPENDENCY_CACHE_KEY"] != candidateEnv["RUNDIFF_DEPENDENCY_CACHE_KEY"] {
+		t.Fatal("same Ruby lock identity must reuse one cache entry")
+	}
+}
