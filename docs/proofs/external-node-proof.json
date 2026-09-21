@@ -1,0 +1,6 @@
+{
+  "repository": "rundiff-hq/customer-rails-sandbox",
+  "pull_request_number": 6,
+  "baseline_sha": "a2ae9388dbfde0af622ad19ba17084b72432fdca",
+  "candidate_sha": "e92db796ab85728e0f5614c6417861e3d43ecfce"
+}
