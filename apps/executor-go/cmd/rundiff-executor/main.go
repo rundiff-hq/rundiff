@@ -37,6 +37,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runValidate(args[1:], stdout, stderr)
 	case "reference":
 		return runReference(args[1:], stdout, stderr)
+	case "run-local":
+		return runLocal(args[1:], stdout, stderr)
 	case "agent":
 		return runAgent(args[1:], stdout, stderr)
 	case "metrics-summary":
@@ -206,6 +208,78 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+func runLocal(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("run-local", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	requestPath := flags.String("request", "", "Request v1 JSON path")
+	resultPath := flags.String("result", "", "Result v1 JSON path")
+	journalPath := flags.String("journal", "", "Resource Journal JSONL path")
+	metricsPath := flags.String("metrics", "", "Phase metrics JSONL path")
+	cwd := flags.String("cwd", ".", "RunDiff tool checkout")
+	timeout := flags.Duration("timeout", 35*time.Minute, "Overall execution timeout")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if *requestPath == "" || *resultPath == "" {
+		fmt.Fprintln(stderr, "run-local requires --request and --result")
+		return 2
+	}
+	if *journalPath == "" {
+		*journalPath = *resultPath + ".journal.jsonl"
+	}
+	if *metricsPath == "" {
+		*metricsPath = *resultPath + ".metrics.jsonl"
+	}
+
+	request, err := protocol.LoadRequest(*requestPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "load request: %v\n", err)
+		return 1
+	}
+
+	resourceJournal, err := journal.Open(*journalPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "open resource journal: %v\n", err)
+		return 1
+	}
+	defer resourceJournal.Close()
+
+	phaseMetrics, err := metrics.Open(*metricsPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "open phase metrics: %v\n", err)
+		return 1
+	}
+	defer phaseMetrics.Close()
+
+	scenarioRunner := runner.NewCapturePair(*cwd, stdout, stderr)
+	engine := newManagedEngine(
+		resourceJournal,
+		phaseMetrics,
+		scenarioRunner,
+		*cwd,
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+
+	result, err := engine.Execute(ctx, request)
+	if err != nil {
+		result = protocol.Failed("RunDiff::Executor::GoSupervisorError", err.Error())
+	}
+	if err := protocol.WriteResult(*resultPath, result); err != nil {
+		fmt.Fprintf(stderr, "write result: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintf(stdout, "execution_id=%s\n", request.ExecutionID)
+	fmt.Fprintf(stdout, "attempt_number=%d\n", request.AttemptNumber)
+	fmt.Fprintf(stdout, "result_status=%s\n", result.Status)
+	if result.ErrorClass != nil {
+		fmt.Fprintf(stdout, "result_error_class=%s\n", *result.ErrorClass)
+	}
+	return 0
+}
+
 func runAgent(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -253,20 +327,12 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	defer phaseMetrics.Close()
 
 	scenarioRunner := runner.NewCapturePair(*cwd, stdout, stderr)
-	engine := executor.NewManaged(
+	engine := newManagedEngine(
 		resourceJournal,
 		phaseMetrics,
 		scenarioRunner,
-		workspace.NewGitWorktrees(*cwd),
-	).
-		WithBootstrapper(bootstrap.NewAuto(*cwd)).
-		WithSubjectPreparer(subjectprepare.NewAuto()).
-		WithServiceController(
-			services.NewManager(
-				serviceplan.NewNativeCompiler(),
-				services.ComposeProviderFromEnv(),
-			),
-		)
+		*cwd,
+	)
 	managed := &agent.Agent{
 		ControlPlane: &controlplane.Client{
 			BaseURL: *controlPlaneURL,
@@ -331,12 +397,35 @@ func runMetricsSummary(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+func newManagedEngine(
+	resourceJournal journal.Recorder,
+	phaseMetrics metrics.Recorder,
+	scenarioRunner executor.Runner,
+	cwd string,
+) *executor.Executor {
+	return executor.NewManaged(
+		resourceJournal,
+		phaseMetrics,
+		scenarioRunner,
+		workspace.NewGitWorktrees(cwd),
+	).
+		WithBootstrapper(bootstrap.NewAuto(cwd)).
+		WithSubjectPreparer(subjectprepare.NewAuto()).
+		WithServiceController(
+			services.NewManager(
+				serviceplan.NewNativeCompiler(),
+				services.ComposeProviderFromEnv(),
+			),
+		)
+}
+
 func usage(writer io.Writer) {
 	fmt.Fprintln(writer, "RunDiff managed Go Executor")
 	fmt.Fprintln(writer)
 	fmt.Fprintln(writer, "Commands:")
 	fmt.Fprintln(writer, "  validate  validate frozen Request v1 / Result v1 JSON")
-	fmt.Fprintln(writer, "  reference supervise an existing reference adapter through Request v1 / Result v1")
+	fmt.Fprintln(writer, "  reference       supervise an existing reference adapter through Request v1 / Result v1")
+	fmt.Fprintln(writer, "  run-local       execute the production managed engine without a control plane")
 	fmt.Fprintln(writer, "  agent           claim an exact attempt, heartbeat it, execute, and submit Result v1")
 	fmt.Fprintln(writer, "  metrics-summary summarize one or more phase metrics JSONL files")
 }
