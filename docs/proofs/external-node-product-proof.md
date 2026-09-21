@@ -32,3 +32,5 @@ GitHub App webhook
 After that proof, the same PR branch is repaired to return HTTP 200 and the exact flow must produce ALLOW.
 
 The workflow in this slice is an explicit product-proof runner. It closes the execution gap for the acceptance proof but is not yet the final automatic central dispatcher for arbitrary customer PRs.
+
+Trigger note: the branch-push runner exists only to complete this live acceptance proof before automatic cross-repository dispatch is productized.
