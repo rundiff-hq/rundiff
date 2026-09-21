@@ -95,9 +95,10 @@ export class D1GitHubRepository {
         ),
       this.db
         .prepare(
-          `UPDATE executions SET status='superseded',updated_at=? WHERE repository=? AND pull_request_number=? AND review_id != (SELECT review_id FROM github_pull_requests WHERE repository=? AND pull_request_number=?) AND status IN ('available','claimed','result_received')`,
+          `UPDATE executions SET status='superseded',cancelled_at=?,cancellation_reason='superseded_by_new_pull_request_revision',lease_expires_at=NULL,updated_at=? WHERE repository=? AND pull_request_number=? AND review_id != (SELECT review_id FROM github_pull_requests WHERE repository=? AND pull_request_number=?) AND status IN ('available','claimed','result_received')`,
         )
         .bind(
+          now,
           now,
           identity.repository,
           identity.pullRequestNumber,

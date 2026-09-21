@@ -228,3 +228,121 @@ test("real D1 dedupe, exact claim, result retries, supersede and finalization fe
   assert.equal(await github.current(stale.executionId), false);
   assert.equal(await github.current(second.executionId), true);
 });
+
+
+test("exact attempts use renewable leases and reject late results after cancellation", async (t) => {
+  const mf = new Miniflare(
+    convertV4MiniflareOptions({
+      name: "lease-test",
+      modules: true,
+      script: 'export default {fetch(){return new Response("test")}}',
+      compatibilityDate: "2026-09-20",
+      d1Databases: ["DB"],
+    }),
+  );
+  t.after(() => mf.dispose());
+  const db = await mf.getD1Database("DB");
+  for (const file of readdirSync("migrations").sort())
+    for (const sql of readFileSync(`migrations/${file}`, "utf8")
+      .split(";")
+      .filter((x) => x.trim()))
+      await db.prepare(sql).run();
+
+  const reviews = new D1ReviewRepository(db as unknown as D1Database);
+  const executions = new D1ExecutionRepository(db as unknown as D1Database);
+  const now = "2026-09-21T12:00:00.000Z";
+  const review = await reviews.create({
+    id: "review-lease",
+    projectId: "demo/shop",
+    scenarioId: "orders.show",
+    baselineSha: "a".repeat(40),
+    candidateSha: "b".repeat(40),
+    workflowInstanceId: "workflow-lease",
+    now,
+  });
+  const execution = await executions.create({
+    reviewId: review.id,
+    repository: "demo/shop",
+    pullRequestNumber: 42,
+    scenarioId: "orders.show",
+    baselineSha: "a".repeat(40),
+    candidateSha: "b".repeat(40),
+    baselineRef: "main",
+    candidateRef: "fix",
+    candidateRepository: "demo/shop",
+    now,
+  });
+
+  assert.equal(
+    (
+      await executions.resolveMatching({
+        repository: "demo/shop",
+        pullRequestNumber: 42,
+        baselineSha: "a".repeat(40),
+        candidateSha: "b".repeat(40),
+        now,
+      })
+    )?.id,
+    execution.id,
+  );
+
+  const claimed = await executions.claimExact({
+    executionId: execution.id,
+    attemptNumber: 1,
+    leaseSeconds: 90,
+    now,
+  });
+  assert.equal(claimed?.status, "claimed");
+  assert.equal(claimed?.heartbeatAt, now);
+  assert.equal(claimed?.leaseExpiresAt, "2026-09-21T12:01:30.000Z");
+  assert.equal(
+    await executions.claimExact({
+      executionId: execution.id,
+      attemptNumber: 1,
+      leaseSeconds: 90,
+      now,
+    }),
+    null,
+  );
+
+  const heartbeat = await executions.heartbeat({
+    executionId: execution.id,
+    attemptNumber: 1,
+    leaseSeconds: 90,
+    now: "2026-09-21T12:00:30.000Z",
+  });
+  assert.deepEqual(heartbeat, {
+    state: "live",
+    leaseExpiresAt: "2026-09-21T12:02:00.000Z",
+  });
+
+  assert.equal(
+    await executions.cancel({
+      executionId: execution.id,
+      attemptNumber: 1,
+      reason: "operator_cancelled",
+      now: "2026-09-21T12:00:40.000Z",
+    }),
+    "cancelled",
+  );
+  assert.equal((await reviews.get(review.id))?.status, "cancelled");
+  assert.deepEqual(
+    await executions.heartbeat({
+      executionId: execution.id,
+      attemptNumber: 1,
+      leaseSeconds: 90,
+      now: "2026-09-21T12:00:50.000Z",
+    }),
+    { state: "cancelled", cancellationReason: "operator_cancelled" },
+  );
+  assert.equal(
+    await executions.recordResult({
+      executionId: execution.id,
+      attemptNumber: 1,
+      result,
+      digest: "late-result",
+      now: "2026-09-21T12:00:55.000Z",
+    }),
+    "not_live",
+  );
+});

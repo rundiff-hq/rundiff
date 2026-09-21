@@ -4,6 +4,7 @@ export interface Env {
   RUNDIFF_GITHUB_WEBHOOK_SECRET?: string;
   RUNDIFF_GITHUB_SCENARIO_ID?: string;
   RUNDIFF_EXECUTOR_TIMEOUT_SECONDS?: string;
+  RUNDIFF_EXECUTOR_LEASE_SECONDS?: string;
   DB: D1Database;
   ARTIFACTS: R2Bucket;
   REVIEW_WORKFLOW: Workflow;

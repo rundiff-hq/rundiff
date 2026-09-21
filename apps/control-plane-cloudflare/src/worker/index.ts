@@ -192,6 +192,45 @@ app.get("/api/reviews/:id", async (c) => {
     : c.json({ error: "review not found" }, 404);
 });
 
+app.post("/api/execution-bridges/github-actions/resolve", async (c) => {
+  if (
+    !(await tokenAuthorized(
+      c.req.header("authorization"),
+      c.env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN,
+    ))
+  ) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+
+  const body = await c.req.json<ClaimBody>();
+  if (
+    !body.repository ||
+    !Number.isInteger(body.pull_request_number) ||
+    !body.baseline_sha ||
+    !body.candidate_sha
+  ) {
+    return c.json({ error: "invalid resolution identity" }, 422);
+  }
+
+  const execution = await new D1ExecutionRepository(c.env.DB).resolveMatching({
+    repository: body.repository,
+    pullRequestNumber: body.pull_request_number,
+    baselineSha: body.baseline_sha,
+    candidateSha: body.candidate_sha,
+    now: new Date().toISOString(),
+  });
+
+  if (!execution) {
+    c.header("Retry-After", "3");
+    return c.json({ error: "matching RunDiff execution is not ready" }, 409);
+  }
+
+  return c.json({
+    execution_id: execution.id,
+    attempt_number: execution.attemptNumber,
+  });
+});
+
 app.post("/api/execution-bridges/github-actions/claim", async (c) => {
   if (
     !(await tokenAuthorized(
@@ -228,6 +267,119 @@ app.post("/api/execution-bridges/github-actions/claim", async (c) => {
   return c.json({ request: execution.request });
 });
 
+
+app.post(
+  "/api/executions/:executionId/attempts/:attemptNumber/claim",
+  async (c) => {
+    if (
+      !(await tokenAuthorized(
+        c.req.header("authorization"),
+        c.env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN,
+      ))
+    ) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    const attemptNumber = parseAttemptNumber(c.req.param("attemptNumber"));
+    if (!attemptNumber) return c.json({ error: "invalid attempt number" }, 422);
+
+    const leaseSeconds = executorLeaseSeconds(c.env);
+    const execution = await new D1ExecutionRepository(c.env.DB).claimExact({
+      executionId: c.req.param("executionId"),
+      attemptNumber,
+      leaseSeconds,
+      now: new Date().toISOString(),
+    });
+
+    if (!execution || !execution.leaseExpiresAt) {
+      return c.json({ error: "execution attempt is not claimable" }, 409);
+    }
+
+    return c.json({
+      request: execution.request,
+      lease_expires_at: execution.leaseExpiresAt,
+    });
+  },
+);
+
+app.post(
+  "/api/executions/:executionId/attempts/:attemptNumber/heartbeat",
+  async (c) => {
+    if (
+      !(await tokenAuthorized(
+        c.req.header("authorization"),
+        c.env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN,
+      ))
+    ) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    const attemptNumber = parseAttemptNumber(c.req.param("attemptNumber"));
+    if (!attemptNumber) return c.json({ error: "invalid attempt number" }, 422);
+
+    const heartbeat = await new D1ExecutionRepository(c.env.DB).heartbeat({
+      executionId: c.req.param("executionId"),
+      attemptNumber,
+      leaseSeconds: executorLeaseSeconds(c.env),
+      now: new Date().toISOString(),
+    });
+
+    if (heartbeat.state === "live") {
+      return c.json({
+        status: "live",
+        lease_expires_at: heartbeat.leaseExpiresAt,
+      });
+    }
+
+    const payload = {
+      status: heartbeat.state,
+      cancellation_reason: heartbeat.cancellationReason,
+    };
+    return heartbeat.state === "cancelled" || heartbeat.state === "superseded"
+      ? c.json(payload)
+      : c.json(payload, 409);
+  },
+);
+
+app.post(
+  "/api/executions/:executionId/attempts/:attemptNumber/cancel",
+  async (c) => {
+    if (
+      !(await tokenAuthorized(
+        c.req.header("authorization"),
+        c.env.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN,
+      ))
+    ) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    const attemptNumber = parseAttemptNumber(c.req.param("attemptNumber"));
+    if (!attemptNumber) return c.json({ error: "invalid attempt number" }, 422);
+
+    let body: { reason?: string };
+    try {
+      body = await c.req.json<{ reason?: string }>();
+    } catch {
+      body = {};
+    }
+    const reason = body.reason?.trim();
+    if (!reason) return c.json({ error: "cancellation reason is required" }, 422);
+
+    const state = await new D1ExecutionRepository(c.env.DB).cancel({
+      executionId: c.req.param("executionId"),
+      attemptNumber,
+      reason,
+      now: new Date().toISOString(),
+    });
+
+    if (state === "not_live") {
+      return c.json({ error: "execution attempt is no longer cancellable" }, 409);
+    }
+
+    return c.json({ status: state }, 202);
+  },
+);
+
 app.post(
   "/api/executions/:executionId/attempts/:attemptNumber/result",
   async (c) => {
@@ -254,13 +406,8 @@ app.post(
     }
 
     const executionId = c.req.param("executionId");
-    const attemptNumber = Number(c.req.param("attemptNumber"));
-    if (
-      !/^[1-9][0-9]*$/.test(c.req.param("attemptNumber")) ||
-      !Number.isSafeInteger(attemptNumber)
-    ) {
-      return c.json({ error: "invalid attempt number" }, 422);
-    }
+    const attemptNumber = parseAttemptNumber(c.req.param("attemptNumber"));
+    if (!attemptNumber) return c.json({ error: "invalid attempt number" }, 422);
 
     const digest = await canonicalDigest(result);
     const executions = new D1ExecutionRepository(c.env.DB);
@@ -313,6 +460,17 @@ app.post(
 );
 
 export default app;
+
+function parseAttemptNumber(value: string): number | null {
+  if (!/^[1-9][0-9]*$/.test(value)) return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) ? number : null;
+}
+
+function executorLeaseSeconds(env: Env): number {
+  const configured = Number(env.RUNDIFF_EXECUTOR_LEASE_SECONDS ?? 90);
+  return Number.isSafeInteger(configured) && configured > 5 ? configured : 90;
+}
 
 async function tokenAuthorized(
   authorization: string | undefined,
