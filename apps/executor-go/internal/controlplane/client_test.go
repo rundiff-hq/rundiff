@@ -22,12 +22,12 @@ func TestClientUsesExactAttemptForClaimHeartbeatAndResult(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/executions/exec-1/attempts/3/claim":
 			json.NewEncoder(w).Encode(map[string]any{
-				"request": requestFixture(),
+				"request":          requestFixture(),
 				"lease_expires_at": "2026-09-21T13:00:30.000Z",
 			})
 		case "/api/executions/exec-1/attempts/3/heartbeat":
 			json.NewEncoder(w).Encode(map[string]any{
-				"status": "live",
+				"status":           "live",
 				"lease_expires_at": "2026-09-21T13:01:00.000Z",
 			})
 		case "/api/executions/exec-1/attempts/3/result":
@@ -86,7 +86,7 @@ func TestHeartbeatReturnsTerminalAttemptState(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"status": "superseded",
+			"status":              "superseded",
 			"cancellation_reason": "superseded_by_new_pull_request_revision",
 		})
 	}))
