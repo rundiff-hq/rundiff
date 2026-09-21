@@ -10,15 +10,15 @@ import (
 )
 
 type Entry struct {
-	Sequence      uint64    `json:"sequence"`
-	At            time.Time `json:"at"`
-	Kind          string    `json:"kind"`
-	ExecutionID   string    `json:"execution_id"`
-	AttemptNumber int       `json:"attempt_number"`
-	Phase         string    `json:"phase,omitempty"`
-	ResourceKind  string    `json:"resource_kind,omitempty"`
-	Resource      string    `json:"resource,omitempty"`
-	Message       string    `json:"message,omitempty"`
+	Sequence       uint64    `json:"sequence"`
+	At             time.Time `json:"at"`
+	Kind           string    `json:"kind"`
+	ExecutionID    string    `json:"execution_id"`
+	AttemptNumber  int       `json:"attempt_number"`
+	Phase          string    `json:"phase,omitempty"`
+	ResourceKind   string    `json:"resource_kind,omitempty"`
+	Resource       string    `json:"resource,omitempty"`
+	Message        string    `json:"message,omitempty"`
 	Implementation string    `json:"implementation,omitempty"`
 	DurationMillis int64     `json:"duration_ms,omitempty"`
 	Outcome        string    `json:"outcome,omitempty"`

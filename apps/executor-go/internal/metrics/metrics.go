@@ -12,16 +12,16 @@ import (
 const SchemaVersion = "1"
 
 type Event struct {
-	SchemaVersion   string    `json:"schema_version"`
-	At              time.Time `json:"at"`
-	ExecutionID     string    `json:"execution_id"`
-	AttemptNumber   int       `json:"attempt_number"`
-	Implementation  string    `json:"implementation"`
-	Phase           string    `json:"phase"`
-	Role            string    `json:"role,omitempty"`
-	DurationMillis  int64     `json:"duration_ms"`
-	Outcome         string    `json:"outcome"`
-	ErrorClass      string    `json:"error_class,omitempty"`
+	SchemaVersion  string    `json:"schema_version"`
+	At             time.Time `json:"at"`
+	ExecutionID    string    `json:"execution_id"`
+	AttemptNumber  int       `json:"attempt_number"`
+	Implementation string    `json:"implementation"`
+	Phase          string    `json:"phase"`
+	Role           string    `json:"role,omitempty"`
+	DurationMillis int64     `json:"duration_ms"`
+	Outcome        string    `json:"outcome"`
+	ErrorClass     string    `json:"error_class,omitempty"`
 }
 
 type Recorder interface {
