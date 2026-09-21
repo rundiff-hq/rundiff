@@ -21,6 +21,7 @@ type ExecutionRow = {
   lease_expires_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  installation_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -38,6 +39,7 @@ export type ExecutionRecord = {
   leaseExpiresAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  installationId: number | null;
 };
 
 export type HeartbeatState =
@@ -424,6 +426,7 @@ function mapRow(row: ExecutionRow): ExecutionRecord {
     leaseExpiresAt: row.lease_expires_at ?? null,
     cancelledAt: row.cancelled_at ?? null,
     cancellationReason: row.cancellation_reason ?? null,
+    installationId: row.installation_id ?? null,
   };
 }
 
