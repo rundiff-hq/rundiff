@@ -10,6 +10,7 @@ import (
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/repositorycapability"
 )
 
 type memoryRecorder struct {
@@ -122,4 +123,52 @@ func containsEnv(environment []string, expected string) bool {
 		}
 	}
 	return false
+}
+
+
+func TestGitWorktreesUsesIsolatedRootForRepositoryCapability(t *testing.T) {
+	toolRoot := filepath.Join(t.TempDir(), "tool")
+	remoteRoot := filepath.Join(t.TempDir(), "customer-repositories")
+	manager := NewGitWorktrees(toolRoot)
+	manager.RemoteBaseDir = remoteRoot
+
+	request := protocol.RequestV1{
+		SchemaVersion: protocol.SchemaVersion,
+		ExecutionID:   "exec/external",
+		ScenarioID:    "scenario",
+		BaselineSHA:   strings.Repeat("a", 40),
+		CandidateSHA:  strings.Repeat("b", 40),
+		AttemptNumber: 1,
+		Context: protocol.ContextV1{
+			Repository:          "customer/example-node",
+			CandidateRepository: "customer/example-node",
+			PullRequestNumber:   7,
+			BaselineRef:         "main",
+			CandidateRef:        "regression",
+		},
+	}
+
+	ctx := repositorycapability.WithToken(context.Background(), "repo-token")
+	prepared, err := manager.Prepare(ctx, request, &memoryRecorder{})
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	if !strings.HasPrefix(prepared.Root, remoteRoot+string(os.PathSeparator)) {
+		t.Fatalf("remote workspace root = %q, want under %q", prepared.Root, remoteRoot)
+	}
+	if strings.HasPrefix(prepared.Root, toolRoot+string(os.PathSeparator)) {
+		t.Fatalf("customer workspace must not be nested under tool root: %q", prepared.Root)
+	}
+	if prepared.RepositoryRoot != filepath.Join(prepared.Root, "repository") {
+		t.Fatalf("repository root = %q", prepared.RepositoryRoot)
+	}
+	for _, item := range prepared.Environment {
+		if strings.Contains(item, "repo-token") {
+			t.Fatal("repository capability must not enter prepared environment")
+		}
+	}
+
+	if err := manager.Teardown(ctx, request, prepared, &memoryRecorder{}); err != nil {
+		t.Fatalf("Teardown: %v", err)
+	}
 }
