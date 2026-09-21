@@ -55,10 +55,18 @@ jobs:
         run: |
           set -euo pipefail
           test -f /sys/fs/cgroup/cgroup.controllers
-          CGROUP_ROOT="/sys/fs/cgroup/rundiff-benchmark-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          CURRENT_RELATIVE_CGROUP="$(awk -F: '$1 == "0" { print $3 }' /proc/self/cgroup)"
+          CURRENT_CGROUP="/sys/fs/cgroup${CURRENT_RELATIVE_CGROUP}"
+          test -d "$CURRENT_CGROUP"
+          test -f "$CURRENT_CGROUP/cgroup.procs"
+
+          CGROUP_ROOT="$CURRENT_CGROUP/rundiff-benchmark-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ORIGINAL_PARENT_PROCS_OWNER="$(stat -c '%u:%g' "$CURRENT_CGROUP/cgroup.procs")"
+
           sudo mkdir "$CGROUP_ROOT"
-          sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT"
-          sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT/cgroup.procs"
+          sudo chown "$USER:$(id -gn)" "$CURRENT_CGROUP/cgroup.procs"
+          sudo chown "$USER:$(id -gn)" "$CGROUP_ROOT" "$CGROUP_ROOT/cgroup.procs"
           test -f "$CGROUP_ROOT/cpu.stat"
 
           # cgroupfs creates child control files as root-owned on the hosted runner.
@@ -71,7 +79,16 @@ jobs:
             test -f "$child/cpu.stat"
           done
 
+          # Prove that an unprivileged child can really migrate before we trust
+          # cpu.stat as benchmark evidence.
+          (
+            echo "$BASHPID" > "$CGROUP_ROOT/sample-0256/cgroup.procs"
+            test "$(cat /proc/$BASHPID/cgroup | awk -F: '$1 == "0" { print $3 }')" != "$CURRENT_RELATIVE_CGROUP"
+          )
+
           echo "RUNDIFF_BENCHMARK_CGROUP_ROOT=$CGROUP_ROOT" >> "$GITHUB_ENV"
+          echo "RUNDIFF_BENCHMARK_CGROUP_PARENT=$CURRENT_CGROUP" >> "$GITHUB_ENV"
+          echo "RUNDIFF_BENCHMARK_PARENT_PROCS_OWNER=$ORIGINAL_PARENT_PROCS_OWNER" >> "$GITHUB_ENV"
 
       - name: Run paired supervisor benchmark
         env:
@@ -88,6 +105,9 @@ jobs:
           if [[ -n "${RUNDIFF_BENCHMARK_CGROUP_ROOT:-}" && -d "$RUNDIFF_BENCHMARK_CGROUP_ROOT" ]]; then
             sudo find "$RUNDIFF_BENCHMARK_CGROUP_ROOT" -mindepth 1 -maxdepth 1 -type d -exec rmdir {} + 2>/dev/null || true
             sudo rmdir "$RUNDIFF_BENCHMARK_CGROUP_ROOT" || true
+          fi
+          if [[ -n "${RUNDIFF_BENCHMARK_CGROUP_PARENT:-}" && -n "${RUNDIFF_BENCHMARK_PARENT_PROCS_OWNER:-}" ]]; then
+            sudo chown "$RUNDIFF_BENCHMARK_PARENT_PROCS_OWNER" "$RUNDIFF_BENCHMARK_CGROUP_PARENT/cgroup.procs" || true
           fi
 
       - name: Publish summary
