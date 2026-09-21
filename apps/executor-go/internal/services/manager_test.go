@@ -61,31 +61,31 @@ end
 		SchemaVersion: serviceplan.SchemaVersion,
 		Steps: []serviceplan.Step{
 			{
-				Phase: "start_services",
+				Phase:     "start_services",
 				Operation: "process.start",
 				Details: map[string]any{
-					"name": "mock-api",
-					"runtime": "ruby",
+					"name":       "mock-api",
+					"runtime":    "ruby",
 					"entrypoint": "service.rb",
-					"args": []any{},
-					"port_env": "PORT",
-					"url_env": "MOCK_API_URL",
+					"args":       []any{},
+					"port_env":   "PORT",
+					"url_env":    "MOCK_API_URL",
 				},
 			},
 			{
-				Phase: "healthcheck",
+				Phase:     "healthcheck",
 				Operation: "http.wait_ready",
 				Details: map[string]any{
-					"name": "mock-api",
-					"url_env": "MOCK_API_URL",
-					"path": "/health",
+					"name":            "mock-api",
+					"url_env":         "MOCK_API_URL",
+					"path":            "/health",
 					"timeout_seconds": float64(2),
 				},
 			},
 			{
-				Phase: "stop_services",
+				Phase:     "stop_services",
 				Operation: "process.stop",
-				Details: map[string]any{"name": "mock-api"},
+				Details:   map[string]any{"name": "mock-api"},
 			},
 		},
 	}
@@ -93,10 +93,10 @@ end
 	manager := NewManager(staticCompiler{plan: plan}, nil)
 	request := protocol.RequestV1{
 		SchemaVersion: protocol.SchemaVersion,
-		ExecutionID: "service-proof",
-		ScenarioID: "scenario",
-		BaselineSHA: "aaa",
-		CandidateSHA: "bbb",
+		ExecutionID:   "service-proof",
+		ScenarioID:    "scenario",
+		BaselineSHA:   "aaa",
+		CandidateSHA:  "bbb",
 		AttemptNumber: 1,
 		Context: protocol.ContextV1{
 			Repository: "demo/repo",

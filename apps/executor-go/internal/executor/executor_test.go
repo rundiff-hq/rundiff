@@ -339,7 +339,6 @@ func TestExecutorPreparesSubjectStateForBothRolesInGo(t *testing.T) {
 	}
 }
 
-
 func TestExecutorOwnsServiceStartReadyAndStopInGo(t *testing.T) {
 	recorder := &memoryJournal{}
 	phaseMetrics := &memoryMetrics{}

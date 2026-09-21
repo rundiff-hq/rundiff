@@ -92,11 +92,11 @@ type Builder interface {
 }
 
 type Executor struct {
-	journal        journal.Recorder
-	metrics        metrics.Recorder
-	runner         Runner
-	workspace      workspace.Manager
-	bootstrapper   Bootstrapper
+	journal           journal.Recorder
+	metrics           metrics.Recorder
+	runner            Runner
+	workspace         workspace.Manager
+	bootstrapper      Bootstrapper
 	subjectPrepare    SubjectPreparer
 	serviceController ServiceController
 	builder           Builder
@@ -664,7 +664,6 @@ func errorClass(err error) string {
 	}
 	return fmt.Sprintf("%T", err)
 }
-
 
 func mergeEnvironment(
 	base map[string]string,
