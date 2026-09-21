@@ -50,6 +50,7 @@ func TestProcessRunsReferenceAdapterWithPortablePaths(t *testing.T) {
 			CandidateSubjectEnvironment: map[string]string{
 				"DATABASE_URL": "postgres://example/candidate",
 			},
+			ServicesPrepared: true,
 		},
 		recorder,
 	)
@@ -119,6 +120,9 @@ func TestProcessHelper(t *testing.T) {
 		); err != nil ||
 			candidateSubject["DATABASE_URL"] != "postgres://example/candidate" {
 			os.Exit(97)
+		}
+		if os.Getenv("RUNDIFF_PREPARED_SERVICES_BY") != "go" {
+			os.Exit(98)
 		}
 	}
 

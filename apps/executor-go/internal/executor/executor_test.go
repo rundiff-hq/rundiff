@@ -76,6 +76,54 @@ func (fakeSubjectPreparer) Prepare(
 	return env, nil
 }
 
+type fakeServiceController struct {
+	started []string
+	readied []string
+	stopped []string
+}
+
+func (s *fakeServiceController) Start(
+	_ context.Context,
+	_ protocol.RequestV1,
+	role string,
+	_ string,
+	_ map[string]string,
+	_ journal.Recorder,
+) (any, map[string]string, error) {
+	s.started = append(s.started, role)
+	return role + "-session", map[string]string{
+		"MOCK_API_URL": "http://127.0.0.1/" + role,
+	}, nil
+}
+
+func (s *fakeServiceController) Ready(
+	_ context.Context,
+	_ protocol.RequestV1,
+	role string,
+	_ string,
+	env map[string]string,
+	_ any,
+) error {
+	if env["MOCK_API_URL"] == "" {
+		return context.Canceled
+	}
+	s.readied = append(s.readied, role)
+	return nil
+}
+
+func (s *fakeServiceController) Stop(
+	_ context.Context,
+	_ protocol.RequestV1,
+	role string,
+	_ string,
+	_ map[string]string,
+	_ any,
+	_ journal.Recorder,
+) error {
+	s.stopped = append(s.stopped, role)
+	return nil
+}
+
 type recordingRunner struct {
 	result   protocol.ResultV1
 	prepared workspace.Prepared
@@ -288,5 +336,61 @@ func TestExecutorPreparesSubjectStateForBothRolesInGo(t *testing.T) {
 	}
 	if !basePrepare || !candidatePrepare {
 		t.Fatalf("missing subject_prepare metrics: %+v", phaseMetrics.events)
+	}
+}
+
+
+func TestExecutorOwnsServiceStartReadyAndStopInGo(t *testing.T) {
+	recorder := &memoryJournal{}
+	phaseMetrics := &memoryMetrics{}
+	result := protocol.ResultV1{
+		SchemaVersion: protocol.SchemaVersion,
+		Status:        "succeeded",
+		Payload:       json.RawMessage(`{"result":{"merge_recommendation":"allow","findings":[]}}`),
+	}
+	run := &recordingRunner{result: result}
+	serviceController := &fakeServiceController{}
+	engine := NewManaged(
+		recorder,
+		phaseMetrics,
+		run,
+		fakeWorkspace{},
+	).
+		WithBootstrapper(fakeBootstrapper{}).
+		WithSubjectPreparer(fakeSubjectPreparer{}).
+		WithServiceController(serviceController)
+
+	actual, err := engine.Execute(context.Background(), requestFixture())
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if actual.Status != "succeeded" {
+		t.Fatalf("expected succeeded, got %q", actual.Status)
+	}
+	if !run.prepared.ServicesPrepared {
+		t.Fatalf("reference process did not receive services-prepared ownership")
+	}
+	if run.prepared.BaselineSubjectEnvironment["MOCK_API_URL"] !=
+		"http://127.0.0.1/base" {
+		t.Fatalf("base service env missing: %+v", run.prepared)
+	}
+	if run.prepared.CandidateSubjectEnvironment["MOCK_API_URL"] !=
+		"http://127.0.0.1/candidate" {
+		t.Fatalf("candidate service env missing: %+v", run.prepared)
+	}
+	if len(serviceController.started) != 2 ||
+		len(serviceController.readied) != 2 ||
+		len(serviceController.stopped) != 2 {
+		t.Fatalf("unexpected service lifecycle: %+v", serviceController)
+	}
+
+	phases := map[string]int{}
+	for _, event := range phaseMetrics.events {
+		phases[event.Phase]++
+	}
+	if phases["start"] != 2 ||
+		phases["ready"] != 2 ||
+		phases["stop"] != 2 {
+		t.Fatalf("missing service phase metrics: %+v", phaseMetrics.events)
 	}
 }

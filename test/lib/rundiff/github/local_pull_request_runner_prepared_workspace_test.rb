@@ -69,6 +69,13 @@ class RunDiffGithubLocalPullRequestRunnerPreparedWorkspaceTest < ActiveSupport::
     end
   end
 
+  test "detects Go-prepared service ownership" do
+    with_env("RUNDIFF_PREPARED_SERVICES_BY" => "go") do
+      runner = RunDiff::Github::LocalPullRequestRunner.allocate
+      assert runner.send(:prepared_services?)
+    end
+  end
+
   private
 
   def with_env(values)

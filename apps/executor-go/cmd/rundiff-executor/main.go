@@ -16,6 +16,8 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/metrics"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/runner"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/serviceplan"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/services"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/subjectprepare"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
@@ -88,6 +90,11 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 		false,
 		"Prepare Rails subject database state in Go",
 	)
+	nativeServices := flags.Bool(
+		"native-services",
+		false,
+		"Start services and wait for readiness in Go",
+	)
 	cwd := flags.String("cwd", ".", "Working directory for the reference adapter")
 	timeout := flags.Duration("timeout", 35*time.Minute, "Overall reference execution timeout")
 	if err := flags.Parse(args); err != nil {
@@ -105,6 +112,13 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(
 			stderr,
 			"--native-subject-prepare requires --native-bootstrap",
+		)
+		return 2
+	}
+	if *nativeServices && !*nativeSubjectPrepare {
+		fmt.Fprintln(
+			stderr,
+			"--native-services requires --native-subject-prepare",
 		)
 		return 2
 	}
@@ -163,6 +177,14 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 		}
 		if *nativeSubjectPrepare {
 			engine = engine.WithSubjectPreparer(subjectprepare.NewRailsDB())
+		}
+		if *nativeServices {
+			engine = engine.WithServiceController(
+				services.NewManager(
+					serviceplan.NewRubyCompiler(*cwd),
+					nil,
+				),
+			)
 		}
 	}
 	result, err := engine.Execute(ctx, request)
@@ -249,7 +271,13 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		workspace.NewGitWorktrees(*cwd),
 	).
 		WithBootstrapper(bootstrap.NewRubyBundle(*cwd)).
-		WithSubjectPreparer(subjectprepare.NewRailsDB())
+		WithSubjectPreparer(subjectprepare.NewRailsDB()).
+		WithServiceController(
+			services.NewManager(
+				serviceplan.NewRubyCompiler(*cwd),
+				nil,
+			),
+		)
 	managed := &agent.Agent{
 		ControlPlane: &controlplane.Client{
 			BaseURL: *controlPlaneURL,

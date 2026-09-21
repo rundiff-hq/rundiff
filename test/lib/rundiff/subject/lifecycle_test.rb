@@ -65,6 +65,20 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
     end
   end
 
+  class FailingServiceExecutor
+    def start(**)
+      raise "Ruby service start must not run"
+    end
+
+    def healthcheck(**)
+      raise "Ruby readiness must not run"
+    end
+
+    def stop(**)
+      raise "Ruby service stop must not run"
+    end
+  end
+
   class RecordingSetupPlanCompiler
     attr_reader :configuration
 
@@ -214,6 +228,34 @@ class RunDiffSubjectLifecycleTest < ActiveSupport::TestCase
     refute_includes events, :prepare
     assert_includes events, :capture
     assert_includes events, :cleanup
+  end
+
+  test "uses Go-prepared services without invoking Ruby service executor" do
+    events = []
+    environment = RecordingEnvironment.new(events:)
+    stage_timer = RecordingStageTimer.new
+    lifecycle = RunDiff::Subject::Lifecycle.new(
+      discovery: RecordingDiscovery.new(events:, environment:),
+      service_executor: FailingServiceExecutor.new,
+      stage_timer:
+    )
+    execution = Struct.new(:execution_id).new("github-services-test")
+
+    lifecycle.open(
+      root: Pathname("/tmp/subject"),
+      execution:,
+      role: "base",
+      configuration: Configuration.new(capture_env: {}),
+      runtime_env: {},
+      prepared_env: { "MOCK_API_URL" => "http://127.0.0.1:1234" },
+      services_prepared: true
+    ) do |session|
+      events << :capture
+      assert_equal "http://127.0.0.1:1234", session.env.fetch("MOCK_API_URL")
+    end
+
+    refute stage_timer.stages.any? { |(_, stage, _)| stage == "services_start" }
+    assert_includes events, :capture
   end
 
   test "emits deterministic stage timings for one subject role" do
