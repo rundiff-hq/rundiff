@@ -10,6 +10,7 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/controlplane"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/repositorycapability"
 )
 
 type fakeControlPlane struct {
@@ -63,6 +64,19 @@ func (e immediateEngine) Execute(
 	context.Context,
 	protocol.RequestV1,
 ) (protocol.ResultV1, error) {
+	return e.result, nil
+}
+
+type capabilityEngine struct {
+	result protocol.ResultV1
+	token  string
+}
+
+func (e *capabilityEngine) Execute(
+	ctx context.Context,
+	_ protocol.RequestV1,
+) (protocol.ResultV1, error) {
+	e.token = repositorycapability.Token(ctx)
 	return e.result, nil
 }
 
@@ -165,5 +179,44 @@ func requestFixture() protocol.RequestV1 {
 			Repository:        "demo/shop",
 			PullRequestNumber: 42,
 		},
+	}
+}
+
+
+func TestAgentScopesRepositoryCapabilityToExecutionContext(t *testing.T) {
+	request := requestFixture()
+	cp := &fakeControlPlane{
+		claim: controlplane.Claim{
+			Request:              request,
+			LeaseExpiresAt:       time.Now().Add(time.Minute),
+			RepositoryCapability: "repo-token",
+		},
+	}
+	recorder := &memoryJournal{}
+	result := protocol.ResultV1{
+		SchemaVersion: protocol.SchemaVersion,
+		Status:        "succeeded",
+		Payload:       json.RawMessage(`{"result":{"merge_recommendation":"allow"}}`),
+	}
+	engine := &capabilityEngine{result: result}
+	managed := &Agent{
+		ControlPlane: cp,
+		Engine:       engine,
+		Journal:      recorder,
+	}
+
+	if _, err := managed.Run(
+		context.Background(),
+		controlplane.Assignment{ExecutionID: request.ExecutionID, AttemptNumber: 1},
+	); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if engine.token != "repo-token" {
+		t.Fatalf("repository capability = %q, want repo-token", engine.token)
+	}
+	for _, entry := range recorder.entries {
+		if entry.Message == "repo-token" || entry.Resource == "repo-token" {
+			t.Fatal("repository capability must not be written to the resource journal")
+		}
 	}
 }
