@@ -20,13 +20,15 @@ type Assignment struct {
 }
 
 type Claim struct {
-	Request        protocol.RequestV1 `json:"request"`
-	LeaseExpiresAt time.Time          `json:"-"`
+	Request              protocol.RequestV1 `json:"request"`
+	LeaseExpiresAt       time.Time          `json:"-"`
+	RepositoryCapability string             `json:"-"`
 }
 
 type claimWire struct {
-	Request        protocol.RequestV1 `json:"request"`
-	LeaseExpiresAt string             `json:"lease_expires_at"`
+	Request              protocol.RequestV1 `json:"request"`
+	LeaseExpiresAt       string             `json:"lease_expires_at"`
+	RepositoryCapability string             `json:"repository_capability,omitempty"`
 }
 
 type Heartbeat struct {
@@ -71,7 +73,11 @@ func (c *Client) Claim(ctx context.Context, assignment Assignment) (Claim, error
 	if err != nil {
 		return Claim{}, fmt.Errorf("invalid lease expiry: %w", err)
 	}
-	return Claim{Request: wire.Request, LeaseExpiresAt: expiresAt}, nil
+	return Claim{
+		Request:              wire.Request,
+		LeaseExpiresAt:       expiresAt,
+		RepositoryCapability: wire.RepositoryCapability,
+	}, nil
 }
 
 func (c *Client) Heartbeat(ctx context.Context, assignment Assignment) (Heartbeat, error) {
