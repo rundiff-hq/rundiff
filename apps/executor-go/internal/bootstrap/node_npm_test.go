@@ -63,7 +63,6 @@ func TestNodeNPMBootstrapUsesFrozenCommittedInputs(t *testing.T) {
 	}
 }
 
-
 type nodeCachePopulatingRunner struct{}
 
 func (nodeCachePopulatingRunner) Run(_ context.Context, _ string, env map[string]string, command []string) ([]byte, error) {

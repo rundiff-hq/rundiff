@@ -155,7 +155,6 @@ func writeRubySubject(t *testing.T, root string) {
 	}
 }
 
-
 type bundleCacheRunner struct {
 	installed bool
 }
