@@ -1,0 +1,139 @@
+name: External Node Product Proof
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/external-node-proof.yml"
+      - "docs/proofs/external-node-proof.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  external_node:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rundiff_bridge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rundiff_bridge"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
+      RUNDIFF_EXECUTOR_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
+      RUNDIFF_GO_EXECUTOR_BIN: /tmp/rundiff-executor
+      RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ runner.temp }}/rundiff-dependency-cache
+      RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: external-node-product-proof
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Build Go executor
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+
+      - name: Verify executor token
+        run: |
+          test -n "$RUNDIFF_EXECUTOR_TOKEN" || {
+            echo "::error::RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN is not configured"
+            exit 1
+          }
+
+      - name: Resolve external execution
+        id: resolve
+        run: |
+          set -euo pipefail
+          proof=docs/proofs/external-node-proof.json
+          repository="$(jq -r .repository "$proof")"
+          pr_number="$(jq -r .pull_request_number "$proof")"
+          baseline_sha="$(jq -r .baseline_sha "$proof")"
+          candidate_sha="$(jq -r .candidate_sha "$proof")"
+
+          request="$(jq -nc \
+            --arg repository "$repository" \
+            --argjson pull_request_number "$pr_number" \
+            --arg baseline_sha "$baseline_sha" \
+            --arg candidate_sha "$candidate_sha" \
+            '{repository:$repository,pull_request_number:$pull_request_number,baseline_sha:$baseline_sha,candidate_sha:$candidate_sha}')"
+
+          for attempt in $(seq 1 40); do
+            status="$(curl -sS -o /tmp/resolve.json -w '%{http_code}' \
+              -H "Authorization: Bearer $RUNDIFF_EXECUTOR_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$request" \
+              "$RUNDIFF_CONTROL_PLANE_URL/api/execution-bridges/github-actions/resolve")"
+
+            if [[ "$status" == "200" ]]; then
+              execution_id="$(jq -r .execution_id /tmp/resolve.json)"
+              attempt_number="$(jq -r .attempt_number /tmp/resolve.json)"
+              echo "execution_id=$execution_id" >> "$GITHUB_OUTPUT"
+              echo "attempt_number=$attempt_number" >> "$GITHUB_OUTPUT"
+              echo "Resolved execution $execution_id attempt $attempt_number"
+              exit 0
+            fi
+
+            if [[ "$status" != "409" ]]; then
+              cat /tmp/resolve.json
+              echo "::error::resolve returned HTTP $status"
+              exit 1
+            fi
+
+            echo "Execution not available yet; retry $attempt/40"
+            sleep 3
+          done
+
+          cat /tmp/resolve.json
+          echo "::error::external RunDiff execution did not become available"
+          exit 1
+
+      - name: Execute external Node request
+        run: |
+          /tmp/rundiff-executor agent \
+            --control-plane-url "$RUNDIFF_CONTROL_PLANE_URL" \
+            --execution-id "${{ steps.resolve.outputs.execution_id }}" \
+            --attempt "${{ steps.resolve.outputs.attempt_number }}" \
+            --cwd "$GITHUB_WORKSPACE" \
+            --result tmp/rundiff/external-node-result.json
+
+      - name: Show result
+        if: always()
+        run: |
+          if [[ -f tmp/rundiff/external-node-result.json ]]; then
+            jq . tmp/rundiff/external-node-result.json
+          fi
+
+      - name: Upload proof evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-external-node-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            tmp/rundiff/external-node-result.json
+            tmp/rundiff/go-executor/*.jsonl
+          if-no-files-found: warn
+          retention-days: 14
