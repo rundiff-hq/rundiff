@@ -58,6 +58,24 @@ func (fakeBootstrapper) Bootstrap(
 	}, nil
 }
 
+type fakeSubjectPreparer struct{}
+
+func (fakeSubjectPreparer) Prepare(
+	_ context.Context,
+	_ protocol.RequestV1,
+	role string,
+	_ string,
+	runtimeEnv map[string]string,
+) (map[string]string, error) {
+	env := map[string]string{}
+	for key, value := range runtimeEnv {
+		env[key] = value
+	}
+	env["DATABASE_URL"] = "postgres://example/" + role
+	env["RUNDIFF_SUBJECT_ROLE"] = role
+	return env, nil
+}
+
 type recordingRunner struct {
 	result   protocol.ResultV1
 	prepared workspace.Prepared
@@ -216,5 +234,60 @@ func TestExecutorBootstrapsBothPreparedSubjectsInGo(t *testing.T) {
 	}
 	if !baseBootstrap || !candidateBootstrap {
 		t.Fatalf("missing Go bootstrap metrics: %+v", phaseMetrics.events)
+	}
+}
+
+
+func TestExecutorPreparesSubjectStateForBothRolesInGo(t *testing.T) {
+	recorder := &memoryJournal{}
+	phaseMetrics := &memoryMetrics{}
+	result := protocol.ResultV1{
+		SchemaVersion: protocol.SchemaVersion,
+		Status:        "succeeded",
+		Payload:       json.RawMessage(`{"result":{"merge_recommendation":"allow","findings":[]}}`),
+	}
+	run := &recordingRunner{result: result}
+	engine := NewManaged(
+		recorder,
+		phaseMetrics,
+		run,
+		fakeWorkspace{},
+	).
+		WithBootstrapper(fakeBootstrapper{}).
+		WithSubjectPreparer(fakeSubjectPreparer{})
+
+	actual, err := engine.Execute(context.Background(), requestFixture())
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if actual.Status != "succeeded" {
+		t.Fatalf("expected succeeded, got %q", actual.Status)
+	}
+	if run.prepared.BaselineSubjectEnvironment["RUNDIFF_SUBJECT_ROLE"] != "base" {
+		t.Fatalf("missing base subject environment: %+v", run.prepared)
+	}
+	if run.prepared.CandidateSubjectEnvironment["RUNDIFF_SUBJECT_ROLE"] != "candidate" {
+		t.Fatalf("missing candidate subject environment: %+v", run.prepared)
+	}
+	if run.prepared.BaselineSubjectEnvironment["BUNDLE_GEMFILE"] == "" {
+		t.Fatalf("bootstrap env did not survive subject prepare: %+v", run.prepared)
+	}
+
+	var basePrepare bool
+	var candidatePrepare bool
+	for _, event := range phaseMetrics.events {
+		if event.Phase == "subject_prepare" &&
+			event.Implementation == "go" &&
+			event.Role == "base" {
+			basePrepare = true
+		}
+		if event.Phase == "subject_prepare" &&
+			event.Implementation == "go" &&
+			event.Role == "candidate" {
+			candidatePrepare = true
+		}
+	}
+	if !basePrepare || !candidatePrepare {
+		t.Fatalf("missing subject_prepare metrics: %+v", phaseMetrics.events)
 	}
 }

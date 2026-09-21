@@ -51,6 +51,24 @@ class RunDiffGithubLocalPullRequestRunnerPreparedWorkspaceTest < ActiveSupport::
     end
   end
 
+  test "parses Go-prepared subject environment by role" do
+    with_env(
+      "RUNDIFF_PREPARED_BASELINE_SUBJECT_ENV_JSON" => '{"DATABASE_URL":"postgres://base"}',
+      "RUNDIFF_PREPARED_CANDIDATE_SUBJECT_ENV_JSON" => '{"DATABASE_URL":"postgres://candidate"}'
+    ) do
+      runner = RunDiff::Github::LocalPullRequestRunner.allocate
+
+      assert_equal(
+        { "DATABASE_URL" => "postgres://base" },
+        runner.send(:prepared_subject_env, "base")
+      )
+      assert_equal(
+        { "DATABASE_URL" => "postgres://candidate" },
+        runner.send(:prepared_subject_env, "candidate")
+      )
+    end
+  end
+
   private
 
   def with_env(values)

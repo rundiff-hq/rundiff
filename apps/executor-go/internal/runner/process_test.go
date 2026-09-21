@@ -44,6 +44,12 @@ func TestProcessRunsReferenceAdapterWithPortablePaths(t *testing.T) {
 			CandidateEnvironment: map[string]string{
 				"BUNDLE_PATH": "/tmp/candidate-bundle",
 			},
+			BaselineSubjectEnvironment: map[string]string{
+				"DATABASE_URL": "postgres://example/base",
+			},
+			CandidateSubjectEnvironment: map[string]string{
+				"DATABASE_URL": "postgres://example/candidate",
+			},
 		},
 		recorder,
 	)
@@ -96,6 +102,23 @@ func TestProcessHelper(t *testing.T) {
 			&candidate,
 		); err != nil || candidate["BUNDLE_PATH"] != "/tmp/candidate-bundle" {
 			os.Exit(95)
+		}
+
+		var baselineSubject map[string]string
+		if err := json.Unmarshal(
+			[]byte(os.Getenv("RUNDIFF_PREPARED_BASELINE_SUBJECT_ENV_JSON")),
+			&baselineSubject,
+		); err != nil ||
+			baselineSubject["DATABASE_URL"] != "postgres://example/base" {
+			os.Exit(96)
+		}
+		var candidateSubject map[string]string
+		if err := json.Unmarshal(
+			[]byte(os.Getenv("RUNDIFF_PREPARED_CANDIDATE_SUBJECT_ENV_JSON")),
+			&candidateSubject,
+		); err != nil ||
+			candidateSubject["DATABASE_URL"] != "postgres://example/candidate" {
+			os.Exit(97)
 		}
 	}
 
