@@ -237,7 +237,6 @@ func TestExecutorBootstrapsBothPreparedSubjectsInGo(t *testing.T) {
 	}
 }
 
-
 func TestExecutorPreparesSubjectStateForBothRolesInGo(t *testing.T) {
 	recorder := &memoryJournal{}
 	phaseMetrics := &memoryMetrics{}

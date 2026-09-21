@@ -14,16 +14,16 @@ import (
 type Phase string
 
 const (
-	PhasePrepare   Phase = "Prepare"
-	PhaseClone     Phase = "Clone"
+	PhasePrepare        Phase = "Prepare"
+	PhaseClone          Phase = "Clone"
 	PhaseBootstrap      Phase = "Bootstrap"
 	PhaseSubjectPrepare Phase = "SubjectPrepare"
 	PhaseBuild          Phase = "Build"
-	PhaseStart     Phase = "Start"
-	PhaseReady     Phase = "Ready"
-	PhaseScenario  Phase = "Scenario"
-	PhaseCollect   Phase = "Collect"
-	PhaseTeardown  Phase = "Teardown"
+	PhaseStart          Phase = "Start"
+	PhaseReady          Phase = "Ready"
+	PhaseScenario       Phase = "Scenario"
+	PhaseCollect        Phase = "Collect"
+	PhaseTeardown       Phase = "Teardown"
 )
 
 type Runner interface {
@@ -63,13 +63,13 @@ type Builder interface {
 }
 
 type Executor struct {
-	journal      journal.Recorder
-	metrics      metrics.Recorder
-	runner       Runner
-	workspace    workspace.Manager
-	bootstrapper  Bootstrapper
+	journal        journal.Recorder
+	metrics        metrics.Recorder
+	runner         Runner
+	workspace      workspace.Manager
+	bootstrapper   Bootstrapper
 	subjectPrepare SubjectPreparer
-	builder       Builder
+	builder        Builder
 }
 
 func New(recorder journal.Recorder, runner Runner) *Executor {

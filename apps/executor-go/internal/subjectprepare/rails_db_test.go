@@ -136,7 +136,7 @@ func TestRailsDBPreparesSQLiteAndRemovesStaleSidecars(t *testing.T) {
 		"base",
 		root,
 		map[string]string{
-			"BUNDLE_PATH":             "/tmp/bundle",
+			"BUNDLE_PATH":              "/tmp/bundle",
 			"DATABASE_URL":             "must-disappear",
 			"SOLID_QUEUE_DATABASE_URL": "must-disappear",
 		},
