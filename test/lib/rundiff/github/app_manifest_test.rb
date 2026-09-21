@@ -39,10 +39,14 @@ class RunDiffGithubAppManifestTest < ActiveSupport::TestCase
     ).to_h
 
     assert_equal "RunDiff Checks", manifest.fetch("name")
-    assert_equal "https://rundiff.example.test/github/webhooks", manifest.dig("hook_attributes", "url")
-    assert_equal "https://rundiff.example.test/onboarding", manifest.fetch("setup_url")
-    assert manifest.fetch("setup_on_update")
+    assert_equal "https://rundiff.example.test/api/github/webhooks", manifest.dig("hook_attributes", "url")
     assert manifest.fetch("public")
+    assert_equal "write", manifest.dig("default_permissions", "checks")
+    assert_equal "read", manifest.dig("default_permissions", "contents")
+    assert_equal "write", manifest.dig("default_permissions", "pull_requests")
+    assert_equal %w[pull_request check_run], manifest.fetch("default_events")
+    assert_not manifest.key?("setup_url")
+    assert_not manifest.key?("setup_on_update")
   end
 
   test "rejects a non HTTPS public URL" do
