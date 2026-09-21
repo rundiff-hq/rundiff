@@ -21,9 +21,9 @@ var railsSubjectOwnedMarkers = []string{
 }
 
 type Spec struct {
-	Adapter string
-	Mode    string
-	Runtime string
+	Adapter      string
+	Mode         string
+	Runtime      string
 	Command      []string
 	TargetURLEnv string
 }
