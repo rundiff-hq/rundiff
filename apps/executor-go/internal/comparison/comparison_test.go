@@ -176,3 +176,18 @@ func normalize(value any) any {
 	_ = json.Unmarshal(body, &result)
 	return result
 }
+
+func TestBehavioralDiffMarksUnobservedSignalsUnavailable(t *testing.T) {
+	result := BehavioralDiff(
+		map[string]any{"duration_ms": 10.0, "errors": 0.0},
+		map[string]any{"duration_ms": 11.0, "errors": 0.0},
+	)
+	signals := result["signals"].(map[string]any)
+	sql := signals["sql_queries"].(map[string]any)
+	if sql["available"] != false {
+		t.Fatalf("sql_queries should be unavailable: %#v", sql)
+	}
+	if result["merge_recommendation"] != "allow" {
+		t.Fatalf("recommendation = %v", result["merge_recommendation"])
+	}
+}

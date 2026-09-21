@@ -159,3 +159,31 @@ func writeConfig(t *testing.T, root string, body string) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 }
+
+func TestNodeScenarioURLEnvRequiresOneNodeService(t *testing.T) {
+	root := t.TempDir()
+	config := `version: 1
+scenario:
+  path: /scenario
+subject:
+  services:
+    - name: app
+      type: process
+      runtime: node
+      entrypoint: server.mjs
+      url_env: NODE_APP_URL
+      readiness:
+        type: http
+        path: /health
+`
+	if err := os.WriteFile(filepath.Join(root, "rundiff.yml"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	value, err := NodeScenarioURLEnv(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "NODE_APP_URL" {
+		t.Fatalf("url env = %q", value)
+	}
+}
