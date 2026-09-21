@@ -1,0 +1,19 @@
+{
+  "schema_version": "1",
+  "status": "succeeded",
+  "payload": {
+    "result": {
+      "merge_recommendation": "block",
+      "findings": [
+        {
+          "reason_code": "DATABASE_QUERY_REGRESSION",
+          "signal": "sql_queries",
+          "baseline": 17,
+          "candidate": 31
+        }
+      ]
+    }
+  },
+  "error_class": null,
+  "error_message": null
+}

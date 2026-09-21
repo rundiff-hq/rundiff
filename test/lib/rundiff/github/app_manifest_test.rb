@@ -38,7 +38,7 @@ class RunDiffGithubAppManifestTest < ActiveSupport::TestCase
       public_url: "https://rundiff.example.test"
     ).to_h
 
-    assert_equal "RunDiff", manifest.fetch("name")
+    assert_equal "RunDiff Checks", manifest.fetch("name")
     assert_equal "https://rundiff.example.test/github/webhooks", manifest.dig("hook_attributes", "url")
     assert_equal "https://rundiff.example.test/onboarding", manifest.fetch("setup_url")
     assert manifest.fetch("setup_on_update")

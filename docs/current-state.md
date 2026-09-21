@@ -86,7 +86,9 @@ The following are implementation facts, not future assumptions:
 - Cloudflare Worker + D1 + Workflow + R2 remote spike deployment;
 - remote portable bridge BLOCK and ALLOW lifecycles with durable D1 state;
 - local duplicate/conflicting Result, timeout, executor-failure, stale candidate,
-  supersede, and finalization-fence verification.
+  supersede, and finalization-fence verification;
+- production same-repository GitHub `pull_request/synchronize` -> Cloudflare -> GitHub Actions bridge -> Ruby reference executor -> Result v1 -> `RunDiff Checks` ALLOW proof on 2026-09-21, candidate `2911af4d730e019e917e1addc00bae87c4545b02`, execution `39c54ef3-1f76-45ce-92dd-ccc260311418`;
+- production privacy boundary verified: `/` intentionally returns 404 while `/api/health` and `/api/ready` return 200 and unauthenticated review reads return 401.
 
 ## Production Proof v2
 
@@ -117,18 +119,22 @@ Operator replay, curl, or another locally synthesized webhook cannot satisfy thi
 
 ## What is not proven live yet
 
-These are the actual current production blockers:
+The internal production transport path is now proven. The remaining canonical external acceptance work is narrower:
 
-1. configure the deployed Worker with the production GitHub App credentials and
-   proof scenario;
-2. complete the GitHub Actions workflow against the deployed bridge;
-3. verify `https://rundiff.com/`, `/api/health`, and `/api/ready` from a client after the successful Custom Domain deploy;
-4. switch the existing `RunDiff Checks` webhook to `https://rundiff.com/api/github/webhooks` and verify a redelivery;
-5. install the public App on a repository/account outside `rundiff-hq`;
-6. execute the GitHub-originated same-PR BLOCK -> fix -> ALLOW flow;
-7. collect and retain Production Proof v2 and actual monthly cost.
+1. install the public `RunDiff Checks` App on a repository/account outside `rundiff-hq`;
+2. execute the real GitHub-originated same-PR BLOCK -> behavioral fix -> ALLOW sequence there;
+3. collect and retain Production Proof v2 with both authenticated GitHub delivery GUIDs and exact Check Run identities;
+4. record actual monthly production cost after representative low-volume use.
 
-Until those are complete, RunDiff has a convincing product-shaped system and preproduction proof, but not the final external production proof.
+The same-repository production ALLOW proof validates the Cloudflare/GitHub Actions/Ruby reference transport, but it does not replace the required external-account BLOCK -> ALLOW acceptance proof.
+
+## Executor protocol v1 freeze
+
+The executor transport contract is frozen before the managed Go implementation. Canonical schemas and golden fixtures live under `protocol/executor/v1` and are consumed by both Ruby and TypeScript contract tests.
+
+Request/Result v1 is executor-portable but still contains optional GitHub-oriented compatibility context. Provider credentials and delivery identity stay outside the protocol. The current GitHub Actions tuple-based claim is a bridge-specific bootstrap; managed executors must be assigned by exact `execution_id + attempt_number`.
+
+Cloudflare's current bridge lifecycle is sufficient for the proven GitHub Actions transport, but managed Go execution still requires durable attempt leases, heartbeat/progress, cancellation, expiry, and finalization fencing before that path becomes the canonical managed lifecycle.
 
 ## Explicitly superseded assumptions
 

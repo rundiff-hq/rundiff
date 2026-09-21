@@ -53,6 +53,36 @@ Current schema v1 may contain nested historical `result` payloads. A future brea
 
 See RFC 0010.
 
+
+## Protocol v1 freeze
+
+Executor protocol v1 is frozen as an executor-portable compatibility boundary before the managed Go executor implementation.
+
+The canonical machine-readable contract and golden fixtures live at:
+
+~~~text
+protocol/executor/v1/request.schema.json
+protocol/executor/v1/result.schema.json
+protocol/executor/v1/fixtures/request.json
+protocol/executor/v1/fixtures/result-allow.json
+protocol/executor/v1/fixtures/result-block.json
+protocol/executor/v1/fixtures/result-failure.json
+~~~
+
+Ruby and TypeScript contract tests consume the same fixtures. The Go executor must consume these fixtures before it is allowed to replace the Ruby reference executor.
+
+Protocol v1 is **executor-portable, not SCM-neutral**. Its stable envelope is independent of the executor implementation, but the current optional `context` fields are GitHub-oriented compatibility metadata. A future GitLab, Bitbucket, Azure DevOps, or local-change connector should normalize change identity inside the control plane rather than teaching executors provider authentication or webhook semantics.
+
+Readers may ignore unknown fields for forward compatibility. Producers must preserve `schema_version = "1"` and the documented required identity fields. Credentials, installation IDs, webhook delivery IDs, provider secrets, and clone capabilities remain outside the stable payload.
+
+The nested historical `payload.result.merge_recommendation` is also a v1 compatibility shape, not a statement that the executor owns product policy. The long-term boundary remains:
+
+~~~text
+executor -> evidence/findings -> control-plane policy -> decision
+~~~
+
+The Go parity implementation may reproduce the v1 payload exactly; policy extraction can move further into the control plane in a later protocol revision without changing the execution transport prematurely.
+
 ## Portable request
 
 The control plane converts `RunDiffExecution` into `RunDiff::Executor::Request` before dispatch. Schema version `1` contains:
@@ -74,6 +104,31 @@ context.candidate_repository
 The executor request deliberately excludes control-plane credentials and delivery internals. In particular it must not contain a GitHub App private key, installation token, webhook secret, installation ID, or webhook delivery ID.
 
 A remote executor may receive a separate short-lived capability for cloning a private repository, but that capability is not part of the stable execution request contract.
+
+
+### GitHub Actions bridge claim compatibility
+
+The current GitHub Actions bridge discovers an available execution by the tuple:
+
+~~~text
+repository
+pull_request_number
+baseline_sha
+candidate_sha
+~~~
+
+That lookup is a provider-specific bootstrap mechanism for the v1 GitHub Actions proof. It is **not** the target generic dispatch identity and must not become the managed executor contract.
+
+Before one pull-request revision can schedule multiple scenarios through this bridge, discovery must either include `scenario_id` or, preferably, disappear entirely in favor of exact assignment.
+
+The managed Go path must be addressed by the control plane with:
+
+~~~text
+execution_id
+attempt_number
+~~~
+
+and then receive the corresponding Request v1. Executors must never scan for "a matching PR execution" when the control plane already owns the exact attempt identity.
 
 ## Portable result
 
@@ -117,6 +172,19 @@ GithubPullRequestExecutionJob
 ```
 
 The executor job does not receive a GitHub App private key. Remote execution can receive a separate short-lived repository capability described below.
+
+
+### Cloudflare-native managed lifecycle gap
+
+The production Cloudflare v1 bridge has now proven webhook authority, D1 dedupe, stale-candidate superseding, exact Result acceptance, duplicate/conflicting Result behavior, timeout finalization, and GitHub publication. Its current execution states are intentionally narrower than the mature Rails reference lifecycle:
+
+~~~text
+available -> claimed -> result_received -> completed / infra_failure
+~~~
+
+The managed Go executor must not treat that proof-only claim model as the final host lifecycle. Before managed execution becomes canonical, the Cloudflare control plane needs an exact-attempt lifecycle equivalent to the Rails safety model, including durable attempt identity, claim/lease ownership, heartbeat/progress, lease expiry, cooperative cancellation, and a finalization fence.
+
+This is a control-plane lifecycle extension, **not** a Request v1 / Result v1 schema change. The Go executor should be designed to support heartbeat and cancellation from its first managed-host slice.
 
 ## Execution leases and heartbeats
 
