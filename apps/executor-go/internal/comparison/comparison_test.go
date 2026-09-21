@@ -10,7 +10,7 @@ import (
 )
 
 func TestPairMatchesRubyOracle(t *testing.T) {
-	toolRoot, err := filepath.Abs("../../..")
+	toolRoot, err := filepath.Abs("../../../..")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -42,18 +42,6 @@ func (f *fakeCaptureRunner) Run(
 		body, _ := json.Marshal(payload)
 		return os.WriteFile(output, body, 0o600)
 	}
-	if len(command.Command) == 6 &&
-		strings.HasSuffix(command.Command[1], "rundiff_compare_captures.rb") {
-		base, _ := os.ReadFile(command.Command[2])
-		var execution map[string]any
-		_ = json.Unmarshal(base, &execution)
-		pair, _ := json.Marshal(map[string]any{
-			"schema_version": "1",
-			"run_id":         execution["run_id"],
-			"result":         map[string]any{"merge_recommendation": "allow"},
-		})
-		return os.WriteFile(command.Command[5], pair, 0o600)
-	}
 	return nil
 }
 
@@ -124,8 +112,15 @@ func TestCapturePairOwnsBaseAndCandidateScenarioOrchestration(t *testing.T) {
 	if result.Status != "succeeded" {
 		t.Fatalf("status = %q", result.Status)
 	}
-	if len(fake.commands) != 3 {
-		t.Fatalf("commands = %d, want base + candidate + compare", len(fake.commands))
+	if len(fake.commands) != 2 {
+		t.Fatalf("commands = %d, want base + candidate only", len(fake.commands))
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(result.Payload, &payload); err != nil {
+		t.Fatalf("decode result payload: %v", err)
+	}
+	if recommendation := payload["result"].(map[string]any)["merge_recommendation"]; recommendation != "allow" {
+		t.Fatalf("merge recommendation = %v, want allow", recommendation)
 	}
 	for index, role := range []string{"base", "candidate"} {
 		command := fake.commands[index]
