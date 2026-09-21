@@ -20,6 +20,7 @@ The remaining gap is persistence and a common identity model. The current Bundle
 Dependency Cache v1 derives an entry from:
 
 ~~~text
+trust namespace (repository/tenant)
 runtime
 runtime version
 package manager
@@ -63,9 +64,10 @@ Override:
 
 ~~~text
 RUNDIFF_DEPENDENCY_CACHE_ROOT=/persistent/path
+RUNDIFF_DEPENDENCY_CACHE_NAMESPACE=owner/repository
 ~~~
 
-Managed/BYOC hosts can mount that path on persistent local storage.
+Managed/BYOC hosts can mount that path on persistent local storage. Multi-tenant hosts must scope prepared dependency entries by repository/tenant namespace.
 
 GitHub Actions restores/saves the same directory with actions/cache. Internal entry identities remain authoritative, so a broad Actions restore key cannot cause incompatible dependency reuse.
 

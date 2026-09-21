@@ -83,6 +83,13 @@ func TestRubyBundleProducesFrozenSharedRuntimeEnvironment(t *testing.T) {
 			candidateEnv["BUNDLE_PATH"],
 		)
 	}
+	if baseEnv["RUNDIFF_DEPENDENCY_CACHE_KEY"] == "" ||
+		baseEnv["RUNDIFF_DEPENDENCY_CACHE_KEY"] != candidateEnv["RUNDIFF_DEPENDENCY_CACHE_KEY"] {
+		t.Fatalf("same dependency identity must expose one cache key: base=%#v candidate=%#v", baseEnv, candidateEnv)
+	}
+	if baseEnv["RUNDIFF_DEPENDENCY_CACHE_SEED"] != "hit" {
+		t.Fatalf("bundle check success must report cache hit: %#v", baseEnv)
+	}
 	if baseEnv["BUNDLE_DEPLOYMENT"] != "true" ||
 		baseEnv["BUNDLE_FROZEN"] != "true" {
 		t.Fatalf("bootstrap is not frozen: %+v", baseEnv)

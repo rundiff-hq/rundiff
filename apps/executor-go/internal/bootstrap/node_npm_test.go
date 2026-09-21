@@ -9,10 +9,16 @@ import (
 
 type nodeRecordingRunner struct {
 	commands [][]string
+	envs     []map[string]string
 }
 
-func (r *nodeRecordingRunner) Run(_ context.Context, _ string, _ map[string]string, command []string) ([]byte, error) {
+func (r *nodeRecordingRunner) Run(_ context.Context, _ string, env map[string]string, command []string) ([]byte, error) {
 	r.commands = append(r.commands, append([]string{}, command...))
+	copyEnv := map[string]string{}
+	for key, value := range env {
+		copyEnv[key] = value
+	}
+	r.envs = append(r.envs, copyEnv)
 	switch command[0] {
 	case "node":
 		return []byte("v24.20.0\n"), nil
@@ -35,7 +41,7 @@ func TestNodeNPMBootstrapUsesFrozenCommittedInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	runner := &nodeRecordingRunner{}
-	bootstrap := &NodeNPM{Runner: runner}
+	bootstrap := &NodeNPM{ToolRoot: t.TempDir(), Runner: runner}
 	env, err := bootstrap.Bootstrap(context.Background(), "candidate", root)
 	if err != nil {
 		t.Fatal(err)
@@ -45,5 +51,14 @@ func TestNodeNPMBootstrapUsesFrozenCommittedInputs(t *testing.T) {
 	}
 	if len(runner.commands) != 3 || runner.commands[2][0] != "npm" || runner.commands[2][1] != "ci" {
 		t.Fatalf("unexpected commands: %#v", runner.commands)
+	}
+	if runner.envs[2]["NPM_CONFIG_CACHE"] == "" {
+		t.Fatalf("npm ci must receive executor-owned cache: %#v", runner.envs[2])
+	}
+	if env["RUNDIFF_DEPENDENCY_CACHE_KEY"] == "" || env["RUNDIFF_DEPENDENCY_CACHE_SEED"] != "miss" {
+		t.Fatalf("unexpected dependency cache evidence: %#v", env)
+	}
+	if runner.commands[2][3] != "--prefer-offline" {
+		t.Fatalf("npm ci must prefer restored cache: %#v", runner.commands[2])
 	}
 }

@@ -284,7 +284,7 @@ Go Executor
   -> run the runtime sensor
 ~~~
 
-Cache identity must include enough execution context to prevent unsafe reuse, including runtime line, package-manager version, platform/architecture, and the committed dependency lock digest. A cache hit must never relax frozen/locked installation semantics or allow the package manager to mutate customer lockfiles.
+Cache identity must include enough execution context to prevent unsafe reuse, including a trust namespace (repository/tenant boundary), runtime line, package-manager version, platform/architecture, and the committed dependency lock digest. A cache hit must never relax frozen/locked installation semantics or allow the package manager to mutate customer lockfiles.
 
 Baseline and candidate may share the same cache entry when their dependency identity is identical. If the lockfile changes, they receive distinct identities. Future cache implementations may safely reuse lower-level content-addressed package blobs across identities, but a prepared dependency environment must not be shared across incompatible identities.
 
