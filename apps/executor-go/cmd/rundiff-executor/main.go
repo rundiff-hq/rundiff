@@ -257,7 +257,6 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-
 func runMetricsSummary(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, "metrics-summary requires one or more JSONL files")
