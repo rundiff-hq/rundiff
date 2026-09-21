@@ -94,9 +94,63 @@ func (m *Manager) Start(
 		return nil, nil, err
 	}
 	session := &Session{plan: plan, stateDir: stateDir}
+	if err := recorder.Append(journal.Entry{
+		Kind:          "resource_created",
+		ExecutionID:   request.ExecutionID,
+		AttemptNumber: request.AttemptNumber,
+		ResourceKind:  "service_state",
+		Resource:      stateDir,
+	}); err != nil {
+		_ = os.RemoveAll(stateDir)
+		return nil, nil, err
+	}
 	captureEnv := map[string]string{}
 
 	for _, step := range plan.StepsFor("start_services") {
+		urlEnv, detailErr := stringDetail(step.Details, "url_env")
+		if detailErr != nil {
+			_ = m.Stop(
+				context.Background(),
+				request,
+				role,
+				root,
+				mergeEnv(env, captureEnv),
+				session,
+				recorder,
+			)
+			return nil, nil, detailErr
+		}
+		if _, exists := env[urlEnv]; exists {
+			_ = m.Stop(
+				context.Background(),
+				request,
+				role,
+				root,
+				mergeEnv(env, captureEnv),
+				session,
+				recorder,
+			)
+			return nil, nil, fmt.Errorf(
+				"service cannot overwrite environment %q",
+				urlEnv,
+			)
+		}
+		if _, exists := captureEnv[urlEnv]; exists {
+			_ = m.Stop(
+				context.Background(),
+				request,
+				role,
+				root,
+				mergeEnv(env, captureEnv),
+				session,
+				recorder,
+			)
+			return nil, nil, fmt.Errorf(
+				"duplicate service url environment %q",
+				urlEnv,
+			)
+		}
+
 		service, startErr := m.startOne(
 			ctx,
 			request,
@@ -117,13 +171,6 @@ func (m *Manager) Start(
 				recorder,
 			)
 			return nil, nil, startErr
-		}
-		if _, exists := env[service.urlEnv]; exists {
-			return nil, nil, fmt.Errorf(
-				"service %q cannot overwrite environment %q",
-				service.name,
-				service.urlEnv,
-			)
 		}
 		session.services = append(session.services, service)
 		captureEnv[service.urlEnv] = service.url
@@ -204,6 +251,9 @@ func (m *Manager) Stop(
 	}
 
 	var failures []error
+	if validationErr := validateStopPlan(session); validationErr != nil {
+		failures = append(failures, validationErr)
+	}
 	for index := len(session.services) - 1; index >= 0; index-- {
 		service := session.services[index]
 		var stopErr error
@@ -238,6 +288,13 @@ func (m *Manager) Stop(
 	if removeErr := os.RemoveAll(session.stateDir); removeErr != nil {
 		failures = append(failures, removeErr)
 	}
+	_ = recorder.Append(journal.Entry{
+		Kind:          "resource_removed",
+		ExecutionID:   request.ExecutionID,
+		AttemptNumber: request.AttemptNumber,
+		ResourceKind:  "service_state",
+		Resource:      session.stateDir,
+	})
 	return errors.Join(failures...)
 }
 
@@ -644,4 +701,45 @@ func intDetail(details map[string]any, key string) (int, error) {
 		return 0, fmt.Errorf("service detail %q must be an integer", key)
 	}
 	return int(value), nil
+}
+
+
+func validateStopPlan(session *Session) error {
+	planned := map[string]string{}
+	for _, step := range session.plan.StepsFor("stop_services") {
+		name, err := stringDetail(step.Details, "name")
+		if err != nil {
+			return err
+		}
+		if _, exists := planned[name]; exists {
+			return fmt.Errorf("duplicate stop plan for service %q", name)
+		}
+		planned[name] = step.Operation
+	}
+
+	running := map[string]string{}
+	for _, service := range session.services {
+		operation := "process.stop"
+		if service.kind == "compose" {
+			operation = "compose.stop"
+		}
+		running[service.name] = operation
+	}
+	if len(planned) != len(running) {
+		return fmt.Errorf(
+			"service stop plan does not match running services: planned=%v running=%v",
+			planned,
+			running,
+		)
+	}
+	for name, operation := range running {
+		if planned[name] != operation {
+			return fmt.Errorf(
+				"service stop plan does not match running services: planned=%v running=%v",
+				planned,
+				running,
+			)
+		}
+	}
+	return nil
 }
