@@ -25,7 +25,18 @@ func (f *fakeCaptureRunner) Run(
 	f.commands = append(f.commands, command)
 	if output := command.Env["RUNDIFF_OUTPUT"]; output != "" {
 		payload := map[string]any{
+			"sensor": map[string]any{
+				"schema_version": command.Env["RUNDIFF_SENSOR_SCHEMA_VERSION"],
+				"adapter": command.Env["RUNDIFF_SENSOR_ADAPTER"],
+				"mode": command.Env["RUNDIFF_CAPTURE_RUNTIME"],
+				"runtime": command.Env["RUNDIFF_SENSOR_RUNTIME"],
+			},
 			"id":          command.Env["RUNDIFF_EXECUTION_LABEL"],
+			"execution_id": "sensor-execution",
+			"subject":     command.Env["RUNDIFF_SUBJECT"],
+			"ref":         command.Env["RUNDIFF_EXECUTION_LABEL"],
+			"sha":         command.Env["RUNDIFF_EXECUTION_SHA"],
+			"status":      "passed",
 			"run_id":      command.Env["RUNDIFF_RUN_ID"],
 			"scenario_id": command.Env["RUNDIFF_SCENARIO_ID"],
 			"measurements": map[string]any{
@@ -54,7 +65,10 @@ func TestCapturePairOwnsBaseAndCandidateScenarioOrchestration(t *testing.T) {
 	base := filepath.Join(toolRoot, "base")
 	candidate := filepath.Join(toolRoot, "candidate")
 	for _, root := range []string{base, candidate} {
-		if err := os.MkdirAll(root, 0o700); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, "config"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "config", "environment.rb"), []byte("# rails"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(

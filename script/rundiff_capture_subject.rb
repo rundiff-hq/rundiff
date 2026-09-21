@@ -53,6 +53,7 @@ class RunDiffSubjectCapture
     raise "Application-enqueued job lost RunDiff execution context" unless async_correlation_confirmed
 
     payload = {
+      "sensor" => sensor_identity,
       "id" => label,
       "execution_id" => execution_id,
       "run_id" => run_id,
@@ -196,6 +197,15 @@ class RunDiffSubjectCapture
         "occurred_at" => record.occurred_at&.iso8601(6)
       }
     end
+  end
+
+  def sensor_identity
+    {
+      "schema_version" => ENV.fetch("RUNDIFF_SENSOR_SCHEMA_VERSION", "1"),
+      "adapter" => ENV.fetch("RUNDIFF_SENSOR_ADAPTER", "rails"),
+      "mode" => ENV.fetch("RUNDIFF_CAPTURE_RUNTIME", "subject_owned_rails"),
+      "runtime" => ENV.fetch("RUNDIFF_SENSOR_RUNTIME", "ruby")
+    }
   end
 
   def request

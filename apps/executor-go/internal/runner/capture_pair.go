@@ -15,17 +15,10 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/comparison"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/sensor"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/serviceplan"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
-
-var subjectOwnedMarkers = []string{
-	"lib/rundiff/rails/evidence_collector.rb",
-	"lib/rundiff/rails/execution_quiescence.rb",
-	"app/models/current.rb",
-	"app/models/rundiff_evidence_event.rb",
-	"app/models/rundiff_execution_work_item.rb",
-}
 
 type CaptureCommand struct {
 	Dir     string
@@ -179,7 +172,10 @@ func (r *CapturePair) capture(
 	preparedEnv map[string]string,
 	output string,
 ) error {
-	script, mode := r.captureRuntime(root)
+	spec, err := sensor.NewRegistry(r.ToolRoot).Resolve(root)
+	if err != nil {
+		return fmt.Errorf("resolve %s sensor: %w", role, err)
+	}
 	if label == "" {
 		label = sha
 	}
@@ -190,12 +186,15 @@ func (r *CapturePair) capture(
 	env["RUNDIFF_EXECUTION_LABEL"] = label
 	env["RUNDIFF_EXECUTION_SHA"] = sha
 	env["RUNDIFF_OUTPUT"] = output
-	env["RUNDIFF_CAPTURE_RUNTIME"] = mode
+	env["RUNDIFF_CAPTURE_RUNTIME"] = spec.Mode
+	env["RUNDIFF_SENSOR_SCHEMA_VERSION"] = sensor.SchemaVersion
+	env["RUNDIFF_SENSOR_ADAPTER"] = spec.Adapter
+	env["RUNDIFF_SENSOR_RUNTIME"] = spec.Runtime
 	env["RUNDIFF_SCENARIO_PATH"] = scenarioPath
 
 	if err := r.commandRunner().Run(ctx, CaptureCommand{
 		Dir:     root,
-		Command: []string{"ruby", script},
+		Command: spec.Command,
 		Env:     env,
 		Stdout:  r.Stdout,
 		Stderr:  r.Stderr,
@@ -209,24 +208,17 @@ func (r *CapturePair) capture(
 	if !json.Valid(body) {
 		return fmt.Errorf("capture %s output is invalid JSON", role)
 	}
+	if err := sensor.ValidateCapture(body, sensor.ExpectedCapture{
+		RunID: request.ExecutionID,
+		ScenarioID: request.ScenarioID,
+		Subject: "github-pull-request",
+		Label: label,
+		SHA: sha,
+		Spec: spec,
+	}); err != nil {
+		return fmt.Errorf("capture %s contract: %w", role, err)
+	}
 	return nil
-}
-
-func (r *CapturePair) captureRuntime(root string) (string, string) {
-	subjectOwned := true
-	for _, marker := range subjectOwnedMarkers {
-		info, err := os.Stat(filepath.Join(root, marker))
-		if err != nil || !info.Mode().IsRegular() {
-			subjectOwned = false
-			break
-		}
-	}
-	if subjectOwned {
-		return filepath.Join(r.ToolRoot, "script", "rundiff_capture_subject.rb"),
-			"subject_owned_rails"
-	}
-	return filepath.Join(r.ToolRoot, "script", "rundiff_capture_portable_rails.rb"),
-		"tool_owned_portable_rails"
 }
 
 func (r *CapturePair) changedPaths(
