@@ -40,7 +40,9 @@ module RunDiff
           :get,
           "/repos/#{repository}/commits/#{head_sha}/check-runs?check_name=#{encoded_name}&filter=latest"
         )
-        response.fetch("check_runs", []).find do |check_run|\n          check_run.fetch("name") == name && check_run["external_id"] == external_id\n        end
+        response.fetch("check_runs", []).find do |check_run|
+          check_run.fetch("name") == name && check_run["external_id"] == external_id
+        end
       end
 
       def request(method, path, body: nil)
