@@ -28,6 +28,19 @@ jobs:
           ruby-version: "3.4.10"
           bundler-cache: true
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/control-plane-cloudflare/package-lock.json
+
+      - name: Cloudflare control plane contract
+        working-directory: apps/control-plane-cloudflare
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
       - name: Shell syntax
         run: |
           bash -n \
