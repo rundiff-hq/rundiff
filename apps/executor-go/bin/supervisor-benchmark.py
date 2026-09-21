@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import itertools
 import csv
 import json
 import math
@@ -14,6 +15,55 @@ import time
 
 READY = "RUNDIFF_SUPERVISOR_READY"
 ROOT = Path(__file__).resolve().parents[3]
+CGROUP_SEQUENCE = itertools.count(1)
+
+
+
+def benchmark_cgroup_root():
+    value = os.environ.get("RUNDIFF_BENCHMARK_CGROUP_ROOT")
+    if not value:
+        return None
+    root = Path(value)
+    if not (root / "cgroup.procs").exists() or not (root / "cpu.stat").exists():
+        raise RuntimeError(f"invalid cgroup v2 benchmark root: {root}")
+    return root
+
+
+def create_sample_cgroup(implementation):
+    root = benchmark_cgroup_root()
+    if root is None:
+        return None
+    path = root / f"{next(CGROUP_SEQUENCE):04d}-{implementation}"
+    path.mkdir()
+    if not (path / "cpu.stat").exists():
+        path.rmdir()
+        raise RuntimeError(f"cpu.stat unavailable in cgroup v2 child: {path}")
+    return path
+
+
+def read_cgroup_cpu(path):
+    if path is None:
+        return None
+    values = {}
+    for line in (path / "cpu.stat").read_text().splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0] in {"usage_usec", "user_usec", "system_usec"}:
+            values[parts[0]] = int(parts[1])
+    if "usage_usec" not in values:
+        raise RuntimeError(f"usage_usec missing from {path / 'cpu.stat'}")
+    return values
+
+
+def cleanup_sample_cgroup(path):
+    if path is None:
+        return
+    for _ in range(20):
+        try:
+            path.rmdir()
+            return
+        except OSError:
+            time.sleep(0.05)
+    raise RuntimeError(f"could not remove benchmark cgroup: {path}")
 
 
 def percentile(values, q):
@@ -150,6 +200,12 @@ def implementation_spec(name, go_bin):
 
 def spawn_ready(name, go_bin, timeout_seconds=30):
     spec = implementation_spec(name, go_bin)
+    sample_cgroup = create_sample_cgroup(name)
+
+    def join_sample_cgroup():
+        if sample_cgroup is not None:
+            (sample_cgroup / "cgroup.procs").write_text(str(os.getpid()))
+
     started = time.perf_counter_ns()
     process = subprocess.Popen(
         spec["command"],
@@ -161,7 +217,9 @@ def spawn_ready(name, go_bin, timeout_seconds=30):
         text=True,
         start_new_session=True,
         bufsize=1,
+        preexec_fn=join_sample_cgroup if sample_cgroup is not None else None,
     )
+    process.rundiff_sample_cgroup = sample_cgroup
 
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
@@ -179,6 +237,18 @@ def spawn_ready(name, go_bin, timeout_seconds=30):
         raise RuntimeError(f"{name} unexpected ready line {line!r}: {stderr}")
 
     metrics = sample_tree(process.pid)
+    cgroup_cpu = read_cgroup_cpu(sample_cgroup)
+    if cgroup_cpu is not None:
+        metrics["cpu_usec"] = cgroup_cpu["usage_usec"]
+        metrics["cpu_user_usec"] = cgroup_cpu.get("user_usec")
+        metrics["cpu_system_usec"] = cgroup_cpu.get("system_usec")
+        metrics["cpu_ms"] = round(cgroup_cpu["usage_usec"] / 1000.0, 3)
+        metrics["cpu_source"] = "cgroup-v2:cpu.stat/usage_usec"
+    else:
+        metrics["cpu_usec"] = None
+        metrics["cpu_user_usec"] = None
+        metrics["cpu_system_usec"] = None
+        metrics["cpu_source"] = "proc-pid-stat-ticks"
     metrics.update(
         {
             "implementation": name,
@@ -189,17 +259,17 @@ def spawn_ready(name, go_bin, timeout_seconds=30):
 
 
 def terminate(process):
-    if process.poll() is not None:
-        return
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-        process.wait(timeout=5)
-    except (ProcessLookupError, subprocess.TimeoutExpired):
+    if process.poll() is None:
         try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        process.wait(timeout=5)
+            os.killpg(process.pid, signal.SIGTERM)
+            process.wait(timeout=5)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+    cleanup_sample_cgroup(getattr(process, "rundiff_sample_cgroup", None))
 
 
 def run_sequential(pairs, go_bin):
@@ -216,7 +286,8 @@ def run_sequential(pairs, go_bin):
                     f"startup_ms={metrics['startup_ms']:.3f} "
                     f"rss_kb={metrics['rss_kb']} "
                     f"pss_kb={metrics['pss_kb']} "
-                    f"cpu_ms={metrics['cpu_ms']:.3f}"
+                    f"cpu_ms={metrics['cpu_ms']:.3f} "
+                    f"cpu_source={metrics['cpu_source']}"
                 )
             finally:
                 terminate(process)
@@ -270,6 +341,7 @@ def run_concurrency(cohorts, go_bin):
 def summarize_samples(rows):
     result = {}
     cpu_tick_ms = 1000.0 / os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+    cgroup_cpu = benchmark_cgroup_root() is not None
     metrics = ("startup_ms", "rss_kb", "pss_kb", "cpu_ms", "threads", "fds")
     for implementation in ("ruby", "go"):
         selected = [row for row in rows if row["implementation"] == implementation]
@@ -289,7 +361,7 @@ def summarize_samples(rows):
     for metric in metrics:
         ruby = result["ruby"][metric]["median"]
         go = result["go"][metric]["median"]
-        if metric == "cpu_ms" and go == 0:
+        if metric == "cpu_ms" and go == 0 and not cgroup_cpu:
             comparisons[metric] = {
                 "ruby_over_go": None,
                 "absolute_delta": None,
@@ -308,10 +380,10 @@ def summarize_samples(rows):
                 "absolute_delta": round(ruby - go, 3),
                 "reduction_pct": round((ruby - go) / ruby * 100.0, 2) if ruby else None,
             }
-    return result, comparisons, cpu_tick_ms
+    return result, comparisons, cpu_tick_ms, cgroup_cpu
 
 
-def derive_scale(summary, concurrency_rows, cpu_tick_ms):
+def derive_scale(summary, concurrency_rows, cpu_tick_ms, cgroup_cpu):
     ruby = summary["ruby"]
     go = summary["go"]
     count = 10_000
@@ -337,7 +409,7 @@ def derive_scale(summary, concurrency_rows, cpu_tick_ms):
         result["startup"][implementation] = {
             "aggregate_startup_wall_seconds": round(startup_ms * count / 1000.0, 3),
         }
-        if implementation == "go" and cpu_ms == 0:
+        if implementation == "go" and cpu_ms == 0 and not cgroup_cpu:
             result["startup"][implementation]["aggregate_startup_cpu_seconds_upper_bound"] = round(
                 cpu_tick_ms * count / 1000.0,
                 3,
@@ -391,6 +463,10 @@ def write_outputs(output_root, samples, concurrency, summary, comparisons, scale
         "hwm_kb",
         "pss_kb",
         "cpu_ms",
+        "cpu_usec",
+        "cpu_user_usec",
+        "cpu_system_usec",
+        "cpu_source",
         "threads",
         "fds",
         "processes",
@@ -418,7 +494,20 @@ def write_outputs(output_root, samples, concurrency, summary, comparisons, scale
 
     payload = {
         "measurement_resolution": {
-            "cpu_tick_ms": round(1000.0 / os.sysconf(os.sysconf_names["SC_CLK_TCK"]), 3),
+            "cpu_source": (
+                "cgroup-v2:cpu.stat/usage_usec"
+                if benchmark_cgroup_root() is not None
+                else "proc-pid-stat-ticks"
+            ),
+            "reported_cpu_unit": (
+                "microseconds"
+                if benchmark_cgroup_root() is not None
+                else "clock ticks converted to milliseconds"
+            ),
+            "proc_fallback_tick_ms": round(
+                1000.0 / os.sysconf(os.sysconf_names["SC_CLK_TCK"]),
+                3,
+            ),
         },
         "summary": summary,
         "comparisons": comparisons,
@@ -515,8 +604,8 @@ def main():
 
     samples = run_sequential(args.pairs, args.go_bin)
     concurrency = run_concurrency(cohorts, args.go_bin)
-    summary, comparisons, cpu_tick_ms = summarize_samples(samples)
-    scale = derive_scale(summary, concurrency, cpu_tick_ms)
+    summary, comparisons, cpu_tick_ms, cgroup_cpu = summarize_samples(samples)
+    scale = derive_scale(summary, concurrency, cpu_tick_ms, cgroup_cpu)
     write_outputs(Path(args.output_root), samples, concurrency, summary, comparisons, scale)
 
     print(json.dumps({"summary": summary, "comparisons": comparisons, "scale_10000": scale}, indent=2))
