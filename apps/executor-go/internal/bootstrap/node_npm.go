@@ -66,13 +66,13 @@ func (b *NodeNPM) Bootstrap(ctx context.Context, _ string, root string) (map[str
 		return nil, err
 	}
 	env := map[string]string{
-		"NPM_CONFIG_CACHE":                    npmCache,
-		"NPM_CONFIG_AUDIT":                    "false",
-		"NPM_CONFIG_FUND":                     "false",
-		"RUNDIFF_DEPENDENCY_CACHE_KEY":         cacheEntry.Key,
-		"RUNDIFF_DEPENDENCY_CACHE_ROOT":        cacheEntry.Root,
-		"RUNDIFF_DEPENDENCY_CACHE_NAMESPACE":   cacheEntry.Namespace,
-		"RUNDIFF_DEPENDENCY_CACHE_SEED":        seed,
+		"NPM_CONFIG_CACHE":                   npmCache,
+		"NPM_CONFIG_AUDIT":                   "false",
+		"NPM_CONFIG_FUND":                    "false",
+		"RUNDIFF_DEPENDENCY_CACHE_KEY":       cacheEntry.Key,
+		"RUNDIFF_DEPENDENCY_CACHE_ROOT":      cacheEntry.Root,
+		"RUNDIFF_DEPENDENCY_CACHE_NAMESPACE": cacheEntry.Namespace,
+		"RUNDIFF_DEPENDENCY_CACHE_SEED":      seed,
 	}
 	if _, err := b.runner().Run(
 		ctx,

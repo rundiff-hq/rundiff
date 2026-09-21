@@ -109,7 +109,7 @@ func (b *RubyBundle) Bootstrap(
 		)
 	}
 
-bundlerVersion := bundledWith(lockContents)
+	bundlerVersion := bundledWith(lockContents)
 	cacheManagerVersion := firstNonEmpty(bundlerVersion, "default")
 	cacheEntry := dependencyCacheEntry(
 		b.ToolRoot,
@@ -142,11 +142,11 @@ bundlerVersion := bundledWith(lockContents)
 	}
 
 	env := map[string]string{
-		"BUNDLE_GEMFILE":                    gemfile,
-		"BUNDLE_PATH":                       filepath.Join(cacheEntry.Path, "gems"),
-		"BUNDLE_APP_CONFIG":                 filepath.Join(cacheEntry.Path, "config"),
-		"BUNDLE_DEPLOYMENT":                 "true",
-		"BUNDLE_FROZEN":                     "true",
+		"BUNDLE_GEMFILE":                     gemfile,
+		"BUNDLE_PATH":                        filepath.Join(cacheEntry.Path, "gems"),
+		"BUNDLE_APP_CONFIG":                  filepath.Join(cacheEntry.Path, "config"),
+		"BUNDLE_DEPLOYMENT":                  "true",
+		"BUNDLE_FROZEN":                      "true",
 		"RUNDIFF_SUBJECT_RUBY_VERSION":       firstNonEmpty(requestedRubyVersion, rubyVersion),
 		"RUNDIFF_SUBJECT_BUNDLER_VERSION":    cacheManagerVersion,
 		"RUNDIFF_SUBJECT_BUNDLE_SEED":        "miss",
