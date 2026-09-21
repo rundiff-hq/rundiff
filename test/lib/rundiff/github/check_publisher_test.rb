@@ -41,6 +41,23 @@ class RunDiffGithubCheckPublisherTest < ActiveSupport::TestCase
     assert_equal "/repos/rundiff/rundiff/check-runs/42", publisher.calls.last.fetch(:path)
   end
 
+  test "creates a new check when another publisher used the same name" do
+    list_path = "/repos/rundiff/rundiff/commits/head/check-runs?check_name=RunDiff+%2F+Behavioral+Diff&filter=latest"
+    publisher = FakePublisher.new(
+      [ :get, list_path ] => {
+        "check_runs" => [
+          { "id" => 42, "name" => "RunDiff / Behavioral Diff", "external_id" => "another-execution" }
+        ]
+      }
+    )
+
+    action = publisher.upsert(**attributes)
+
+    assert_equal :created, action
+    assert_equal :post, publisher.calls.last.fetch(:method)
+    assert_equal "run-1", publisher.calls.last.dig(:body, :external_id)
+  end
+
   private
 
   def attributes
