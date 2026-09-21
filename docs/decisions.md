@@ -264,3 +264,49 @@ The current Rails implementation remains in the repository as:
 A future implementation may use Rails/PostgreSQL/Temporal, Go, another database, another workflow engine, or another cloud without changing RunDiff's public/domain contracts.
 
 See RFC 0011.
+
+
+## ADR 0017 - Dependency cache belongs to the executor infrastructure boundary
+
+Status: Accepted
+
+Moving the managed executor from Ruby to Go does not remove or weaken package-manager caching. The Go executor supervises dependency installation; it does not replace Bundler, npm, uv/pip, Go modules, Gradle, Maven, or future package managers.
+
+Treat dependency caching as runtime-neutral executor infrastructure:
+
+~~~text
+Go Executor
+  -> detect runtime/package manager
+  -> derive content-addressed dependency identity
+  -> restore local/shared cache
+  -> run the native package manager deterministically
+  -> retain reusable package artifacts
+  -> run the runtime sensor
+~~~
+
+Cache identity must include enough execution context to prevent unsafe reuse, including runtime line, package-manager version, platform/architecture, and the committed dependency lock digest. A cache hit must never relax frozen/locked installation semantics or allow the package manager to mutate customer lockfiles.
+
+Baseline and candidate may share the same cache entry when their dependency identity is identical. If the lockfile changes, they receive distinct identities. Future cache implementations may safely reuse lower-level content-addressed package blobs across identities, but a prepared dependency environment must not be shared across incompatible identities.
+
+Do not blindly cache arbitrary customer workspaces. Prefer package-manager artifact/download stores and reproducible prepared dependency directories with explicit identity and validation.
+
+The cache has two placement layers:
+
+- local executor cache for fast reuse on a persistent managed/BYOC host;
+- optional external-CI/shared cache adapter for ephemeral runners such as GitHub Actions.
+
+Sensors do not own dependency caches. Rails, Node, Python, Go, Java, and future sensors consume already prepared subjects.
+
+Performance reporting must distinguish cold and warm dependency bootstrap. The primary product metric is warm RunDiff overhead on a PR with reusable dependencies, not a synthetic Go-versus-Ruby language speedup.
+
+Observed production evidence motivating this decision:
+
+~~~text
+VS6 Rails/Bundler bootstrap
+  cold baseline:  32.895 s
+  warm candidate:  0.316 s
+~~~
+
+That ~104x phase difference is a cold-versus-warm cache observation, not a Go-versus-Ruby speedup.
+
+See docs/executor.md and implementation plan 0014.
