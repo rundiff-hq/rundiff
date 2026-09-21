@@ -82,6 +82,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rundiff-whole-execution-cache-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
-          path: tmp/rundiff/whole-execution-cache-benchmark
+          path: |
+            tmp/rundiff/whole-execution-cache-benchmark/*.tsv
+            tmp/rundiff/whole-execution-cache-benchmark/*.txt
+            tmp/rundiff/whole-execution-cache-benchmark/*.json
+            tmp/rundiff/whole-execution-cache-benchmark/*.jsonl
           if-no-files-found: error
           retention-days: 14
