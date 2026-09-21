@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: external-node-product-proof
+  cancel-in-progress: true
+
 jobs:
   external_node:
     runs-on: ubuntu-24.04
@@ -69,7 +73,7 @@ jobs:
           execution_id=""
           attempt_number=""
 
-          for attempt in $(seq 1 40); do
+          for attempt in $(seq 1 10); do
             status="$(curl -sS -o /tmp/resolve.json -w '%{http_code}' \
               -H "Authorization: Bearer $RUNDIFF_EXECUTOR_TOKEN" \
               -H "Content-Type: application/json" \
@@ -88,8 +92,8 @@ jobs:
               exit 1
             fi
 
-            echo "waiting for external execution: $attempt/40"
-            sleep 3
+            echo "waiting for external execution: $attempt/10"
+            sleep 2
           done
 
           if [[ -z "$execution_id" || -z "$attempt_number" ]]; then
