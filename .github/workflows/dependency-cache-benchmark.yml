@@ -1,0 +1,91 @@
+name: Dependency Cache Benchmark
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/dependency-cache-benchmark.yml"
+      - "apps/executor-go/cmd/rundiff-cache-benchmark/**"
+      - "apps/executor-go/internal/bootstrap/**"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - ".ruby-version"
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: Cold/warm pairs to measure
+        required: true
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-cache-benchmark-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruby_bundler:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Build cache benchmark
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-cache-benchmark ./cmd/rundiff-cache-benchmark
+
+      - name: Measure cold and warm Bundler bootstrap
+        env:
+          RUNDIFF_CACHE_BENCHMARK_PAIRS: ${{ inputs.pairs || '3' }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p tmp/rundiff/dependency-cache-benchmark
+          /tmp/rundiff-cache-benchmark \
+            --runtime ruby \
+            --root "$GITHUB_WORKSPACE" \
+            --tool-root "$GITHUB_WORKSPACE" \
+            --pairs "$RUNDIFF_CACHE_BENCHMARK_PAIRS" \
+            --namespace "$GITHUB_REPOSITORY" \
+            --output tmp/rundiff/dependency-cache-benchmark/ruby.json
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          result=tmp/rundiff/dependency-cache-benchmark/ruby.json
+          if [[ -f "$result" ]]; then
+            {
+              echo "### Dependency Cache v1 - Bundler"
+              echo
+              echo "| Metric | Value |"
+              echo "| --- | ---: |"
+              jq -r '"| Cold median | \(.summary.cold_median_ms) ms |"' "$result"
+              jq -r '"| Cold p95 | \(.summary.cold_p95_ms) ms |"' "$result"
+              jq -r '"| Warm median | \(.summary.warm_median_ms) ms |"' "$result"
+              jq -r '"| Warm p95 | \(.summary.warm_p95_ms) ms |"' "$result"
+              jq -r '"| Median cold / warm | \(.summary.median_cold_over_warm_ratio)x |"' "$result"
+              echo
+              echo "Cold means an empty RunDiff dependency-cache root for that pair."
+              echo "Warm means the immediately following bootstrap with the same cache identity."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-cache-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/dependency-cache-benchmark
+          if-no-files-found: error
+          retention-days: 14
