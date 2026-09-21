@@ -209,12 +209,12 @@ func (r *CapturePair) capture(
 		return fmt.Errorf("capture %s output is invalid JSON", role)
 	}
 	if err := sensor.ValidateCapture(body, sensor.ExpectedCapture{
-		RunID: request.ExecutionID,
+		RunID:      request.ExecutionID,
 		ScenarioID: request.ScenarioID,
-		Subject: "github-pull-request",
-		Label: label,
-		SHA: sha,
-		Spec: spec,
+		Subject:    "github-pull-request",
+		Label:      label,
+		SHA:        sha,
+		Spec:       spec,
 	}); err != nil {
 		return fmt.Errorf("capture %s contract: %w", role, err)
 	}
