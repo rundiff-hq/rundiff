@@ -171,3 +171,103 @@ func TestGitWorktreesUsesIsolatedRootForRepositoryCapability(t *testing.T) {
 		t.Fatalf("Teardown: %v", err)
 	}
 }
+
+func TestGitWorktreesTreatsDifferentGitHubRepositoryAsRemoteWithoutCapability(t *testing.T) {
+	toolRoot := t.TempDir()
+	run(t, toolRoot, "git", "init")
+	run(
+		t,
+		toolRoot,
+		"git",
+		"remote",
+		"add",
+		"origin",
+		"https://github.com/rundiff-hq/rundiff.git",
+	)
+
+	remoteRoot := filepath.Join(t.TempDir(), "customer-repositories")
+	manager := NewGitWorktrees(toolRoot)
+	manager.RemoteBaseDir = remoteRoot
+
+	request := protocol.RequestV1{
+		SchemaVersion: protocol.SchemaVersion,
+		ExecutionID:   "exec/public-external",
+		ScenarioID:    "scenario",
+		BaselineSHA:   strings.Repeat("a", 40),
+		CandidateSHA:  strings.Repeat("b", 40),
+		AttemptNumber: 1,
+		Context: protocol.ContextV1{
+			Repository:          "rundiff-hq/example-node-express-postgres",
+			CandidateRepository: "rundiff-hq/example-node-express-postgres",
+			PullRequestNumber:   1,
+			BaselineRef:         "main",
+			CandidateRef:        "demo/http-regression",
+		},
+	}
+
+	prepared, err := manager.Prepare(
+		context.Background(),
+		request,
+		&memoryRecorder{},
+	)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	if !strings.HasPrefix(
+		prepared.Root,
+		remoteRoot+string(os.PathSeparator),
+	) {
+		t.Fatalf(
+			"external public repository root = %q, want under %q",
+			prepared.Root,
+			remoteRoot,
+		)
+	}
+	if prepared.RepositoryRoot != filepath.Join(prepared.Root, "repository") {
+		t.Fatalf("repository root = %q", prepared.RepositoryRoot)
+	}
+}
+
+func TestGitWorktreesKeepsSameGitHubRepositoryLocalWithoutCapability(t *testing.T) {
+	toolRoot := t.TempDir()
+	run(t, toolRoot, "git", "init")
+	run(
+		t,
+		toolRoot,
+		"git",
+		"remote",
+		"add",
+		"origin",
+		"https://github.com/rundiff-hq/rundiff.git",
+	)
+
+	manager := NewGitWorktrees(toolRoot)
+	request := protocol.RequestV1{
+		SchemaVersion: protocol.SchemaVersion,
+		ExecutionID:   "exec/local",
+		ScenarioID:    "scenario",
+		BaselineSHA:   strings.Repeat("a", 40),
+		CandidateSHA:  strings.Repeat("b", 40),
+		AttemptNumber: 1,
+		Context: protocol.ContextV1{
+			Repository:          "rundiff-hq/rundiff",
+			CandidateRepository: "rundiff-hq/rundiff",
+		},
+	}
+
+	prepared, err := manager.Prepare(
+		context.Background(),
+		request,
+		&memoryRecorder{},
+	)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	if prepared.RepositoryRoot != toolRoot {
+		t.Fatalf(
+			"same repository root = %q, want local %q",
+			prepared.RepositoryRoot,
+			toolRoot,
+		)
+	}
+}
