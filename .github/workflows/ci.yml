@@ -34,6 +34,23 @@ jobs:
           cache: npm
           cache-dependency-path: apps/control-plane-cloudflare/package-lock.json
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Go executor contract
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          test -z "$(gofmt -l .)"
+          go test ./...
+          go vet ./...
+          go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+          GOOS=linux GOARCH=amd64 go build -o /tmp/rundiff-executor-linux-amd64 ./cmd/rundiff-executor
+          GOOS=linux GOARCH=arm64 go build -o /tmp/rundiff-executor-linux-arm64 ./cmd/rundiff-executor
+
       - name: Cloudflare control plane contract
         working-directory: apps/control-plane-cloudflare
         run: |
