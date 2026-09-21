@@ -1,0 +1,87 @@
+name: Whole Execution Cache Benchmark
+
+on:
+  pull_request:
+    paths:
+      - "apps/executor-go/**"
+      - ".github/workflows/whole-execution-cache-benchmark.yml"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - "rundiff.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rundiff_wall_benchmark
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rundiff_wall_benchmark"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RUNDIFF_LOCAL_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432
+      RUNDIFF_GO_EXECUTOR_BIN: /tmp/rundiff-executor
+      RUNDIFF_WALL_BENCHMARK_PAIRS: "3"
+      RUNDIFF_WALL_BENCHMARK_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
+      RUNDIFF_WALL_BENCHMARK_CANDIDATE_REF: ${{ github.event.pull_request.head.sha }}
+      RUNDIFF_WALL_BENCHMARK_REPOSITORY: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: false
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Build managed Go executor
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+
+      - name: Run whole-execution cold/warm benchmark
+        run: apps/executor-go/bin/whole-execution-cache-benchmark
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [[ -f tmp/rundiff/whole-execution-cache-benchmark/summary.tsv ]]; then
+            {
+              echo "### RunDiff whole-execution cache benchmark"
+              echo
+              echo '~~~text'
+              cat tmp/rundiff/whole-execution-cache-benchmark/summary.tsv
+              echo '~~~'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-whole-execution-cache-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/whole-execution-cache-benchmark
+          if-no-files-found: error
+          retention-days: 14
