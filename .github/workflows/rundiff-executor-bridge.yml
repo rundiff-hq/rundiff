@@ -36,6 +36,7 @@ jobs:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_bridge
       SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_bridge_queue
+      RUNDIFF_LOCAL_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432
       RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
       RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
 
