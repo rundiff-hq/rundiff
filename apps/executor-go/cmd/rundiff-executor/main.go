@@ -226,11 +226,6 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "agent requires --control-plane-url, --execution-id, and --attempt")
 		return 2
 	}
-	command := flags.Args()
-	if len(command) == 0 {
-		fmt.Fprintln(stderr, "agent requires a reference command after --")
-		return 2
-	}
 	token := os.Getenv(*tokenEnv)
 	if token == "" {
 		fmt.Fprintf(stderr, "%s is required\n", *tokenEnv)
@@ -257,17 +252,11 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	}
 	defer phaseMetrics.Close()
 
-	processRunner := runner.Process{
-		Command: command,
-		Dir:     *cwd,
-		Env:     []string{"RUNDIFF_STAGE_METRICS_PATH=" + *metricsPath},
-		Stdout:  stdout,
-		Stderr:  stderr,
-	}
+	scenarioRunner := runner.NewCapturePair(*cwd, stdout, stderr)
 	engine := executor.NewManaged(
 		resourceJournal,
 		phaseMetrics,
-		processRunner,
+		scenarioRunner,
 		workspace.NewGitWorktrees(*cwd),
 	).
 		WithBootstrapper(bootstrap.NewRubyBundle(*cwd)).

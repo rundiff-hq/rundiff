@@ -463,7 +463,7 @@ func (e *Executor) Execute(
 	if err := e.phase(
 		request,
 		PhaseScenario,
-		"ruby-reference",
+		runnerImplementation(e.runner),
 		func() error {
 			var runErr error
 			runResult, runErr = e.runner.Run(ctx, request, prepared, e.journal)
@@ -683,4 +683,16 @@ func mergeEnvironment(
 		result[key] = value
 	}
 	return result, nil
+}
+
+func runnerImplementation(value Runner) string {
+	type implementationReporter interface {
+		Implementation() string
+	}
+	if reporter, ok := value.(implementationReporter); ok {
+		if implementation := reporter.Implementation(); implementation != "" {
+			return implementation
+		}
+	}
+	return "ruby-reference"
 }

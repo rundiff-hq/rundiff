@@ -115,8 +115,7 @@ if [[ "$supervisor" == "go" ]]; then
       --journal "$journal_path" \
       --metrics "$metrics_path" \
       --cwd "$ROOT" \
-      --heartbeat-interval "${RUNDIFF_EXECUTOR_HEARTBEAT_INTERVAL:-20s}" \
-      -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+      --heartbeat-interval "${RUNDIFF_EXECUTOR_HEARTBEAT_INTERVAL:-20s}"
   )
 
   echo "bridge_supervisor=go"

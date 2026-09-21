@@ -65,6 +65,10 @@ type CapturePair struct {
 	Stderr   io.Writer
 }
 
+func (r *CapturePair) Implementation() string {
+	return "go-orchestrator"
+}
+
 func NewCapturePair(toolRoot string, stdout, stderr io.Writer) *CapturePair {
 	return &CapturePair{
 		ToolRoot: toolRoot,
