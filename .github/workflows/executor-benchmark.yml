@@ -1,0 +1,98 @@
+name: Executor Ruby vs Go Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: Paired repetitions (1-10)
+        required: true
+        default: "5"
+      baseline_ref:
+        description: Baseline Git ref
+        required: true
+        default: "HEAD^"
+      candidate_ref:
+        description: Candidate Git ref
+        required: true
+        default: "HEAD"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rundiff_benchmark
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rundiff_benchmark"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_benchmark
+      SOLID_QUEUE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/rundiff_benchmark_queue
+      RUNDIFF_LOCAL_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432
+      RUNDIFF_GO_EXECUTOR_BIN: /tmp/rundiff-executor
+      RUNDIFF_BENCHMARK_PAIRS: ${{ inputs.pairs }}
+      RUNDIFF_BENCHMARK_BASELINE_REF: ${{ inputs.baseline_ref }}
+      RUNDIFF_BENCHMARK_CANDIDATE_REF: ${{ inputs.candidate_ref }}
+      RUNDIFF_BENCHMARK_REPOSITORY: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Build Go executor
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+
+      - name: Prepare benchmark database
+        run: bin/rails db:prepare
+
+      - name: Run paired Ruby vs Go benchmark
+        run: apps/executor-go/bin/paired-benchmark
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [[ -f tmp/rundiff/executor-benchmark/summary.tsv ]]; then
+            {
+              echo "### RunDiff executor benchmark"
+              echo
+              sed 's/^/    /' tmp/rundiff/executor-benchmark/summary.tsv
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-executor-benchmark-${{ github.run_id }}
+          path: tmp/rundiff/executor-benchmark
+          if-no-files-found: error
+          retention-days: 14
