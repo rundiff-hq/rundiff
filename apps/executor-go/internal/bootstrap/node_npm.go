@@ -11,11 +11,12 @@ import (
 )
 
 type NodeNPM struct {
-	Runner CommandRunner
+	ToolRoot string
+	Runner   CommandRunner
 }
 
-func NewNodeNPM() *NodeNPM {
-	return &NodeNPM{Runner: OSCommandRunner{}}
+func NewNodeNPM(toolRoot string) *NodeNPM {
+	return &NodeNPM{ToolRoot: toolRoot, Runner: OSCommandRunner{}}
 }
 
 func (b *NodeNPM) Bootstrap(ctx context.Context, _ string, root string) (map[string]string, error) {
@@ -46,7 +47,39 @@ func (b *NodeNPM) Bootstrap(ctx context.Context, _ string, root string) (map[str
 	if err != nil {
 		return nil, err
 	}
-	if _, err := b.runner().Run(ctx, root, nil, []string{"npm", "ci", "--ignore-scripts=false"}); err != nil {
+	nodeVersionString := string(bytes.TrimSpace(nodeVersion))
+	npmVersionString := string(bytes.TrimSpace(npmVersion))
+	cacheEntry := dependencyCacheEntry(
+		firstNonEmpty(b.ToolRoot, root),
+		"node",
+		nodeVersionString,
+		"npm",
+		npmVersionString,
+		lockBefore,
+	)
+	npmCache := filepath.Join(cacheEntry.Path, "npm")
+	seed := "miss"
+	if directoryHasEntries(npmCache) {
+		seed = "hit"
+	}
+	if err := os.MkdirAll(npmCache, 0o755); err != nil {
+		return nil, err
+	}
+	env := map[string]string{
+		"NPM_CONFIG_CACHE":                    npmCache,
+		"NPM_CONFIG_AUDIT":                    "false",
+		"NPM_CONFIG_FUND":                     "false",
+		"RUNDIFF_DEPENDENCY_CACHE_KEY":         cacheEntry.Key,
+		"RUNDIFF_DEPENDENCY_CACHE_ROOT":        cacheEntry.Root,
+		"RUNDIFF_DEPENDENCY_CACHE_NAMESPACE":   cacheEntry.Namespace,
+		"RUNDIFF_DEPENDENCY_CACHE_SEED":        seed,
+	}
+	if _, err := b.runner().Run(
+		ctx,
+		root,
+		env,
+		[]string{"npm", "ci", "--ignore-scripts=false", "--prefer-offline"},
+	); err != nil {
 		return nil, err
 	}
 
@@ -64,10 +97,9 @@ func (b *NodeNPM) Bootstrap(ctx context.Context, _ string, root string) (map[str
 	if sha256.Sum256(lockAfter) != lockDigest {
 		return nil, errors.New("customer package-lock.json changed during npm bootstrap")
 	}
-	return map[string]string{
-		"RUNDIFF_SUBJECT_NODE_VERSION": string(bytes.TrimSpace(nodeVersion)),
-		"RUNDIFF_SUBJECT_NPM_VERSION":  string(bytes.TrimSpace(npmVersion)),
-	}, nil
+	env["RUNDIFF_SUBJECT_NODE_VERSION"] = nodeVersionString
+	env["RUNDIFF_SUBJECT_NPM_VERSION"] = npmVersionString
+	return env, nil
 }
 
 func (b *NodeNPM) runner() CommandRunner {

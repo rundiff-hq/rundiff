@@ -16,7 +16,7 @@ type Auto struct {
 func NewAuto(toolRoot string) *Auto {
 	return &Auto{
 		Rails: NewRubyBundle(toolRoot),
-		Node:  NewNodeNPM(),
+		Node:  NewNodeNPM(toolRoot),
 	}
 }
 

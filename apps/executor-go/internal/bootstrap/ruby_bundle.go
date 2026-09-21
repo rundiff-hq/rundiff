@@ -109,17 +109,7 @@ func (b *RubyBundle) Bootstrap(
 		)
 	}
 
-	cacheKey := fmt.Sprintf(
-		"ruby-%s-%x",
-		majorMinor(rubyVersion),
-		originalDigest[:10],
-	)
-	cacheRoot := filepath.Join(b.ToolRoot, "tmp", "rundiff", "bundles", cacheKey)
-	if err := os.MkdirAll(cacheRoot, 0o755); err != nil {
-		return nil, err
-	}
-
-	env := map[string]string{
+env := map[string]string{
 		"BUNDLE_GEMFILE":               gemfile,
 		"BUNDLE_PATH":                  filepath.Join(cacheRoot, "gems"),
 		"BUNDLE_APP_CONFIG":            filepath.Join(cacheRoot, "config"),
@@ -130,8 +120,20 @@ func (b *RubyBundle) Bootstrap(
 	}
 
 	bundlerVersion := bundledWith(lockContents)
+	cacheManagerVersion := firstNonEmpty(bundlerVersion, "default")
+	cacheEntry := dependencyCacheEntry(
+		b.ToolRoot,
+		"ruby",
+		majorMinor(rubyVersion),
+		"bundler",
+		cacheManagerVersion,
+		lockContents,
+	)
+	if err := os.MkdirAll(cacheEntry.Path, 0o755); err != nil {
+		return nil, err
+	}
+
 	if bundlerVersion != "" {
-		env["RUNDIFF_SUBJECT_BUNDLER_VERSION"] = bundlerVersion
 		if _, err := b.runner().Run(
 			ctx,
 			root,
@@ -147,11 +149,24 @@ func (b *RubyBundle) Bootstrap(
 				return nil, installErr
 			}
 		}
-	} else {
-		env["RUNDIFF_SUBJECT_BUNDLER_VERSION"] = "default"
 	}
 
-	bundleCommand := []string{"bundle"}
+	env := map[string]string{
+		"BUNDLE_GEMFILE":                    gemfile,
+		"BUNDLE_PATH":                       filepath.Join(cacheEntry.Path, "gems"),
+		"BUNDLE_APP_CONFIG":                 filepath.Join(cacheEntry.Path, "config"),
+		"BUNDLE_DEPLOYMENT":                 "true",
+		"BUNDLE_FROZEN":                     "true",
+		"RUNDIFF_SUBJECT_RUBY_VERSION":      firstNonEmpty(requestedRubyVersion, rubyVersion),
+		"RUNDIFF_SUBJECT_BUNDLER_VERSION":   cacheManagerVersion,
+		"RUNDIFF_SUBJECT_BUNDLE_SEED":       "miss",
+		"RUNDIFF_DEPENDENCY_CACHE_KEY":      cacheEntry.Key,
+		"RUNDIFF_DEPENDENCY_CACHE_ROOT":     cacheEntry.Root,
+		"RUNDIFF_DEPENDENCY_CACHE_NAMESPACE": cacheEntry.Namespace,
+		"RUNDIFF_DEPENDENCY_CACHE_SEED":     "miss",
+	}
+
+	bundleCommand := []string{"bundle"
 	if bundlerVersion != "" {
 		bundleCommand = append(bundleCommand, "_"+bundlerVersion+"_")
 	}
@@ -169,6 +184,9 @@ func (b *RubyBundle) Bootstrap(
 		if _, installErr := b.runner().Run(ctx, root, env, install); installErr != nil {
 			return nil, installErr
 		}
+	} else {
+		env["RUNDIFF_SUBJECT_BUNDLE_SEED"] = "hit"
+		env["RUNDIFF_DEPENDENCY_CACHE_SEED"] = "hit"
 	}
 
 	actualContents, err := os.ReadFile(lockfile)
