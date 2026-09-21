@@ -32,3 +32,19 @@ func TestRunLocalRequiresRequestAndResult(t *testing.T) {
 		t.Fatalf("unexpected stderr: %q", stderr.String())
 	}
 }
+
+func TestSupervisorBenchmarkIdleReportsReady(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run(
+		[]string{"supervisor-benchmark-idle", "--hold", "0s"},
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("supervisor-benchmark-idle exit=%d stderr=%s", code, stderr.String())
+	}
+	if stdout.String() != "RUNDIFF_SUPERVISOR_READY\n" {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
