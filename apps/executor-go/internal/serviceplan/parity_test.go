@@ -51,6 +51,16 @@ subject:
 	); err != nil {
 		t.Fatalf("Gemfile: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o700); err != nil {
+		t.Fatalf("mkdir bin: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(root, "bin", "rails"),
+		[]byte("#!/usr/bin/env ruby\n"),
+		0o700,
+	); err != nil {
+		t.Fatalf("bin/rails: %v", err)
+	}
 	if err := os.WriteFile(
 		filepath.Join(root, "Gemfile.lock"),
 		[]byte("GEM\n  specs:\n    rails (8.0.0)\n\nBUNDLED WITH\n   2.6.0\n"),

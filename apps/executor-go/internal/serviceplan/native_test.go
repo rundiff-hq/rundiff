@@ -67,7 +67,7 @@ subject:
 	if got := plan.Steps[0].Details["port_env"]; got != "PORT" {
 		t.Fatalf("default port_env = %#v", got)
 	}
-	if got := plan.Steps[1].Details["timeout_seconds"]; got != 5 {
+	if got := plan.Steps[1].Details["timeout_seconds"]; got != float64(5) {
 		t.Fatalf("default timeout = %#v", got)
 	}
 }

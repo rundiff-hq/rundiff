@@ -252,9 +252,11 @@ func compileProcess(service serviceSpec, index int) ([]Step, error) {
 			err,
 		)
 	}
-	args := []string{}
+	args := make([]any, 0)
 	if service.Args != nil {
-		args = append(args, (*service.Args)...)
+		for _, arg := range *service.Args {
+			args = append(args, arg)
+		}
 	}
 	portEnv := defaultPortEnv
 	if service.PortEnv != nil {
@@ -373,7 +375,7 @@ func compileCompose(service serviceSpec, index int) ([]Step, error) {
 				"name":        name,
 				"manifest":    manifest,
 				"service":     composeService,
-				"target_port": *service.TargetPort,
+				"target_port": float64(*service.TargetPort),
 				"url_scheme":  urlScheme,
 				"url_env":     urlEnv,
 			},
@@ -428,7 +430,7 @@ func compileReadiness(
 	details := map[string]any{
 		"name":            name,
 		"url_env":         urlEnv,
-		"timeout_seconds": timeout,
+		"timeout_seconds": float64(timeout),
 	}
 	if readinessType == "http" {
 		if service.Readiness.Path == nil ||

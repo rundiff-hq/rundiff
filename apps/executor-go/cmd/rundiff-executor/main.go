@@ -181,7 +181,7 @@ func runReference(args []string, stdout, stderr io.Writer) int {
 		if *nativeServices {
 			engine = engine.WithServiceController(
 				services.NewManager(
-					serviceplan.NewRubyCompiler(*cwd),
+					serviceplan.NewNativeCompiler(),
 					services.ComposeProviderFromEnv(),
 				),
 			)
@@ -274,7 +274,7 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		WithSubjectPreparer(subjectprepare.NewRailsDB()).
 		WithServiceController(
 			services.NewManager(
-				serviceplan.NewRubyCompiler(*cwd),
+				serviceplan.NewNativeCompiler(),
 				services.ComposeProviderFromEnv(),
 			),
 		)
