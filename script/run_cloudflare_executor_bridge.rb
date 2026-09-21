@@ -5,6 +5,13 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "json"
 
+if ENV["RUNDIFF_SUPERVISOR_BENCHMARK"] == "1"
+  puts "RUNDIFF_SUPERVISOR_READY"
+  $stdout.flush
+  sleep Float(ENV.fetch("RUNDIFF_SUPERVISOR_BENCHMARK_HOLD_SECONDS", "60"))
+  exit 0
+end
+
 request_path = ENV.fetch("RUNDIFF_EXECUTOR_REQUEST_PATH")
 result_path = ENV.fetch("RUNDIFF_EXECUTOR_RESULT_PATH")
 
