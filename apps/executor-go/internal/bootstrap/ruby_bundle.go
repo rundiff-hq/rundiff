@@ -109,17 +109,7 @@ func (b *RubyBundle) Bootstrap(
 		)
 	}
 
-env := map[string]string{
-		"BUNDLE_GEMFILE":               gemfile,
-		"BUNDLE_PATH":                  filepath.Join(cacheRoot, "gems"),
-		"BUNDLE_APP_CONFIG":            filepath.Join(cacheRoot, "config"),
-		"BUNDLE_DEPLOYMENT":            "true",
-		"BUNDLE_FROZEN":                "true",
-		"RUNDIFF_SUBJECT_RUBY_VERSION": firstNonEmpty(requestedRubyVersion, rubyVersion),
-		"RUNDIFF_SUBJECT_BUNDLE_SEED":  "miss",
-	}
-
-	bundlerVersion := bundledWith(lockContents)
+bundlerVersion := bundledWith(lockContents)
 	cacheManagerVersion := firstNonEmpty(bundlerVersion, "default")
 	cacheEntry := dependencyCacheEntry(
 		b.ToolRoot,
@@ -157,16 +147,16 @@ env := map[string]string{
 		"BUNDLE_APP_CONFIG":                 filepath.Join(cacheEntry.Path, "config"),
 		"BUNDLE_DEPLOYMENT":                 "true",
 		"BUNDLE_FROZEN":                     "true",
-		"RUNDIFF_SUBJECT_RUBY_VERSION":      firstNonEmpty(requestedRubyVersion, rubyVersion),
-		"RUNDIFF_SUBJECT_BUNDLER_VERSION":   cacheManagerVersion,
-		"RUNDIFF_SUBJECT_BUNDLE_SEED":       "miss",
-		"RUNDIFF_DEPENDENCY_CACHE_KEY":      cacheEntry.Key,
-		"RUNDIFF_DEPENDENCY_CACHE_ROOT":     cacheEntry.Root,
+		"RUNDIFF_SUBJECT_RUBY_VERSION":       firstNonEmpty(requestedRubyVersion, rubyVersion),
+		"RUNDIFF_SUBJECT_BUNDLER_VERSION":    cacheManagerVersion,
+		"RUNDIFF_SUBJECT_BUNDLE_SEED":        "miss",
+		"RUNDIFF_DEPENDENCY_CACHE_KEY":       cacheEntry.Key,
+		"RUNDIFF_DEPENDENCY_CACHE_ROOT":      cacheEntry.Root,
 		"RUNDIFF_DEPENDENCY_CACHE_NAMESPACE": cacheEntry.Namespace,
-		"RUNDIFF_DEPENDENCY_CACHE_SEED":     "miss",
+		"RUNDIFF_DEPENDENCY_CACHE_SEED":      "miss",
 	}
 
-	bundleCommand := []string{"bundle"
+	bundleCommand := []string{"bundle"}
 	if bundlerVersion != "" {
 		bundleCommand = append(bundleCommand, "_"+bundlerVersion+"_")
 	}
