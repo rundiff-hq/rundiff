@@ -24,6 +24,34 @@ func TestRegistryResolvesPortableRails(t *testing.T) {
 	}
 }
 
+
+func TestRegistryResolvesSubjectOwnedRails(t *testing.T) {
+	root := t.TempDir()
+	files := append([]string{"config/environment.rb"}, railsSubjectOwnedMarkers...)
+	for _, relative := range files {
+		path := filepath.Join(root, relative)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("# marker"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	spec, err := NewRegistry("/tool").Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Adapter != "rails" || spec.Mode != "subject_owned_rails" || spec.Runtime != "ruby" {
+		t.Fatalf("unexpected spec: %#v", spec)
+	}
+}
+
+func TestRegistryRejectsUnsupportedSubject(t *testing.T) {
+	if _, err := NewRegistry("/tool").Resolve(t.TempDir()); err == nil {
+		t.Fatal("expected unsupported runtime sensor error")
+	}
+}
+
 func TestValidateCaptureFencesSensorAndExecutionIdentity(t *testing.T) {
 	spec := Spec{Adapter: "rails", Mode: "tool_owned_portable_rails", Runtime: "ruby"}
 	capture := map[string]any{
