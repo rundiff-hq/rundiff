@@ -33,10 +33,12 @@ def create_sample_cgroup(implementation):
     root = benchmark_cgroup_root()
     if root is None:
         return None
-    path = root / f"{next(CGROUP_SEQUENCE):04d}-{implementation}"
-    path.mkdir()
+    path = root / f"sample-{next(CGROUP_SEQUENCE):04d}"
+    if not path.is_dir():
+        raise RuntimeError(f"pre-delegated cgroup v2 child is missing: {path}")
+    if not os.access(path / "cgroup.procs", os.W_OK):
+        raise RuntimeError(f"cgroup.procs is not delegated to benchmark user: {path}")
     if not (path / "cpu.stat").exists():
-        path.rmdir()
         raise RuntimeError(f"cpu.stat unavailable in cgroup v2 child: {path}")
     return path
 
