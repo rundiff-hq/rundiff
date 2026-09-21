@@ -139,7 +139,7 @@ func (r *CapturePair) Run(
 		return protocol.ResultV1{}, err
 	}
 
-	changedPaths, err := r.changedPaths(ctx, request)
+	changedPaths, err := r.changedPaths(ctx, request, prepared.RepositoryRoot)
 	if err != nil {
 		return protocol.ResultV1{}, err
 	}
@@ -231,6 +231,7 @@ func (r *CapturePair) capture(
 func (r *CapturePair) changedPaths(
 	ctx context.Context,
 	request protocol.RequestV1,
+	repositoryRoot string,
 ) ([]string, error) {
 	command := exec.CommandContext(
 		ctx,
@@ -239,7 +240,7 @@ func (r *CapturePair) changedPaths(
 		"--name-only",
 		request.BaselineSHA+"..."+request.CandidateSHA,
 	)
-	command.Dir = r.ToolRoot
+	command.Dir = repositoryRoot
 	command.Env = safeCaptureEnvironment(nil)
 	output, err := command.Output()
 	if err != nil {
