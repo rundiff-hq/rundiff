@@ -10,6 +10,7 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/controlplane"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/repositorycapability"
 )
 
 var ErrAttemptNoLongerLive = errors.New("execution attempt is no longer live")
@@ -60,6 +61,7 @@ func (a *Agent) Run(
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	runCtx = repositorycapability.WithToken(runCtx, claim.RepositoryCapability)
 
 	type executionResult struct {
 		result protocol.ResultV1
