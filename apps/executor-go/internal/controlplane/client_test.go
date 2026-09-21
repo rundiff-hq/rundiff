@@ -23,7 +23,8 @@ func TestClientUsesExactAttemptForClaimHeartbeatAndResult(t *testing.T) {
 		case "/api/executions/exec-1/attempts/3/claim":
 			json.NewEncoder(w).Encode(map[string]any{
 				"request":          requestFixture(),
-				"lease_expires_at": "2026-09-21T13:00:30.000Z",
+				"lease_expires_at":       "2026-09-21T13:00:30.000Z",
+				"repository_capability": "repo-token",
 			})
 		case "/api/executions/exec-1/attempts/3/heartbeat":
 			json.NewEncoder(w).Encode(map[string]any{
@@ -48,6 +49,9 @@ func TestClientUsesExactAttemptForClaimHeartbeatAndResult(t *testing.T) {
 	}
 	if claim.Request.ExecutionID != assignment.ExecutionID {
 		t.Fatalf("claim request identity mismatch")
+	}
+	if claim.RepositoryCapability != "repo-token" {
+		t.Fatalf("repository capability = %q", claim.RepositoryCapability)
 	}
 
 	heartbeat, err := client.Heartbeat(context.Background(), assignment)
