@@ -79,10 +79,15 @@ export class GitHubClient {
       throw new Error(`GitHub ${method} failed (${response.status})`);
     return response.json() as Promise<T>;
   }
+  accessToken(): string {
+    return this.token;
+  }
+
   static async installation(
     env: GitHubCredentials,
     installationId: number,
     repositoryId?: number,
+    repositoryName?: string,
   ): Promise<GitHubClient> {
     if (!env.RUNDIFF_GITHUB_APP_ID || !env.RUNDIFF_GITHUB_APP_PRIVATE_KEY)
       throw new Error("GitHub App credentials are not configured");
@@ -107,7 +112,14 @@ export class GitHubClient {
     const result = await app.request<{ token: string }>(
       `/app/installations/${installationId}/access_tokens`,
       "POST",
-      repositoryId ? { repository_ids: [repositoryId] } : {},
+      repositoryId
+        ? { repository_ids: [repositoryId] }
+        : repositoryName
+          ? {
+              repositories: [repositoryName],
+              permissions: { contents: "read" },
+            }
+          : {},
     );
     return new GitHubClient(result.token);
   }
