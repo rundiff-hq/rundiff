@@ -48,6 +48,7 @@ jobs:
           if [[ -n "$unformatted" ]]; then
             echo "gofmt required for:"
             echo "$unformatted"
+            gofmt -d .
             exit 1
           fi
           go test ./...
