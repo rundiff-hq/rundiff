@@ -295,9 +295,28 @@ app.post(
       return c.json({ error: "execution attempt is not claimable" }, 409);
     }
 
+    let repositoryCapability: string | undefined;
+    const repository = execution.request.context.repository;
+    if (execution.installationId && repository) {
+      const repositoryName = repository.split("/", 2)[1];
+      if (!repositoryName) {
+        return c.json({ error: "invalid executor repository identity" }, 500);
+      }
+      const github = await GitHubClient.installation(
+        c.env,
+        execution.installationId,
+        undefined,
+        repositoryName,
+      );
+      repositoryCapability = github.accessToken();
+    }
+
     return c.json({
       request: execution.request,
       lease_expires_at: execution.leaseExpiresAt,
+      ...(repositoryCapability
+        ? { repository_capability: repositoryCapability }
+        : {}),
     });
   },
 );
