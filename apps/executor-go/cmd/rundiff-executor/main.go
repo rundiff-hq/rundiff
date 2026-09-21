@@ -35,6 +35,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runReference(args[1:], stdout, stderr)
 	case "agent":
 		return runAgent(args[1:], stdout, stderr)
+	case "metrics-summary":
+		return runMetricsSummary(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		usage(stderr)
@@ -255,11 +257,43 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+
+func runMetricsSummary(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "metrics-summary requires one or more JSONL files")
+		return 2
+	}
+
+	summaries, err := metrics.SummarizeFiles(args)
+	if err != nil {
+		fmt.Fprintf(stderr, "summarize metrics: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintln(stdout, "implementation\tphase\trole\tcount\tmedian_ms\tp95_ms\tmin_ms\tmax_ms")
+	for _, summary := range summaries {
+		fmt.Fprintf(
+			stdout,
+			"%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n",
+			summary.Implementation,
+			summary.Phase,
+			summary.Role,
+			summary.Count,
+			summary.MedianMillis,
+			summary.P95Millis,
+			summary.MinMillis,
+			summary.MaxMillis,
+		)
+	}
+	return 0
+}
+
 func usage(writer io.Writer) {
 	fmt.Fprintln(writer, "RunDiff managed Go Executor")
 	fmt.Fprintln(writer)
 	fmt.Fprintln(writer, "Commands:")
 	fmt.Fprintln(writer, "  validate  validate frozen Request v1 / Result v1 JSON")
 	fmt.Fprintln(writer, "  reference supervise an existing reference adapter through Request v1 / Result v1")
-	fmt.Fprintln(writer, "  agent     claim an exact attempt, heartbeat it, execute, and submit Result v1")
+	fmt.Fprintln(writer, "  agent           claim an exact attempt, heartbeat it, execute, and submit Result v1")
+	fmt.Fprintln(writer, "  metrics-summary summarize one or more phase metrics JSONL files")
 }

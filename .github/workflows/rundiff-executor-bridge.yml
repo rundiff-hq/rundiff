@@ -76,6 +76,15 @@ jobs:
       - name: Claim and execute RunDiff request
         run: apps/control-plane-cloudflare/bin/github-actions-bridge
 
+      - name: Upload phase metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-executor-phase-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/go-executor/*.metrics.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload bridge diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

@@ -111,3 +111,21 @@ rundiff-executor reference \
 ~~~
 
 Use at least five alternating pairs and compare median and p95 for `prepare`, `clone`, and total wall time. Do not infer a language speedup from one CI run: Git fetch state, filesystem cache, Bundler cache, Postgres warmup, and runner load can dominate the result.
+
+
+Summarize any number of collected runs:
+
+~~~bash
+rundiff-executor metrics-summary run-*.metrics.jsonl
+~~~
+
+Output:
+
+~~~text
+implementation  phase      role       count  median_ms  p95_ms  min_ms  max_ms
+go              clone                 10     ...        ...     ...     ...
+ruby            bootstrap  base       10     ...        ...     ...     ...
+ruby            bootstrap  candidate  10     ...        ...     ...     ...
+~~~
+
+The GitHub Actions bridge retains the phase-metrics JSONL as a 14-day artifact so paired samples can be downloaded and summarized later.
