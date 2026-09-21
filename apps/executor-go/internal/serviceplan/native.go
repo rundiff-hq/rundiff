@@ -79,33 +79,12 @@ func (c *NativeCompiler) Compile(
 	_ context.Context,
 	subjectRoot string,
 ) (Plan, error) {
-	path := filepath.Join(subjectRoot, "rundiff.yml")
-	file, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return Plan{SchemaVersion: SchemaVersion, Steps: []Step{}}, nil
-	}
+	config, found, err := loadConfig(subjectRoot)
 	if err != nil {
-		return Plan{}, fmt.Errorf("open rundiff.yml: %w", err)
-	}
-	defer file.Close()
-
-	decoder := yaml.NewDecoder(io.LimitReader(file, 256*1024))
-	decoder.KnownFields(true)
-
-	var config configFile
-	if err := decoder.Decode(&config); err != nil {
-		return Plan{}, fmt.Errorf("invalid rundiff.yml: %w", err)
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); err != io.EOF {
-		if err == nil {
-			return Plan{}, errors.New("invalid rundiff.yml: multiple YAML documents are not supported")
-		}
-		return Plan{}, fmt.Errorf("invalid rundiff.yml: %w", err)
-	}
-
-	if err := validateConfig(config); err != nil {
 		return Plan{}, err
+	}
+	if !found {
+		return Plan{SchemaVersion: SchemaVersion, Steps: []Step{}}, nil
 	}
 
 	steps := make([]Step, 0, len(config.Subject.Services)*3)
@@ -117,6 +96,49 @@ func (c *NativeCompiler) Compile(
 		steps = append(steps, serviceSteps...)
 	}
 	return Plan{SchemaVersion: SchemaVersion, Steps: steps}, nil
+}
+
+
+func ScenarioPath(subjectRoot string) (string, error) {
+	config, found, err := loadConfig(subjectRoot)
+	if err != nil {
+		return "", err
+	}
+	if !found || config.Scenario.Path == nil || *config.Scenario.Path == "" {
+		return "", errors.New("rundiff.yml must declare scenario.path for native scenario execution")
+	}
+	return *config.Scenario.Path, nil
+}
+
+func loadConfig(subjectRoot string) (configFile, bool, error) {
+	path := filepath.Join(subjectRoot, "rundiff.yml")
+	file, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return configFile{}, false, nil
+	}
+	if err != nil {
+		return configFile{}, false, fmt.Errorf("open rundiff.yml: %w", err)
+	}
+	defer file.Close()
+
+	decoder := yaml.NewDecoder(io.LimitReader(file, 256*1024))
+	decoder.KnownFields(true)
+
+	var config configFile
+	if err := decoder.Decode(&config); err != nil {
+		return configFile{}, false, fmt.Errorf("invalid rundiff.yml: %w", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return configFile{}, false, errors.New("invalid rundiff.yml: multiple YAML documents are not supported")
+		}
+		return configFile{}, false, fmt.Errorf("invalid rundiff.yml: %w", err)
+	}
+	if err := validateConfig(config); err != nil {
+		return configFile{}, false, err
+	}
+	return config, true, nil
 }
 
 func validateConfig(config configFile) error {
