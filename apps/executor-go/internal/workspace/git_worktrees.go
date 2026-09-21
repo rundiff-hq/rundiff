@@ -2,19 +2,26 @@ package workspace
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
+	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/repositorycapability"
 )
+
+var repositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 type Prepared struct {
 	Root                        string
+	RepositoryRoot              string
 	BaselineRoot                string
 	CandidateRoot               string
 	Environment                 []string
@@ -34,12 +41,16 @@ type Manager interface {
 type GitWorktrees struct {
 	RepositoryRoot string
 	BaseDir        string
+	RemoteBaseDir  string
+	GitBaseURL     string
 }
 
 func NewGitWorktrees(repositoryRoot string) *GitWorktrees {
 	return &GitWorktrees{
 		RepositoryRoot: repositoryRoot,
 		BaseDir:        filepath.Join(repositoryRoot, "tmp", "rundiff", "go-workspaces"),
+		RemoteBaseDir:  filepath.Join(os.TempDir(), "rundiff", "go-repositories"),
+		GitBaseURL:     os.Getenv("RUNDIFF_GITHUB_GIT_BASE_URL"),
 	}
 }
 
@@ -57,15 +68,32 @@ func (g *GitWorktrees) Prepare(
 		return Prepared{}, errors.New("repository root is required")
 	}
 
-	root := filepath.Join(g.BaseDir, safeID(request.ExecutionID))
-	prepared := Prepared{
-		Root:          root,
-		BaselineRoot:  filepath.Join(root, "base"),
-		CandidateRoot: filepath.Join(root, "candidate"),
+	remote := repositorycapability.Token(ctx) != ""
+	baseDir := g.BaseDir
+	repositoryRoot := g.RepositoryRoot
+	if remote {
+		if err := validateRemoteRequest(request); err != nil {
+			return Prepared{}, err
+		}
+		baseDir = g.RemoteBaseDir
+		if strings.TrimSpace(baseDir) == "" {
+			baseDir = filepath.Join(os.TempDir(), "rundiff", "go-repositories")
+		}
 	}
 
-	_ = g.removeWorktree(ctx, prepared.BaselineRoot)
-	_ = g.removeWorktree(ctx, prepared.CandidateRoot)
+	root := filepath.Join(baseDir, safeID(request.ExecutionID))
+	if remote {
+		repositoryRoot = filepath.Join(root, "repository")
+	}
+	prepared := Prepared{
+		Root:           root,
+		RepositoryRoot: repositoryRoot,
+		BaselineRoot:   filepath.Join(root, "base"),
+		CandidateRoot:  filepath.Join(root, "candidate"),
+	}
+
+	_ = g.removeWorktree(ctx, repositoryRoot, prepared.BaselineRoot)
+	_ = g.removeWorktree(ctx, repositoryRoot, prepared.CandidateRoot)
 	_ = os.RemoveAll(root)
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return Prepared{}, err
@@ -84,6 +112,7 @@ func (g *GitWorktrees) Prepare(
 	prepared.Environment = []string{
 		"RUNDIFF_PREPARED_BY=go",
 		"RUNDIFF_PREPARED_WORKSPACE_ROOT=" + prepared.Root,
+		"RUNDIFF_PREPARED_REPOSITORY_ROOT=" + prepared.RepositoryRoot,
 		"RUNDIFF_PREPARED_BASELINE_ROOT=" + prepared.BaselineRoot,
 		"RUNDIFF_PREPARED_CANDIDATE_ROOT=" + prepared.CandidateRoot,
 	}
@@ -96,17 +125,27 @@ func (g *GitWorktrees) Clone(
 	prepared Prepared,
 	recorder journal.Recorder,
 ) (Prepared, error) {
-	if err := g.git(ctx, "fetch", "--prune", "origin"); err != nil {
-		return prepared, err
-	}
-	for _, sha := range []string{request.BaselineSHA, request.CandidateSHA} {
-		if err := g.git(ctx, "cat-file", "-e", sha+"^{commit}"); err != nil {
+	token := repositorycapability.Token(ctx)
+	if token != "" {
+		if err := g.prepareRemoteRepository(ctx, request, prepared.RepositoryRoot, token); err != nil {
+			return prepared, err
+		}
+	} else {
+		if err := g.gitAt(ctx, prepared.RepositoryRoot, nil, "fetch", "--prune", "origin"); err != nil {
 			return prepared, err
 		}
 	}
 
-	if err := g.git(
+	for _, sha := range []string{request.BaselineSHA, request.CandidateSHA} {
+		if err := g.gitAt(ctx, prepared.RepositoryRoot, nil, "cat-file", "-e", sha+"^{commit}"); err != nil {
+			return prepared, err
+		}
+	}
+
+	if err := g.gitAt(
 		ctx,
+		prepared.RepositoryRoot,
+		nil,
 		"worktree",
 		"add",
 		"--detach",
@@ -124,8 +163,10 @@ func (g *GitWorktrees) Clone(
 		return prepared, err
 	}
 
-	if err := g.git(
+	if err := g.gitAt(
 		ctx,
+		prepared.RepositoryRoot,
+		nil,
 		"worktree",
 		"add",
 		"--detach",
@@ -158,7 +199,7 @@ func (g *GitWorktrees) Teardown(
 		if path == "" {
 			continue
 		}
-		if err := g.removeWorktree(ctx, path); err != nil {
+		if err := g.removeWorktree(ctx, prepared.RepositoryRoot, path); err != nil {
 			failures = append(failures, err)
 		}
 		if err := recorder.Append(resourceEntry(
@@ -185,14 +226,122 @@ func (g *GitWorktrees) Teardown(
 		}
 	}
 
-	if err := g.git(ctx, "worktree", "prune"); err != nil {
-		failures = append(failures, err)
+	if prepared.RepositoryRoot != "" && fileExists(prepared.RepositoryRoot) {
+		if err := g.gitAt(ctx, prepared.RepositoryRoot, nil, "worktree", "prune"); err != nil {
+			failures = append(failures, err)
+		}
 	}
 	return errors.Join(failures...)
 }
 
-func (g *GitWorktrees) removeWorktree(ctx context.Context, path string) error {
-	if path == "" {
+func (g *GitWorktrees) prepareRemoteRepository(
+	ctx context.Context,
+	request protocol.RequestV1,
+	repositoryRoot string,
+	token string,
+) error {
+	baseURL, err := g.normalizedGitBaseURL()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(repositoryRoot), 0o700); err != nil {
+		return err
+	}
+	if err := g.runAt(ctx, filepath.Dir(repositoryRoot), nil, "git", "init", repositoryRoot); err != nil {
+		return err
+	}
+	if err := g.gitAt(
+		ctx,
+		repositoryRoot,
+		nil,
+		"remote",
+		"add",
+		"origin",
+		baseURL+"/"+request.Context.Repository+".git",
+	); err != nil {
+		return err
+	}
+
+	auth := gitAuthEnvironment(baseURL, token)
+	return g.gitAt(
+		ctx,
+		repositoryRoot,
+		auth,
+		"fetch",
+		"--no-tags",
+		"origin",
+		"+refs/heads/"+request.Context.BaselineRef+":refs/remotes/origin/rundiff-base",
+		fmt.Sprintf(
+			"+refs/pull/%d/head:refs/remotes/origin/rundiff-candidate",
+			request.Context.PullRequestNumber,
+		),
+	)
+}
+
+func validateRemoteRequest(request protocol.RequestV1) error {
+	if !repositoryPattern.MatchString(request.Context.Repository) {
+		return errors.New("executor repository must use owner/name form")
+	}
+	if request.Context.CandidateRepository != "" &&
+		request.Context.CandidateRepository != request.Context.Repository {
+		return errors.New("Go workspace currently supports same-repository candidates only")
+	}
+	if request.Context.PullRequestNumber < 1 {
+		return errors.New("remote GitHub workspace requires pull_request_number")
+	}
+	if strings.TrimSpace(request.Context.BaselineRef) == "" {
+		return errors.New("remote GitHub workspace requires baseline_ref")
+	}
+	return nil
+}
+
+func (g *GitWorktrees) normalizedGitBaseURL() (string, error) {
+	value := strings.TrimRight(strings.TrimSpace(g.GitBaseURL), "/")
+	if value == "" {
+		value = "https://github.com"
+	}
+	parsed, err := url.Parse(value)
+	if err != nil ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") ||
+		parsed.Host == "" {
+		return "", errors.New("Git base URL must be an absolute HTTP(S) URL")
+	}
+	return value, nil
+}
+
+func gitAuthEnvironment(baseURL, token string) []string {
+	basic := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
+	environment := safeGitEnvironment()
+	environment = append(
+		environment,
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=http."+baseURL+"/.extraheader",
+		"GIT_CONFIG_VALUE_0=AUTHORIZATION: basic "+basic,
+	)
+	return environment
+}
+
+func safeGitEnvironment() []string {
+	keys := []string{
+		"PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE",
+		"SSL_CERT_FILE", "SSL_CERT_DIR",
+	}
+	environment := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if value, ok := os.LookupEnv(key); ok {
+			environment = append(environment, key+"="+value)
+		}
+	}
+	return environment
+}
+
+func (g *GitWorktrees) removeWorktree(
+	ctx context.Context,
+	repositoryRoot string,
+	path string,
+) error {
+	if path == "" || repositoryRoot == "" || !fileExists(repositoryRoot) {
 		return nil
 	}
 	command := exec.CommandContext(
@@ -203,7 +352,7 @@ func (g *GitWorktrees) removeWorktree(ctx context.Context, path string) error {
 		"--force",
 		path,
 	)
-	command.Dir = g.RepositoryRoot
+	command.Dir = repositoryRoot
 	if _, err := command.CombinedOutput(); err != nil {
 		if os.IsNotExist(err) || !fileExists(path) {
 			return nil
@@ -213,12 +362,30 @@ func (g *GitWorktrees) removeWorktree(ctx context.Context, path string) error {
 	return nil
 }
 
-func (g *GitWorktrees) git(ctx context.Context, args ...string) error {
-	command := exec.CommandContext(ctx, "git", args...)
-	command.Dir = g.RepositoryRoot
+func (g *GitWorktrees) gitAt(
+	ctx context.Context,
+	dir string,
+	environment []string,
+	args ...string,
+) error {
+	return g.runAt(ctx, dir, environment, "git", args...)
+}
+
+func (g *GitWorktrees) runAt(
+	ctx context.Context,
+	dir string,
+	environment []string,
+	commandName string,
+	args ...string,
+) error {
+	command := exec.CommandContext(ctx, commandName, args...)
+	command.Dir = dir
+	if environment != nil {
+		command.Env = environment
+	}
 	_, err := command.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+		return fmt.Errorf("%s %s: %w", commandName, strings.Join(args, " "), err)
 	}
 	return nil
 }
