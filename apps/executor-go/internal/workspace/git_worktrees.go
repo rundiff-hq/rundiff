@@ -126,7 +126,7 @@ func (g *GitWorktrees) Clone(
 	recorder journal.Recorder,
 ) (Prepared, error) {
 	token := repositorycapability.Token(ctx)
-	if token != "" {
+	if token != "" || g.externalRepositoryRequest(ctx, request) {
 		if err := g.prepareRemoteRepository(ctx, request, prepared.RepositoryRoot, token); err != nil {
 			return prepared, err
 		}
@@ -262,7 +262,11 @@ func (g *GitWorktrees) prepareRemoteRepository(
 		return err
 	}
 
-	auth := gitAuthEnvironment(baseURL, token)
+	auth := safeGitEnvironment()
+	auth = append(auth, "GIT_TERMINAL_PROMPT=0")
+	if token != "" {
+		auth = gitAuthEnvironment(baseURL, token)
+	}
 	return g.gitAt(
 		ctx,
 		repositoryRoot,
@@ -276,6 +280,58 @@ func (g *GitWorktrees) prepareRemoteRepository(
 			request.Context.PullRequestNumber,
 		),
 	)
+}
+
+func (g *GitWorktrees) externalRepositoryRequest(
+	ctx context.Context,
+	request protocol.RequestV1,
+) bool {
+	repository := strings.TrimSpace(request.Context.Repository)
+	if repository == "" {
+		return false
+	}
+
+	localRepository, err := g.localRepositoryIdentity(ctx)
+	if err != nil || localRepository == "" {
+		return false
+	}
+	return localRepository != repository
+}
+
+func (g *GitWorktrees) localRepositoryIdentity(ctx context.Context) (string, error) {
+	command := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
+	command.Dir = g.RepositoryRoot
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	value := strings.TrimSpace(string(output))
+	if value == "" {
+		return "", nil
+	}
+
+	if strings.HasPrefix(value, "git@github.com:") {
+		value = strings.TrimPrefix(value, "git@github.com:")
+		value = strings.TrimSuffix(value, ".git")
+		if repositoryPattern.MatchString(value) {
+			return value, nil
+		}
+		return "", nil
+	}
+
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", err
+	}
+	if !strings.EqualFold(parsed.Hostname(), "github.com") {
+		return "", nil
+	}
+	value = strings.TrimPrefix(parsed.Path, "/")
+	value = strings.TrimSuffix(value, ".git")
+	if repositoryPattern.MatchString(value) {
+		return value, nil
+	}
+	return "", nil
 }
 
 func validateRemoteRequest(request protocol.RequestV1) error {
