@@ -33,3 +33,4 @@ Read in this order:
 29. marketing/runtime-regression-library.md
 30. marketing/homepage-positioning-chat-snapshot.md
 31. marketing/runtime-regression-library-chat-snapshot.md
+32. marketing/marketing-discussion-verbatim-chat-snapshot.md
