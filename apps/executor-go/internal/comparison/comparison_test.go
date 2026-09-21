@@ -29,10 +29,10 @@ func TestPairMatchesRubyOracle(t *testing.T) {
 				value := execution("run-1", "scenario-1", 145, 19, []any{
 					runtimeObservation("worker_wall_ms", 80),
 					map[string]any{
-						"signal": "sql_queries",
-						"path": "app/controllers/demo_controller.rb",
+						"signal":     "sql_queries",
+						"path":       "app/controllers/demo_controller.rb",
 						"start_line": 20,
-						"end_line": 20,
+						"end_line":   20,
 						"confidence": "runtime",
 					},
 				})
@@ -41,10 +41,10 @@ func TestPairMatchesRubyOracle(t *testing.T) {
 			changed: []string{"app/controllers/demo_controller.rb"},
 		},
 		{
-			name: "optional signals and split queue stages",
-			baseline: asyncExecution("run-2", "scenario-2", 100, 10, 20, 50),
+			name:      "optional signals and split queue stages",
+			baseline:  asyncExecution("run-2", "scenario-2", 100, 10, 20, 50),
 			candidate: asyncExecution("run-2", "scenario-2", 105, 12, 55, 90),
-			changed: []string{},
+			changed:   []string{},
 		},
 	}
 
@@ -80,17 +80,17 @@ func execution(
 	observations []any,
 ) map[string]any {
 	return map[string]any{
-		"id": "subject",
-		"run_id": runID,
+		"id":          "subject",
+		"run_id":      runID,
 		"scenario_id": scenarioID,
 		"measurements": map[string]any{
-			"duration_ms": duration,
-			"thread_cpu_ms": 20.0,
-			"sql_queries": queries,
+			"duration_ms":     duration,
+			"thread_cpu_ms":   20.0,
+			"sql_queries":     queries,
 			"background_jobs": 1.0,
-			"emails": 0.0,
-			"http_requests": 1.0,
-			"errors": 0.0,
+			"emails":          0.0,
+			"http_requests":   1.0,
+			"errors":          0.0,
 		},
 		"durable_observations": observations,
 	}
@@ -116,7 +116,7 @@ func asyncExecution(
 
 func runtimeObservation(signal string, value float64) map[string]any {
 	return map[string]any{
-		"signal": signal,
+		"signal":  signal,
 		"payload": map[string]any{"value": value},
 	}
 }

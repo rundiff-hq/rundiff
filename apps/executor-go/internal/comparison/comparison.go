@@ -505,11 +505,11 @@ func behavioralRuntimeDiagnosis(signals map[string]any) map[string]any {
 
 	return map[string]any{
 		"request": map[string]any{
-			"baseline": runtimeSignalProfile(duration, threadCPU, "baseline"),
+			"baseline":  runtimeSignalProfile(duration, threadCPU, "baseline"),
 			"candidate": runtimeSignalProfile(duration, threadCPU, "candidate"),
 		},
 		"async": map[string]any{
-			"baseline": asyncSignalProfile(queueWait, workerWall, "baseline"),
+			"baseline":  asyncSignalProfile(queueWait, workerWall, "baseline"),
 			"candidate": asyncSignalProfile(queueWait, workerWall, "candidate"),
 		},
 		"async_delta": asyncDeltaDiagnosis(
@@ -519,7 +519,7 @@ func behavioralRuntimeDiagnosis(signals map[string]any) map[string]any {
 			workerWall,
 		),
 		"worker": map[string]any{
-			"baseline": runtimeSignalProfile(workerWall, workerCPU, "baseline"),
+			"baseline":  runtimeSignalProfile(workerWall, workerCPU, "baseline"),
 			"candidate": runtimeSignalProfile(workerWall, workerCPU, "candidate"),
 		},
 	}
@@ -609,17 +609,17 @@ func splitAsyncDelta(
 		dominant = round1(math.Max(ss, math.Max(ds, ws)))
 	}
 	return map[string]any{
-		"classification":                        classification,
-		"queue_wait_delta_ms":                   queueDelta,
-		"scheduled_delay_delta_ms":              round1(scheduledDelta),
-		"dispatch_wait_delta_ms":                round1(dispatchDelta),
-		"worker_wall_delta_ms":                  round1(workerDelta),
-		"positive_async_delta_ms":               round1(total),
-		"scheduled_delay_delta_share_percent":   ss,
-		"dispatch_wait_delta_share_percent":     ds,
-		"worker_runtime_delta_share_percent":    ws,
-		"enqueue_to_start_delta_share_percent":  enqueueShare,
-		"dominant_delta_share_percent":          dominant,
+		"classification":                       classification,
+		"queue_wait_delta_ms":                  queueDelta,
+		"scheduled_delay_delta_ms":             round1(scheduledDelta),
+		"dispatch_wait_delta_ms":               round1(dispatchDelta),
+		"worker_wall_delta_ms":                 round1(workerDelta),
+		"positive_async_delta_ms":              round1(total),
+		"scheduled_delay_delta_share_percent":  ss,
+		"dispatch_wait_delta_share_percent":    ds,
+		"worker_runtime_delta_share_percent":   ws,
+		"enqueue_to_start_delta_share_percent": enqueueShare,
+		"dominant_delta_share_percent":         dominant,
 	}
 }
 
