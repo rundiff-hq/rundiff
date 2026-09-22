@@ -158,6 +158,72 @@ behavior changed
 -> ALLOW terminal decision
 ```
 
-The production GitHub publication path still renders the terminal decision only. The richer `ALLOW · 1 WARNING` GitHub rendering is implemented in this branch and becomes live after the Cloudflare production Worker is redeployed.
+The warning model was subsequently deployed to the production Cloudflare Worker and re-proven below. The pre-deploy execution above is retained as historical evidence of the transition.
 
-The same live execution also confirms that production still emits the old scenario id `rails.sqlite.query-behavior`. The branch source now uses the runtime-neutral `http.request.behavior`; that production-only discrepancy closes with the same Worker redeploy.
+
+## Production cutover proof
+
+Production Worker version:
+
+```text
+f5274c36-59db-4f66-abec-6abbcd007ef1
+```
+
+A fresh `synchronize` event was created on the same external PR after deployment.
+
+Final candidate:
+
+```text
+d3629dc7b58b0c262ec90226c835afd69cd7e8f7
+```
+
+Final production result:
+
+```text
+workflow run          35714280673
+execution             65e19b49-40b7-4dd2-beca-587d368440f2
+
+scenario_id           http.request.behavior
+
+baseline response     11 bytes
+candidate response    97 bytes
+
+reason_code           RESPONSE_SIZE_INCREASE
+finding_severity      WARNING
+warning_count         1
+blocking_count        0
+merge_recommendation  allow
+result_status         succeeded
+submission_status     accepted
+```
+
+The production GitHub App publication also rendered:
+
+```text
+ALLOW · 1 warning
+```
+
+This closes both remaining production acceptance criteria:
+
+1. the scenario identifier is runtime-neutral in the live control plane;
+2. a warning-only behavioral change produces an ALLOW terminal decision while remaining visible in GitHub.
+
+The final proven model is therefore:
+
+```text
+terminal decision:
+ALLOW | BLOCK | INFRA_FAILURE
+
+finding severity:
+INFO | WARNING | BLOCKING
+```
+
+and the public external acceptance sequence is:
+
+```text
+BLOCK
+-> fix same PR
+-> ALLOW
+-> non-blocking behavior change
+-> ALLOW + WARNING
+```
