@@ -1,0 +1,7 @@
+{
+  "schema_version": "1",
+  "status": "failed",
+  "payload": null,
+  "error_class": "RunDiff::Executor::ExampleFailure",
+  "error_message": "example executor failure"
+}
