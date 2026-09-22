@@ -86,3 +86,34 @@ BLOCK -> fix same PR -> ALLOW
 ```
 
 Warnings are orthogonal findings, not a fourth decision state. See `docs/architecture/decision-and-finding-severity-v1.md`.
+
+
+## Warning-only pass
+
+After the BLOCK -> fix -> ALLOW proof, the same external PR received a harmless response-shape change: HTTP remained 200, the PostgreSQL query remained present, and only the JSON payload size increased.
+
+```text
+candidate             6aaba828fb7f175f581ae37e7294efb37c73818a
+workflow run          35672215395
+execution             73862af3-1838-42a9-85b0-ad672496e66c
+
+baseline HTTP         200
+candidate HTTP        200
+baseline response     11 bytes
+candidate response    94 bytes
+finding               RESPONSE_SIZE_INCREASE
+finding severity      WARNING
+warning count         1
+blocking count        0
+merge recommendation allow
+submission            accepted
+```
+
+This proves the intended orthogonal model:
+
+```text
+decision = ALLOW
+finding  = WARNING
+```
+
+rather than introducing WARNING as a fourth terminal decision.
