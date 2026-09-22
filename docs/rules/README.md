@@ -2,11 +2,13 @@
 
 This directory documents the target shape of stable behavioral analysis rules.
 
-It is design material, not yet the runtime source of truth.
+It documents the runtime Rule Registry introduced by PR #174.
 
-Current runtime policy still lives in `RunDiff::BehavioralDiff::SIGNALS`.
+`RunDiff::RuleRegistry` now owns the current signal comparison policy, legacy reason-code mapping, stable rule IDs, default severity, thresholds, and classification facets.
 
-RFC 0010 defines the migration.
+`RunDiff::BehavioralDiff` consumes the registry and remains the comparison engine.
+
+RFC 0010 defines the longer migration toward normalized Findings, evidence references, richer confidence, exporters, and causal investigation.
 
 ## Rule versus Finding
 
@@ -84,15 +86,17 @@ resources:
 
 RunDiff owns its internal rule/finding model.
 
-## Migration
+## Compatibility
 
-During schema-v1 migration, findings may expose both:
+Schema v1 findings expose both:
 
 ~~~yaml
 reason_code: DATABASE_QUERY_REGRESSION
 rule_id: database.query.count.regression
 ~~~
 
-Do not remove legacy reason codes until all consumers have migrated.
+Legacy reason codes remain supported until all consumers migrate.
+
+The registry is currently implemented in Ruby. Its file format is not a public contract; stable `rule_id` values are.
 
 See RFC 0010.

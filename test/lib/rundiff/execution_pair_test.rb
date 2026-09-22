@@ -15,6 +15,49 @@ class RunDiffExecutionPairTest < ActiveSupport::TestCase
     assert_equal "block", payload.dig("result", "merge_recommendation")
   end
 
+  test "attaches stable fingerprint and exact measurement evidence refs to findings" do
+    baseline = execution(id: "main", sql_queries: 14)
+    candidate = execution(id: "candidate", sql_queries: 19)
+
+    payload = RunDiff::ExecutionPair.call(baseline:, candidate:)
+    finding = payload.dig("result", "findings", 0)
+
+    assert_match(/Asha256:[0-9a-f]{64}z/, finding.fetch("fingerprint"))
+    assert_equal(
+      [
+        {
+          "kind" => "measurement",
+          "role" => "baseline",
+          "execution_id" => "main",
+          "signal" => "sql_queries"
+        },
+        {
+          "kind" => "measurement",
+          "role" => "candidate",
+          "execution_id" => "candidate",
+          "signal" => "sql_queries"
+        }
+      ],
+      finding.fetch("evidence_refs")
+    )
+  end
+
+  test "keeps finding fingerprint stable across execution ids for the same scenario rule and signal" do
+    first = RunDiff::ExecutionPair.call(
+      baseline: execution(id: "main-a", sql_queries: 14),
+      candidate: execution(id: "candidate-a", sql_queries: 19)
+    )
+    second = RunDiff::ExecutionPair.call(
+      baseline: execution(id: "main-b", sql_queries: 15),
+      candidate: execution(id: "candidate-b", sql_queries: 21)
+    )
+
+    assert_equal(
+      first.dig("result", "findings", 0, "fingerprint"),
+      second.dig("result", "findings", 0, "fingerprint")
+    )
+  end
+
   test "attaches trusted explicit or unambiguous runtime sources only when the path changed" do
     %w[explicit runtime].each do |confidence|
       baseline = execution(id: "main", sql_queries: 14)
