@@ -331,15 +331,15 @@ func BehavioralDiff(
 		signals[p.signal] = signal
 		if regression {
 			findings = append(findings, map[string]any{
-				"type":          "behavioral_regression",
-				"reason_code":   p.reasonCode,
-				"severity":          p.severity,
+				"type":             "behavioral_regression",
+				"reason_code":      p.reasonCode,
+				"severity":         p.severity,
 				"finding_severity": findingSeverity(p.severity),
-				"signal":            p.signal,
-				"baseline":      base,
-				"candidate":     cand,
-				"delta":         delta,
-				"delta_percent": percent,
+				"signal":           p.signal,
+				"baseline":         base,
+				"candidate":        cand,
+				"delta":            delta,
+				"delta_percent":    percent,
 			})
 		}
 	}
