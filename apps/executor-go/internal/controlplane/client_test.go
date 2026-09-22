@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -125,5 +126,26 @@ func requestFixture() protocol.RequestV1 {
 			Repository:        "demo/shop",
 			PullRequestNumber: 42,
 		},
+	}
+}
+
+
+func TestClaimReturnsTypedUnclaimableError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "execution attempt is not claimable",
+		})
+	}))
+	defer server.Close()
+
+	client := &Client{BaseURL: server.URL, Token: "secret"}
+	_, err := client.Claim(
+		context.Background(),
+		Assignment{ExecutionID: "exec-1", AttemptNumber: 3},
+	)
+	if !errors.Is(err, ErrAttemptUnclaimable) {
+		t.Fatalf("Claim error = %v, want ErrAttemptUnclaimable", err)
 	}
 }
