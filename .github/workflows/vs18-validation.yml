@@ -35,5 +35,6 @@ jobs:
       RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
       RUNDIFF_EXECUTOR_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
       RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: ${{ inputs.repository }}
+      RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ runner.temp }}/rundiff-dependency-cache
     steps:
       - run: echo "ok"
