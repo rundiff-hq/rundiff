@@ -4,12 +4,36 @@ on:
   workflow_dispatch:
     inputs:
       execution_id:
-        description: Exact execution ID
+        description: Exact RunDiff execution ID
         required: true
         type: string
+      attempt_number:
+        description: Exact RunDiff attempt number
+        required: true
+        type: string
+      repository:
+        description: Customer repository identity
+        required: true
+        type: string
+      candidate_sha:
+        description: Candidate SHA for audit output
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rundiff-execution-${{ inputs.execution_id }}
+  cancel-in-progress: false
 
 jobs:
   validate:
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
+      RUNDIFF_EXECUTOR_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
+      RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: ${{ inputs.repository }}
     steps:
       - run: echo "ok"
