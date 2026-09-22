@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+BIN="${RUNDIFF_GO_EXECUTOR_BIN:-/tmp/rundiff-executor}"
+PAIRS="${RUNDIFF_BENCHMARK_PAIRS:-5}"
+BASELINE_REF="${RUNDIFF_BENCHMARK_BASELINE_REF:-HEAD^}"
+CANDIDATE_REF="${RUNDIFF_BENCHMARK_CANDIDATE_REF:-HEAD}"
+REPOSITORY="${RUNDIFF_BENCHMARK_REPOSITORY:-${GITHUB_REPOSITORY:-rundiff-hq/rundiff}}"
+SCENARIO_ID="${RUNDIFF_BENCHMARK_SCENARIO_ID:-rails.sqlite.query-behavior}"
+OUTPUT_ROOT="${RUNDIFF_BENCHMARK_OUTPUT_ROOT:-$ROOT/tmp/rundiff/executor-benchmark}"
+
+if [[ ! "$PAIRS" =~ ^[1-9][0-9]*$ ]] || (( PAIRS > 10 )); then
+  echo "RUNDIFF_BENCHMARK_PAIRS must be an integer from 1 to 10" >&2
+  exit 64
+fi
+if [[ ! -x "$BIN" ]]; then
+  echo "RunDiff Go executor binary is not executable: $BIN" >&2
+  exit 64
+fi
+command -v jq >/dev/null || {
+  echo "jq is required" >&2
+  exit 64
+}
+
+cd "$ROOT"
+BASELINE_SHA="$(git rev-parse "${BASELINE_REF}^{commit}")"
+CANDIDATE_SHA="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
+rm -rf "$OUTPUT_ROOT"
+mkdir -p "$OUTPUT_ROOT"
+
+run_one() {
+  local mode="$1"
+  local pair="$2"
+  local execution_id="benchmark-${mode}-${pair}-${CANDIDATE_SHA:0:8}"
+  local prefix="$OUTPUT_ROOT/$(printf '%02d' "$pair")-${mode}"
+  local request_path="${prefix}.request.json"
+  local result_path="${prefix}.result.json"
+  local journal_path="${prefix}.journal.jsonl"
+  local metrics_path="${prefix}.metrics.jsonl"
+
+  jq -n \
+    --arg execution_id "$execution_id" \
+    --arg scenario_id "$SCENARIO_ID" \
+    --arg baseline_sha "$BASELINE_SHA" \
+    --arg candidate_sha "$CANDIDATE_SHA" \
+    --arg repository "$REPOSITORY" \
+    --arg baseline_ref "$BASELINE_REF" \
+    --arg candidate_ref "$CANDIDATE_REF" \
+    '{
+      schema_version: "1",
+      execution_id: $execution_id,
+      scenario_id: $scenario_id,
+      baseline_sha: $baseline_sha,
+      candidate_sha: $candidate_sha,
+      attempt_number: 1,
+      context: {
+        repository: $repository,
+        baseline_ref: $baseline_ref,
+        candidate_ref: $candidate_ref,
+        candidate_repository: $repository
+      }
+    }' > "$request_path"
+
+  local args=(
+    reference
+    --request "$request_path"
+    --result "$result_path"
+    --journal "$journal_path"
+    --metrics "$metrics_path"
+    --cwd "$ROOT"
+  )
+  if [[ "$mode" == "go" ]]; then
+    args+=(--native-workspace --native-bootstrap --native-subject-prepare --native-services)
+  fi
+
+  echo "::group::benchmark pair=$pair mode=$mode"
+  "$BIN" "${args[@]}" -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+  echo "::endgroup::"
+}
+
+for pair in $(seq 1 "$PAIRS"); do
+  if (( pair % 2 == 1 )); then
+    modes=(ruby go)
+  else
+    modes=(go ruby)
+  fi
+
+  for mode in "${modes[@]}"; do
+    run_one "$mode" "$pair"
+  done
+done
+
+mapfile -t metric_files < <(find "$OUTPUT_ROOT" -maxdepth 1 -name '*.metrics.jsonl' -print | sort)
+if (( ${#metric_files[@]} == 0 )); then
+  echo "No metrics files were produced" >&2
+  exit 1
+fi
+
+"$BIN" metrics-summary "${metric_files[@]}" | tee "$OUTPUT_ROOT/summary.tsv"
+
+{
+  echo "baseline_sha=$BASELINE_SHA"
+  echo "candidate_sha=$CANDIDATE_SHA"
+  echo "pairs=$PAIRS"
+} > "$OUTPUT_ROOT/metadata.txt"
