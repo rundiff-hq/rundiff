@@ -227,6 +227,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUNDIFF_INPUT: tmp/rundiff-git-comparison.json
           RUNDIFF_PUBLISH: "1"
+          RUNDIFF_CHECK_NAME: RunDiff / CI Dogfood
           RUNDIFF_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
           RUNDIFF_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bin/rails rundiff:github_check
