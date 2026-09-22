@@ -210,19 +210,19 @@ module RunDiff
 
         warning_count = result.fetch("warning_count", 0)
         blocking_count = result.fetch("blocking_count", 0)
-        label = if recommendation == "ALLOW" && warning_count.positive?
+        decision_label = if recommendation == "ALLOW" && warning_count.positive?
           "#{recommendation} · #{warning_count} WARNING#{warning_count == 1 ? "" : "S"}"
         elsif recommendation == "BLOCK" && blocking_count.positive?
-          "#{recommendation} · #{blocking_count} BLOCKING"
+          recommendation
         else
           recommendation
         end
 
         primary = findings.first
         signal = primary.fetch("signal")
-        label = SIGNAL_LABELS.fetch(signal, signal)
-        "**#{label}** - tests passed, but runtime behavior changed. " \
-          "`#{primary.fetch("reason_code")}` · #{label} " \
+        signal_label = SIGNAL_LABELS.fetch(signal, signal)
+        "**#{decision_label}** - tests passed, but runtime behavior changed. " \
+          "`#{primary.fetch("reason_code")}` · #{signal_label} " \
           "#{format_value(signal, primary.fetch("baseline"))} → #{format_value(signal, primary.fetch("candidate"))} " \
           "(#{display_percent(primary.fetch("delta_percent"))})."
       end
