@@ -68,7 +68,7 @@ func (g *GitWorktrees) Prepare(
 		return Prepared{}, errors.New("repository root is required")
 	}
 
-	remote := repositorycapability.Token(ctx) != ""
+	remote := repositorycapability.Token(ctx) != "" || g.externalRepositoryRequest(ctx, request)
 	baseDir := g.BaseDir
 	repositoryRoot := g.RepositoryRoot
 	if remote {
