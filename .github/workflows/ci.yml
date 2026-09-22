@@ -28,6 +28,33 @@ jobs:
           ruby-version: "3.4.10"
           bundler-cache: true
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Go executor contract
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            echo "gofmt required for:"
+            echo "$unformatted"
+            gofmt -d .
+            exit 1
+          fi
+          go test ./...
+          go vet ./...
+          go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+          GOOS=linux GOARCH=amd64 go build -o /tmp/rundiff-executor-linux-amd64 ./cmd/rundiff-executor
+          GOOS=linux GOARCH=arm64 go build -o /tmp/rundiff-executor-linux-arm64 ./cmd/rundiff-executor
+
       - name: Shell syntax
         run: |
           bash -n \
