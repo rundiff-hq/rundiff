@@ -115,3 +115,24 @@ submission           accepted
 This is the concrete product meaning of `ALLOW · 1 warning`.
 
 The current production Worker still emitted the historical scenario id during this proof because the runtime-neutral control-plane change had not yet been deployed. The code-level default is now `http.request.behavior`; the next production Cloudflare deploy activates it for new webhook executions.
+
+
+### Warning proof signal
+
+The first live non-blocking warning proof uses the runtime-neutral Node HTTP signal:
+
+```text
+response_bytes
+```
+
+Policy v1:
+
+```text
+reason_code: RESPONSE_SIZE_INCREASE
+finding_severity: WARNING
+threshold_percent: 25%
+threshold_absolute: 32 bytes
+terminal decision: ALLOW
+```
+
+The signal is optional for runtimes that do not expose response-body size yet. It does not change the three-state terminal decision contract.
