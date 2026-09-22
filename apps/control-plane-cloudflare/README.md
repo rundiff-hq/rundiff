@@ -159,8 +159,9 @@ The production GitHub webhook path also requires these Worker secrets/variables:
 RUNDIFF_GITHUB_APP_ID
 RUNDIFF_GITHUB_APP_PRIVATE_KEY
 RUNDIFF_GITHUB_WEBHOOK_SECRET
-RUNDIFF_GITHUB_SCENARIO_ID
 ~~~
+
+GitHub webhook executions use the runtime-neutral scenario id `http.request.behavior`.
 
 It verifies `X-Hub-Signature-256`, deduplicates `X-GitHub-Delivery`, accepts
 `pull_request` opened/synchronize/reopened events, and fences claim, result,
