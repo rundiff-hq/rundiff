@@ -9,6 +9,7 @@ type Publication = {
   candidate_sha: string;
   installation_id: number | null;
   decision: string;
+  result_json: string | null;
   check_id: number | null;
   comment_id: number | null;
   status: string;
@@ -20,7 +21,7 @@ export async function publishReview(
 ) {
   const row = await db
     .prepare(
-      `SELECT e.id,e.review_id,e.repository,e.pull_request_number,e.candidate_sha,e.installation_id,r.decision,p.check_id,p.comment_id,p.status FROM executions e JOIN behavioral_reviews r ON r.id=e.review_id JOIN github_publications p ON p.execution_id=e.id WHERE e.id=?`,
+      `SELECT e.id,e.review_id,e.repository,e.pull_request_number,e.candidate_sha,e.installation_id,r.decision,r.result_json,p.check_id,p.comment_id,p.status FROM executions e JOIN behavioral_reviews r ON r.id=e.review_id JOIN github_publications p ON p.execution_id=e.id WHERE e.id=?`,
     )
     .bind(executionId)
     .first<Publication>();
@@ -39,7 +40,12 @@ export async function publishReview(
     ));
   if (!(await current())) return;
   const prefix = `/repos/${row.repository}`;
-  const summary = `**${row.decision}**\n\nCandidate: \`${row.candidate_sha}\`\nExecution: \`${executionId}\`${row.decision === "INFRA_FAILURE" ? "\n\nExecution infrastructure failure; rerun after recovery." : ""}`;
+  const warningCount = executorWarningCount(row.result_json);
+  const decisionLabel =
+    row.decision === "ALLOW" && warningCount > 0
+      ? `ALLOW · ${warningCount} warning${warningCount === 1 ? "" : "s"}`
+      : row.decision;
+  const summary = `**${decisionLabel}**\n\nCandidate: \`${row.candidate_sha}\`\nExecution: \`${executionId}\`${row.decision === "INFRA_FAILURE" ? "\n\nExecution infrastructure failure; rerun after recovery." : ""}`;
   let checkId = row.check_id;
   if (!checkId) {
     // Recover a successful POST whose response was lost before D1 persistence.
@@ -57,7 +63,7 @@ export async function publishReview(
     name: "RunDiff / Behavioral Review",
     status: "completed",
     conclusion: row.decision === "ALLOW" ? "success" : "failure",
-    output: { title: `RunDiff: ${row.decision}`, summary },
+    output: { title: `RunDiff: ${decisionLabel}`, summary },
   };
   const check = await github.request<{ id: number }>(
     checkId ? `${prefix}/check-runs/${checkId}` : `${prefix}/check-runs`,
@@ -120,4 +126,26 @@ export async function publishReview(
       )
       .bind(comment.id, executionId),
   ]);
+}
+
+
+function executorWarningCount(resultJson: string | null): number {
+  if (!resultJson) return 0;
+  try {
+    const result = JSON.parse(resultJson) as Record<string, unknown>;
+    const payload =
+      result.payload && typeof result.payload === "object"
+        ? (result.payload as Record<string, unknown>)
+        : null;
+    const behavioral =
+      payload?.result && typeof payload.result === "object"
+        ? (payload.result as Record<string, unknown>)
+        : payload;
+    const value = behavioral?.warning_count;
+    return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+      ? value
+      : 0;
+  } catch {
+    return 0;
+  }
 }
