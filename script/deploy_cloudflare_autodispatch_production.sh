@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/apps/control-plane-cloudflare"
-DISPATCH_REF="${RUNDIFF_EXECUTOR_DISPATCH_REF:-feat/vs18-automatic-external-dispatch}"
+DISPATCH_REF="${RUNDIFF_EXECUTOR_DISPATCH_REF:-main}"
 
 cd "$APP"
 
