@@ -375,7 +375,7 @@ test("platform installation token dispatches exact executor workflow", async () 
     }
     if (
       url.pathname ===
-      "/repos/rundiff-hq/rundiff/actions/workflows/rundiff-executor-bridge.yml/dispatches"
+      "/repos/rundiff-hq/rundiff/actions/workflows/rundiff-executor-dispatch.yml/dispatches"
     ) {
       assert.equal(
         new Headers(init?.headers).get("authorization"),
@@ -408,7 +408,7 @@ test("platform installation token dispatches exact executor workflow", async () 
 
   await client.dispatchWorkflow(
     "rundiff-hq/rundiff",
-    "rundiff-executor-bridge.yml",
+    "rundiff-executor-dispatch.yml",
     "main",
     {
       execution_id: "exec-1",
@@ -425,7 +425,7 @@ test("platform installation token dispatches exact executor workflow", async () 
       ["POST", "/app/installations/99/access_tokens"],
       [
         "POST",
-        "/repos/rundiff-hq/rundiff/actions/workflows/rundiff-executor-bridge.yml/dispatches",
+        "/repos/rundiff-hq/rundiff/actions/workflows/rundiff-executor-dispatch.yml/dispatches",
       ],
     ],
   );
@@ -434,7 +434,7 @@ test("platform installation token dispatches exact executor workflow", async () 
 
 test("central executor workflow exposes exact workflow_dispatch inputs", () => {
   const workflow = readFileSync(
-    "../../.github/workflows/rundiff-executor-bridge.yml",
+    "../../.github/workflows/rundiff-executor-dispatch.yml",
     "utf8",
   );
   assert.match(workflow, /workflow_dispatch:/);
