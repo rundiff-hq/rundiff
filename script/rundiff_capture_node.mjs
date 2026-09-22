@@ -14,10 +14,11 @@ const startedCPU = process.cpuUsage();
 const started = performance.now();
 
 let response;
+let responseBytes = 0;
 let failure;
 try {
   response = await fetch(baseURL + path, { method: "POST" });
-  await response.arrayBuffer();
+  responseBytes = (await response.arrayBuffer()).byteLength;
 } catch (error) {
   failure = error;
 }
@@ -46,6 +47,7 @@ const payload = {
   measurements: {
     duration_ms: Number(elapsed.toFixed(1)),
     process_cpu_ms: Number(((cpu.user + cpu.system) / 1000).toFixed(1)),
+    response_bytes: responseBytes,
     errors: passed ? 0 : 1
   },
   attributions: {},
