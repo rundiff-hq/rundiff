@@ -88,3 +88,30 @@ soft threshold exceeded
 ```
 
 Good warning candidates include moderate latency growth, moderate SQL-query growth, increased allocation/CPU cost, or a newly observed network dependency that remains below the configured blocking threshold.
+
+
+## Live warning acceptance proof
+
+External Node PR `rundiff-hq/example-node-express-postgres#1` was used for a warning-only revision.
+
+The baseline response body was 11 bytes. The candidate remained HTTP 200 and kept the same PostgreSQL query, but added harmless JSON metadata and produced a 94-byte response.
+
+Measured Result v1:
+
+```text
+execution            73862af3-1838-42a9-85b0-ad672496e66c
+baseline HTTP        200
+candidate HTTP       200
+baseline bytes       11
+candidate bytes      94
+reason_code          RESPONSE_SIZE_INCREASE
+finding_severity     WARNING
+warning_count        1
+blocking_count       0
+merge_recommendation allow
+submission           accepted
+```
+
+This is the concrete product meaning of `ALLOW · 1 warning`.
+
+The current production Worker still emitted the historical scenario id during this proof because the runtime-neutral control-plane change had not yet been deployed. The code-level default is now `http.request.behavior`; the next production Cloudflare deploy activates it for new webhook executions.
