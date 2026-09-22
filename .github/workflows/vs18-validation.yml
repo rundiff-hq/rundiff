@@ -1,0 +1,15 @@
+name: VS18 Workflow Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      execution_id:
+        description: Exact execution ID
+        required: true
+        type: string
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "ok"
