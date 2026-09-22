@@ -16,7 +16,7 @@
   "vars": {
     "RUNDIFF_EXECUTOR_AUTODISPATCH": "disabled",
     "RUNDIFF_EXECUTOR_DISPATCH_REPOSITORY": "rundiff-hq/rundiff",
-    "RUNDIFF_EXECUTOR_DISPATCH_WORKFLOW": "rundiff-executor-bridge.yml",
+    "RUNDIFF_EXECUTOR_DISPATCH_WORKFLOW": "rundiff-executor-dispatch.yml",
     "RUNDIFF_EXECUTOR_DISPATCH_REF": "main"
   },
   "assets": {
