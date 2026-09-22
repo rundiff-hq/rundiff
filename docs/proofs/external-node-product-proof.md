@@ -117,3 +117,47 @@ finding  = WARNING
 ```
 
 rather than introducing WARNING as a fourth terminal decision.
+
+
+## ALLOW + WARNING proof
+
+The same external PR was then used to prove a non-blocking behavioral warning.
+
+Candidate:
+
+```text
+1fcbf1c97622e69b158bab7d4b981ccac0ba7495
+demo: retrigger warning-only RunDiff proof
+```
+
+The candidate preserved functional behavior and the PostgreSQL query but increased the JSON response body.
+
+Live result:
+
+```text
+workflow run          35673868667
+execution             76b04635-b04d-483e-9c5d-6e24a3d5920e
+
+baseline response     11 bytes
+candidate response    97 bytes
+
+reason_code           RESPONSE_SIZE_INCREASE
+finding_severity      WARNING
+warning_count         1
+blocking_count        0
+behavioral decision   regression
+merge recommendation allow
+submission            accepted
+```
+
+This proves that RunDiff can report a real behavioral change without making it merge-blocking:
+
+```text
+behavior changed
+-> WARNING finding
+-> ALLOW terminal decision
+```
+
+The production GitHub publication path still renders the terminal decision only. The richer `ALLOW · 1 WARNING` GitHub rendering is implemented in this branch and becomes live after the Cloudflare production Worker is redeployed.
+
+The same live execution also confirms that production still emits the old scenario id `rails.sqlite.query-behavior`. The branch source now uses the runtime-neutral `http.request.behavior`; that production-only discrepancy closes with the same Worker redeploy.
