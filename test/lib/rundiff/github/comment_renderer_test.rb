@@ -38,7 +38,7 @@ class RunDiffGithubCommentRendererTest < ActiveSupport::TestCase
       }
     )
 
-    assert_includes markdown, "1 regression · 1 high"
+    assert_includes markdown, "1 finding · 1 blocking"
     assert_includes markdown, "### What changed"
     assert_includes markdown, "`DATABASE_QUERY_REGRESSION`"
     assert_includes markdown, "Candidate executed **5 additional SQL queries** while the functional scenario still passed."
