@@ -191,3 +191,24 @@ func TestBehavioralDiffMarksUnobservedSignalsUnavailable(t *testing.T) {
 		t.Fatalf("recommendation = %v", result["merge_recommendation"])
 	}
 }
+
+func TestBehavioralDiffAllowsWarningsWithoutBlocking(t *testing.T) {
+	result := BehavioralDiff(
+		map[string]any{"duration_ms": 100.0, "response_bytes": 64.0, "errors": 0.0},
+		map[string]any{"duration_ms": 100.0, "response_bytes": 160.0, "errors": 0.0},
+	)
+	if result["merge_recommendation"] != "allow" {
+		t.Fatalf("recommendation = %v", result["merge_recommendation"])
+	}
+	if result["warning_count"] != 1 || result["blocking_count"] != 0 {
+		t.Fatalf("counts = warning:%v blocking:%v", result["warning_count"], result["blocking_count"])
+	}
+	findings := result["findings"].([]any)
+	finding := findings[0].(map[string]any)
+	if finding["finding_severity"] != "WARNING" {
+		t.Fatalf("finding severity = %v", finding["finding_severity"])
+	}
+	if finding["reason_code"] != "RESPONSE_SIZE_INCREASE" {
+		t.Fatalf("reason code = %v", finding["reason_code"])
+	}
+}
