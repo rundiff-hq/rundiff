@@ -163,6 +163,20 @@ RUNDIFF_GITHUB_WEBHOOK_SECRET
 
 GitHub webhook executions use the runtime-neutral scenario id `http.request.behavior`.
 
+Automatic central executor dispatch is rollout-gated. Production config ships with:
+
+~~~text
+RUNDIFF_EXECUTOR_AUTODISPATCH=disabled
+~~~
+
+Before switching it to `github_actions`:
+
+- the dispatch-enabled `.github/workflows/rundiff-executor-bridge.yml` must be on the default branch;
+- the RunDiff GitHub App platform installation must have repository `Actions: write` for `rundiff-hq/rundiff`;
+- the Worker must be deployed with the VS18 dispatch code.
+
+The Worker discovers the RunDiff App installation for the platform repository separately from the customer installation carried in the webhook. Customer installation tokens are never used to dispatch workflows in the RunDiff platform repository.
+
 It verifies `X-Hub-Signature-256`, deduplicates `X-GitHub-Delivery`, accepts
 `pull_request` opened/synchronize/reopened events, and fences claim, result,
 finalization, Check publication, and PR comment publication against the exact
