@@ -70,7 +70,7 @@ jobs:
       - name: Restore RunDiff dependency cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/rundiff-dependency-cache
+          path: ${{ github.workspace }}/tmp/rundiff-dependency-cache
           key: rundiff-dispatch-deps-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.repository }}
           restore-keys: |
             rundiff-dispatch-deps-v1-${{ runner.os }}-${{ runner.arch }}-
