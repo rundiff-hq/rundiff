@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -45,6 +48,42 @@ func TestSupervisorBenchmarkIdleReportsReady(t *testing.T) {
 		t.Fatalf("supervisor-benchmark-idle exit=%d stderr=%s", code, stderr.String())
 	}
 	if stdout.String() != "RUNDIFF_SUPERVISOR_READY\n" {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
+
+
+func TestAgentUnclaimableCanExitSuccessfully(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"error":"execution attempt is not claimable"}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("RUNDIFF_EXECUTOR_TOKEN", "secret")
+	tmp := t.TempDir()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run(
+		[]string{
+			"agent",
+			"--control-plane-url", server.URL,
+			"--execution-id", "exec-duplicate",
+			"--attempt", "1",
+			"--unclaimable-ok",
+			"--cwd", tmp,
+			"--journal", filepath.Join(tmp, "journal.jsonl"),
+			"--metrics", filepath.Join(tmp, "metrics.jsonl"),
+		},
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("agent exit=%d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "assignment_status=already_claimed_or_complete") {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
 }
