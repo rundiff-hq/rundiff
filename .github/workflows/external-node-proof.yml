@@ -1,9 +1,6 @@
 name: External Node Product Proof
 
 on:
-  push:
-    branches:
-      - feat/vs17-external-node-proof
   workflow_dispatch:
 
 permissions:
