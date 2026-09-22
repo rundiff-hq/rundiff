@@ -2,6 +2,11 @@ export interface GitHubCredentials {
   RUNDIFF_GITHUB_APP_ID?: string;
   RUNDIFF_GITHUB_APP_PRIVATE_KEY?: string;
 }
+
+export type GitHubInstallationPermissions = {
+  actions?: "read" | "write";
+  contents?: "read" | "write";
+};
 const encode = (value: string | Uint8Array) =>
   btoa(typeof value === "string" ? value : String.fromCharCode(...value))
     .replace(/=/g, "")
@@ -63,6 +68,40 @@ export class GitHubClient {
     private readonly transport: typeof fetch = fetch,
   ) {}
   async request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+    const response = await this.perform(path, method, body);
+    if (response.status === 204) return undefined as T;
+    return response.json() as Promise<T>;
+  }
+
+  async requestNoContent(
+    path: string,
+    method = "POST",
+    body?: unknown,
+  ): Promise<void> {
+    const response = await this.perform(path, method, body);
+    if (response.status !== 204) {
+      throw new Error(`GitHub ${method} expected 204 but received ${response.status}`);
+    }
+  }
+
+  async dispatchWorkflow(
+    repository: string,
+    workflow: string,
+    ref: string,
+    inputs: Record<string, string>,
+  ): Promise<void> {
+    await this.requestNoContent(
+      `/repos/${repository}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`,
+      "POST",
+      { ref, inputs },
+    );
+  }
+
+  private async perform(
+    path: string,
+    method: string,
+    body?: unknown,
+  ): Promise<Response> {
     const transport = this.transport;
     const response = await transport(`https://api.github.com${path}`, {
       method,
@@ -77,7 +116,7 @@ export class GitHubClient {
     });
     if (!response.ok)
       throw new Error(`GitHub ${method} failed (${response.status})`);
-    return response.json() as Promise<T>;
+    return response;
   }
   accessToken(): string {
     return this.token;
@@ -88,6 +127,46 @@ export class GitHubClient {
     installationId: number,
     repositoryId?: number,
     repositoryName?: string,
+  ): Promise<GitHubClient> {
+    const app = await GitHubClient.app(env);
+    const result = await app.request<{ token: string }>(
+      `/app/installations/${installationId}/access_tokens`,
+      "POST",
+      repositoryId
+        ? { repository_ids: [repositoryId] }
+        : repositoryName
+          ? {
+              repositories: [repositoryName],
+              permissions: { contents: "read" },
+            }
+          : {},
+    );
+    return new GitHubClient(result.token);
+  }
+
+  static async repositoryInstallation(
+    env: GitHubCredentials,
+    repository: string,
+    permissions: GitHubInstallationPermissions,
+    transport: typeof fetch = fetch,
+  ): Promise<GitHubClient> {
+    const [owner, name, extra] = repository.split("/");
+    if (!owner || !name || extra) throw new Error("invalid GitHub repository");
+    const app = await GitHubClient.app(env, transport);
+    const installation = await app.request<{ id: number }>(
+      `/repos/${owner}/${name}/installation`,
+    );
+    const result = await app.request<{ token: string }>(
+      `/app/installations/${installation.id}/access_tokens`,
+      "POST",
+      { repositories: [name], permissions },
+    );
+    return new GitHubClient(result.token, transport);
+  }
+
+  private static async app(
+    env: GitHubCredentials,
+    transport: typeof fetch = fetch,
   ): Promise<GitHubClient> {
     if (!env.RUNDIFF_GITHUB_APP_ID || !env.RUNDIFF_GITHUB_APP_PRIVATE_KEY)
       throw new Error("GitHub App credentials are not configured");
@@ -108,20 +187,7 @@ export class GitHubClient {
         new TextEncoder().encode(data),
       ),
     );
-    const app = new GitHubClient(`${data}.${encode(signature)}`);
-    const result = await app.request<{ token: string }>(
-      `/app/installations/${installationId}/access_tokens`,
-      "POST",
-      repositoryId
-        ? { repository_ids: [repositoryId] }
-        : repositoryName
-          ? {
-              repositories: [repositoryName],
-              permissions: { contents: "read" },
-            }
-          : {},
-    );
-    return new GitHubClient(result.token);
+    return new GitHubClient(`${data}.${encode(signature)}`, transport);
   }
   async current(
     repository: string,
