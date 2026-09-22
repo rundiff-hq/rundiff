@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+CONTROL_PLANE_URL="${RUNDIFF_CONTROL_PLANE_URL:-https://rundiff.com}"
+TOKEN="${RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN:-}"
+
+if [[ -z "$TOKEN" ]]; then
+  echo "RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN is required" >&2
+  exit 64
+fi
+
+read_event_value() {
+  local expression="$1"
+  if [[ -n "${GITHUB_EVENT_PATH:-}" && -f "${GITHUB_EVENT_PATH}" ]]; then
+    jq -r "$expression // empty" "$GITHUB_EVENT_PATH"
+  fi
+}
+
+REPOSITORY="${RUNDIFF_BRIDGE_REPOSITORY:-${GITHUB_REPOSITORY:-}}"
+PULL_REQUEST_NUMBER="${RUNDIFF_BRIDGE_PULL_REQUEST_NUMBER:-$(read_event_value '.pull_request.number')}"
+BASELINE_SHA="${RUNDIFF_BRIDGE_BASELINE_SHA:-$(read_event_value '.pull_request.base.sha')}"
+CANDIDATE_SHA="${RUNDIFF_BRIDGE_CANDIDATE_SHA:-$(read_event_value '.pull_request.head.sha')}"
+
+for name in REPOSITORY PULL_REQUEST_NUMBER BASELINE_SHA CANDIDATE_SHA; do
+  if [[ -z "${!name:-}" ]]; then
+    echo "Missing bridge identity: $name" >&2
+    exit 64
+  fi
+done
+
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+claim_payload="$tmp_dir/claim.json"
+claim_response="$tmp_dir/claim-response.json"
+request_path="$tmp_dir/request.json"
+result_path="$tmp_dir/result.json"
+submit_response="$tmp_dir/submit-response.json"
+
+jq -n   --arg repository "$REPOSITORY"   --argjson pull_request_number "$PULL_REQUEST_NUMBER"   --arg baseline_sha "$BASELINE_SHA"   --arg candidate_sha "$CANDIDATE_SHA"   '{
+    repository: $repository,
+    pull_request_number: $pull_request_number,
+    baseline_sha: $baseline_sha,
+    candidate_sha: $candidate_sha
+  }' > "$claim_payload"
+
+supervisor="${RUNDIFF_EXECUTOR_SUPERVISOR:-ruby}"
+
+if [[ "$supervisor" == "go" ]]; then
+  go_executor_bin="${RUNDIFF_GO_EXECUTOR_BIN:-}"
+  if [[ -z "$go_executor_bin" || ! -x "$go_executor_bin" ]]; then
+    echo "RUNDIFF_GO_EXECUTOR_BIN must point to an executable when RUNDIFF_EXECUTOR_SUPERVISOR=go" >&2
+    exit 64
+  fi
+
+  resolve_response="$tmp_dir/resolve-response.json"
+  resolved=false
+  for attempt in $(seq 1 40); do
+    status="$(
+      curl -sS \
+        -o "$resolve_response" \
+        -w '%{http_code}' \
+        -X POST "$CONTROL_PLANE_URL/api/execution-bridges/github-actions/resolve" \
+        -H "authorization: Bearer $TOKEN" \
+        -H 'content-type: application/json' \
+        --data-binary "@$claim_payload"
+    )"
+
+    case "$status" in
+      200)
+        resolved=true
+        break
+        ;;
+      409)
+        sleep 3
+        ;;
+      *)
+        echo "RunDiff assignment resolution failed with HTTP $status" >&2
+        cat "$resolve_response" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ "$resolved" != "true" ]]; then
+    echo "RunDiff execution was not resolvable after retries" >&2
+    cat "$resolve_response" >&2
+    exit 1
+  fi
+
+  execution_id="$(jq -r '.execution_id' "$resolve_response")"
+  attempt_number="$(jq -r '.attempt_number' "$resolve_response")"
+  if [[ -z "$execution_id" || "$execution_id" == "null" || ! "$attempt_number" =~ ^[1-9][0-9]*$ ]]; then
+    echo "RunDiff resolve returned invalid exact assignment" >&2
+    cat "$resolve_response" >&2
+    exit 1
+  fi
+
+  journal_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.journal.jsonl"
+  metrics_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.metrics.jsonl"
+  mkdir -p "$(dirname "$journal_path")"
+
+  echo "bridge_resolved_execution=$execution_id"
+  echo "bridge_resolved_attempt=$attempt_number"
+
+  (
+    cd "$ROOT"
+    "$go_executor_bin" agent \
+      --control-plane-url "$CONTROL_PLANE_URL" \
+      --token-env RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN \
+      --execution-id "$execution_id" \
+      --attempt "$attempt_number" \
+      --result "$result_path" \
+      --journal "$journal_path" \
+      --metrics "$metrics_path" \
+      --cwd "$ROOT" \
+      --heartbeat-interval "${RUNDIFF_EXECUTOR_HEARTBEAT_INTERVAL:-20s}"
+  )
+
+  echo "bridge_supervisor=go"
+  echo "bridge_managed_lifecycle=exact_attempt"
+  echo "bridge_go_journal_entries=$(wc -l < "$journal_path" | tr -d ' ')"
+  echo "bridge_lease_claims=$(awk '/"kind":"lease_claimed"/ {count++} END {print count+0}' "$journal_path")"
+  echo "bridge_lease_renewals=$(awk '/"kind":"lease_renewed"/ {count++} END {print count+0}' "$journal_path")"
+  echo "bridge_result_submissions=$(awk '/"kind":"result_submitted"/ {count++} END {print count+0}' "$journal_path")"
+  echo "bridge_phase_metric_count=$(wc -l < "$metrics_path" | tr -d ' ')"
+  while IFS= read -r metric; do
+    echo "bridge_phase_metric=$metric"
+  done < "$metrics_path"
+  echo "bridge_result_status=$(jq -r '.status' "$result_path")"
+  exit 0
+fi
+
+claimed=false
+for attempt in $(seq 1 40); do
+  status="$(
+    curl -sS       -o "$claim_response"       -w '%{http_code}'       -X POST "$CONTROL_PLANE_URL/api/execution-bridges/github-actions/claim"       -H "authorization: Bearer $TOKEN"       -H 'content-type: application/json'       --data-binary "@$claim_payload"
+  )"
+
+  case "$status" in
+    200)
+      claimed=true
+      break
+      ;;
+    409)
+      sleep 3
+      ;;
+    *)
+      echo "RunDiff claim failed with HTTP $status" >&2
+      cat "$claim_response" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ "$claimed" != "true" ]]; then
+  echo "RunDiff execution was not claimable after retries" >&2
+  cat "$claim_response" >&2
+  exit 1
+fi
+
+jq -e '.request' "$claim_response" > "$request_path"
+execution_id="$(jq -r '.execution_id' "$request_path")"
+attempt_number="$(jq -r '.attempt_number' "$request_path")"
+
+echo "bridge_claimed_execution=$execution_id"
+echo "bridge_claimed_attempt=$attempt_number"
+
+case "$supervisor" in
+  go)
+    go_executor_bin="${RUNDIFF_GO_EXECUTOR_BIN:-}"
+    if [[ -z "$go_executor_bin" || ! -x "$go_executor_bin" ]]; then
+      echo "RUNDIFF_GO_EXECUTOR_BIN must point to an executable when RUNDIFF_EXECUTOR_SUPERVISOR=go" >&2
+      exit 64
+    fi
+
+    journal_path="$ROOT/tmp/rundiff/go-executor/$execution_id.$attempt_number.journal.jsonl"
+    mkdir -p "$(dirname "$journal_path")"
+
+    (
+      cd "$ROOT"
+      "$go_executor_bin" reference \
+        --request "$request_path" \
+        --result "$result_path" \
+        --journal "$journal_path" \
+        --cwd "$ROOT" \
+        -- bundle exec ruby script/run_cloudflare_executor_bridge.rb
+    )
+
+    echo "bridge_supervisor=go"
+    echo "bridge_go_journal_entries=$(wc -l < "$journal_path" | tr -d ' ')"
+    ;;
+  ruby)
+    (
+      cd "$ROOT"
+      RUNDIFF_EXECUTOR_REQUEST_PATH="$request_path" \
+      RUNDIFF_EXECUTOR_RESULT_PATH="$result_path" \
+        bundle exec ruby script/run_cloudflare_executor_bridge.rb
+    )
+    echo "bridge_supervisor=ruby"
+    ;;
+  *)
+    echo "Unsupported RUNDIFF_EXECUTOR_SUPERVISOR: $supervisor" >&2
+    exit 64
+    ;;
+esac
+
+submit_status="$(
+  curl -sS     -o "$submit_response"     -w '%{http_code}'     -X POST "$CONTROL_PLANE_URL/api/executions/$execution_id/attempts/$attempt_number/result"     -H "authorization: Bearer $TOKEN"     -H 'content-type: application/json'     --data-binary "@$result_path"
+)"
+
+if [[ "$submit_status" != "202" ]]; then
+  echo "RunDiff result submission failed with HTTP $submit_status" >&2
+  cat "$submit_response" >&2
+  exit 1
+fi
+
+echo "bridge_result_status=$(jq -r '.status' "$result_path")"
+echo "bridge_submission=$(jq -c '.' "$submit_response")"

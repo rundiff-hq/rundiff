@@ -31,6 +31,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/control-plane-cloudflare/package-lock.json
 
       - uses: actions/setup-go@v6
         with:
@@ -55,6 +57,13 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -o /tmp/rundiff-executor-linux-amd64 ./cmd/rundiff-executor
           GOOS=linux GOARCH=arm64 go build -o /tmp/rundiff-executor-linux-arm64 ./cmd/rundiff-executor
 
+      - name: Cloudflare control plane contract
+        working-directory: apps/control-plane-cloudflare
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
       - name: Shell syntax
         run: |
           bash -n \
@@ -64,7 +73,10 @@ jobs:
             bin/start-executor \
             bin/verify-production-cutover \
             bin/verify-production-identity \
-            bin/verify-production-topology
+            bin/verify-production-topology \
+            apps/control-plane-cloudflare/bin/github-actions-bridge \
+            script/deploy_cloudflare_production.sh \
+            script/deploy_cloudflare_autodispatch_production.sh
           ruby -c bin/collect-production-proof
           find lab -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
