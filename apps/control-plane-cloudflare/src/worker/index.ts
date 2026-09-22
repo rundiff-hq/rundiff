@@ -28,6 +28,7 @@ type ClaimBody = {
 };
 
 const app = new Hono<{ Bindings: Env }>();
+const DEFAULT_GITHUB_SCENARIO_ID = "http.request.behavior";
 
 app.get("/api/health", (c) =>
   c.json({ ok: true, service: "rundiff-control-plane" }),
@@ -88,7 +89,7 @@ app.post("/api/github/webhooks", async (c) => {
   const accepted = await repo.accept(
     identity,
     await canonicalDigest(JSON.parse(raw)),
-    c.env.RUNDIFF_GITHUB_SCENARIO_ID,
+    DEFAULT_GITHUB_SCENARIO_ID,
     Number(c.env.RUNDIFF_EXECUTOR_TIMEOUT_SECONDS ?? 1800),
   );
   if (await repo.current(accepted.executionId)) {
