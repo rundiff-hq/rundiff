@@ -56,12 +56,7 @@ export async function publishReview(
   const checkBody = {
     name: "RunDiff / Behavioral Review",
     status: "completed",
-    conclusion:
-      row.decision === "ALLOW"
-        ? "success"
-        : row.decision === "REVIEW"
-          ? "action_required"
-          : "failure",
+    conclusion: row.decision === "ALLOW" ? "success" : "failure",
     output: { title: `RunDiff: ${row.decision}`, summary },
   };
   const check = await github.request<{ id: number }>(
