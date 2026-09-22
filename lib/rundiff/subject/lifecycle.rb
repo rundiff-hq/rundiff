@@ -19,13 +19,23 @@ module RunDiff
         @stage_timer = stage_timer
       end
 
-      def open(root:, execution:, role:, configuration:, setup_configuration: configuration)
+      def open(
+        root:,
+        execution:,
+        role:,
+        configuration:,
+        setup_configuration: configuration,
+        runtime_env: nil,
+        prepared_env: nil,
+        services_prepared: false
+      )
         setup_plan = timed(execution:, role:, stage: "setup_plan") do
           compile_setup_plan(root:, configuration: setup_configuration)
         end
         runtime_env = timed(execution:, role:, stage: "bootstrap") do
           bootstrap(root:, setup_plan:)
-        end
+        end if runtime_env.nil?
+        runtime_env ||= {}
         environment = timed(execution:, role:, stage: "environment_resolve") do
           resolve_environment(root:, configuration: setup_configuration, runtime_env:)
         end
@@ -34,31 +44,39 @@ module RunDiff
         service_session = nil
 
         begin
-          capture_env = timed(execution:, role:, stage: "environment_prepare") do
-            environment.prepare(root:, execution:, role:)
+          capture_env = if prepared_env
+            prepared_env.dup
+          else
+            timed(execution:, role:, stage: "environment_prepare") do
+              environment.prepare(root:, execution:, role:)
+            end
           end.merge(configuration.capture_env)
-          service_result = timed(execution:, role:, stage: "services_start") do
-            @service_executor.start(
+          unless services_prepared
+            service_result = timed(execution:, role:, stage: "services_start") do
+              @service_executor.start(
+                root:,
+                execution:,
+                role:,
+                env: capture_env,
+                setup_plan:
+              )
+            end
+            service_session = service_result.session
+            capture_env.merge!(service_result.env)
+          end
+
+          environment_services_attempted = true
+          environment.start_services(root:, execution:, role:, env: capture_env)
+          unless services_prepared
+            @service_executor.healthcheck(
               root:,
               execution:,
               role:,
               env: capture_env,
-              setup_plan:
+              setup_plan:,
+              session: service_session
             )
           end
-          service_session = service_result.session
-          capture_env.merge!(service_result.env)
-
-          environment_services_attempted = true
-          environment.start_services(root:, execution:, role:, env: capture_env)
-          @service_executor.healthcheck(
-            root:,
-            execution:,
-            role:,
-            env: capture_env,
-            setup_plan:,
-            session: service_session
-          )
           environment.healthcheck(root:, execution:, role:, env: capture_env)
 
           timed(execution:, role:, stage: "capture") do

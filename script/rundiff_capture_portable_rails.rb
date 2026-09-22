@@ -46,6 +46,7 @@ class RunDiffPortableRailsCapture
     measurements["errors"] += 1 unless passed
 
     payload = {
+      "sensor" => sensor_identity,
       "id" => label,
       "execution_id" => SecureRandom.uuid,
       "run_id" => run_id,
@@ -158,6 +159,7 @@ class RunDiffPortableRailsCapture
     return if output.to_s.empty?
 
     payload = {
+      "sensor" => sensor_identity,
       "id" => label,
       "execution_id" => SecureRandom.uuid,
       "run_id" => run_id,
@@ -174,6 +176,15 @@ class RunDiffPortableRailsCapture
     File.write(output, JSON.pretty_generate(payload))
   rescue StandardError
     nil
+  end
+
+  def sensor_identity
+    {
+      "schema_version" => ENV.fetch("RUNDIFF_SENSOR_SCHEMA_VERSION", "1"),
+      "adapter" => ENV.fetch("RUNDIFF_SENSOR_ADAPTER", "rails"),
+      "mode" => ENV.fetch("RUNDIFF_CAPTURE_RUNTIME", "tool_owned_portable_rails"),
+      "runtime" => ENV.fetch("RUNDIFF_SENSOR_RUNTIME", "ruby")
+    }
   end
 
   def request

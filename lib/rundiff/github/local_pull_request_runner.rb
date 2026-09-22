@@ -83,6 +83,7 @@ module RunDiff
       )
         @root = Pathname(root).expand_path
         @tool_root = Pathname(tool_root).expand_path
+        @stage_timer = stage_timer
         @command_runner = command_runner
         @fetch_repository = fetch_repository
         @execution_identity = execution_identity || RunDiff::Subject::ExecutionIdentity.from_env
@@ -109,13 +110,35 @@ module RunDiff
       def call(execution:)
         context = execution.context
         assert_local_subject!(context:)
-        fetch_repository! if @fetch_repository
-        assert_commit!(execution.baseline_sha)
-        assert_commit!(execution.candidate_sha)
 
-        paths = execution_paths(execution:)
-        prepare_worktree!(path: paths.fetch(:baseline_root), sha: execution.baseline_sha)
-        prepare_worktree!(path: paths.fetch(:candidate_root), sha: execution.candidate_sha)
+        paths = timed(execution:, stage: "prepare") do
+          execution_paths(execution:)
+        end
+
+        if prepared_workspace?
+          verify_prepared_worktree!(
+            path: paths.fetch(:baseline_root),
+            sha: execution.baseline_sha
+          )
+          verify_prepared_worktree!(
+            path: paths.fetch(:candidate_root),
+            sha: execution.candidate_sha
+          )
+        else
+          timed(execution:, stage: "clone") do
+            fetch_repository! if @fetch_repository
+            assert_commit!(execution.baseline_sha)
+            assert_commit!(execution.candidate_sha)
+            prepare_worktree!(
+              path: paths.fetch(:baseline_root),
+              sha: execution.baseline_sha
+            )
+            prepare_worktree!(
+              path: paths.fetch(:candidate_root),
+              sha: execution.candidate_sha
+            )
+          end
+        end
 
         capture_configuration = RunDiff::Subject::Configuration.load(root: paths.fetch(:candidate_root))
         baseline_setup_configuration = RunDiff::Subject::Configuration.load(root: paths.fetch(:baseline_root))
@@ -129,7 +152,10 @@ module RunDiff
             execution:,
             role: "base",
             configuration: capture_configuration,
-            setup_configuration: baseline_setup_configuration
+            setup_configuration: baseline_setup_configuration,
+            runtime_env: prepared_runtime_env("base"),
+            prepared_env: prepared_subject_env("base"),
+            services_prepared: prepared_services?
           ) do |baseline_subject|
             capture_subject!(
               execution:,
@@ -151,7 +177,10 @@ module RunDiff
             execution:,
             role: "candidate",
             configuration: capture_configuration,
-            setup_configuration: capture_configuration
+            setup_configuration: capture_configuration,
+            runtime_env: prepared_runtime_env("candidate"),
+            prepared_env: prepared_subject_env("candidate"),
+            services_prepared: prepared_services?
           ) do |candidate_subject|
             capture_subject!(
               execution:,
@@ -170,8 +199,10 @@ module RunDiff
           changed_paths: changed_paths(execution:)
         )
       ensure
-        cleanup_worktree(paths&.fetch(:baseline_root, nil))
-        cleanup_worktree(paths&.fetch(:candidate_root, nil))
+        unless prepared_workspace?
+          cleanup_worktree(paths&.fetch(:baseline_root, nil))
+          cleanup_worktree(paths&.fetch(:candidate_root, nil))
+        end
       end
 
       private
@@ -217,6 +248,18 @@ module RunDiff
       end
 
       def execution_paths(execution:)
+        if prepared_workspace?
+          directory = Pathname(ENV.fetch("RUNDIFF_PREPARED_WORKSPACE_ROOT")).expand_path
+          baseline_root = Pathname(ENV.fetch("RUNDIFF_PREPARED_BASELINE_ROOT")).expand_path
+          candidate_root = Pathname(ENV.fetch("RUNDIFF_PREPARED_CANDIDATE_ROOT")).expand_path
+          return {
+            baseline_root:,
+            candidate_root:,
+            baseline_output: directory.join("base.json"),
+            candidate_output: directory.join("candidate.json")
+          }
+        end
+
         directory = @root.join("tmp", "rundiff", "github", execution.execution_id.delete_prefix("github-")[0, 16])
         FileUtils.mkdir_p(directory)
         @execution_identity.prepare_parent_directory(directory)
@@ -227,6 +270,65 @@ module RunDiff
           baseline_output: directory.join("base.json"),
           candidate_output: directory.join("candidate.json")
         }
+      end
+
+      def prepared_workspace?
+        ENV["RUNDIFF_PREPARED_BY"] == "go" &&
+          ENV["RUNDIFF_PREPARED_WORKSPACE_ROOT"].present? &&
+          ENV["RUNDIFF_PREPARED_BASELINE_ROOT"].present? &&
+          ENV["RUNDIFF_PREPARED_CANDIDATE_ROOT"].present?
+      end
+
+      def prepared_services?
+        ENV["RUNDIFF_PREPARED_SERVICES_BY"] == "go"
+      end
+
+      def prepared_runtime_env(role)
+        prepared_env(
+          role:,
+          base_key: "RUNDIFF_PREPARED_BASELINE_RUNTIME_ENV_JSON",
+          candidate_key: "RUNDIFF_PREPARED_CANDIDATE_RUNTIME_ENV_JSON"
+        )
+      end
+
+      def prepared_subject_env(role)
+        prepared_env(
+          role:,
+          base_key: "RUNDIFF_PREPARED_BASELINE_SUBJECT_ENV_JSON",
+          candidate_key: "RUNDIFF_PREPARED_CANDIDATE_SUBJECT_ENV_JSON"
+        )
+      end
+
+      def prepared_env(role:, base_key:, candidate_key:)
+        key = case role
+        when "base"
+          base_key
+        when "candidate"
+          candidate_key
+        else
+          raise Error, "Unsupported prepared environment role #{role.inspect}"
+        end
+        raw = ENV[key].to_s
+        return if raw.empty?
+
+        payload = JSON.parse(raw)
+        unless payload.is_a?(Hash) &&
+          payload.all? { |env_key, value| env_key.is_a?(String) && value.is_a?(String) }
+          raise Error, "#{key} must contain a JSON object of string values"
+        end
+
+        payload
+      rescue JSON::ParserError
+        raise Error, "#{key} must contain valid JSON"
+      end
+
+      def verify_prepared_worktree!(path:, sha:)
+        raise Error, "Prepared worktree is missing: #{path}" unless path.directory?
+
+        head = run!(command: %w[git rev-parse HEAD], chdir: path).strip
+        return if head == sha
+
+        raise Error, "Prepared worktree revision mismatch for #{path}"
       end
 
       def prepare_worktree!(path:, sha:)
@@ -288,6 +390,18 @@ module RunDiff
         )
         FileUtils.rm_rf(path)
         run!(command: %w[git worktree prune], chdir: @root, allow_failure: true)
+      end
+
+      def timed(execution:, stage:, role: nil, &block)
+        return yield unless @stage_timer
+
+        @stage_timer.measure(
+          execution_id: execution.execution_id,
+          stage:,
+          role:,
+          implementation: "ruby",
+          &block
+        )
       end
 
       def run!(command:, chdir:, env: {}, allow_failure: false)
