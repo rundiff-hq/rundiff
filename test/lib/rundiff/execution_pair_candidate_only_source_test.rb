@@ -22,7 +22,8 @@ class RunDiffExecutionPairCandidateOnlySourceTest < ActiveSupport::TestCase
     end
 
     assert_equal "NETWORK_BEHAVIOR_CHANGED", finding.fetch("reason_code")
-    assert_equal "review", payload.dig("result", "merge_recommendation")
+    assert_equal "allow", payload.dig("result", "merge_recommendation")
+    assert_equal "WARNING", finding.fetch("finding_severity")
     assert_equal source(6), finding.fetch("source")
   end
 
