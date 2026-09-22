@@ -95,7 +95,7 @@ namespace :rundiff do
     action = publisher.upsert(
       repository: ENV.fetch("GITHUB_REPOSITORY"),
       head_sha: ENV.fetch("RUNDIFF_CANDIDATE_SHA"),
-      name: rendered.fetch("name"),
+      name: ENV.fetch("RUNDIFF_CHECK_NAME", rendered.fetch("name")),
       external_id: payload.fetch("run_id"),
       details_url: ENV.fetch("RUNDIFF_RUN_URL"),
       conclusion: rendered.fetch("conclusion"),
