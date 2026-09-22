@@ -171,7 +171,7 @@ RUNDIFF_EXECUTOR_AUTODISPATCH=disabled
 
 Before switching it to `github_actions`:
 
-- the dispatch-enabled `.github/workflows/rundiff-executor-bridge.yml` must be on the default branch;
+- the dedicated `.github/workflows/rundiff-executor-dispatch.yml` must be on the default branch;
 - the RunDiff GitHub App platform installation must have repository `Actions: write` for `rundiff-hq/rundiff`;
 - the Worker must be deployed with the VS18 dispatch code.
 
