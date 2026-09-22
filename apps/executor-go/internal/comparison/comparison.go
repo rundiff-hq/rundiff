@@ -48,6 +48,7 @@ var policies = []policy{
 	{signal: "background_jobs", reasonCode: "SIDE_EFFECT_CHANGED", thresholdAbsolute: f64(0), severity: "medium", decision: true},
 	{signal: "emails", reasonCode: "SIDE_EFFECT_CHANGED", thresholdAbsolute: f64(0), severity: "high", decision: true},
 	{signal: "http_requests", reasonCode: "NETWORK_BEHAVIOR_CHANGED", thresholdPercent: f64(25), severity: "medium", decision: true},
+	{signal: "response_bytes", reasonCode: "RESPONSE_SIZE_INCREASE", thresholdPercent: f64(25), thresholdAbsolute: f64(32), severity: "medium", optional: true, decision: true},
 	{signal: "errors", reasonCode: "NEW_RUNTIME_ERROR", thresholdAbsolute: f64(0), severity: "critical", decision: true},
 }
 
@@ -332,8 +333,9 @@ func BehavioralDiff(
 			findings = append(findings, map[string]any{
 				"type":          "behavioral_regression",
 				"reason_code":   p.reasonCode,
-				"severity":      p.severity,
-				"signal":        p.signal,
+				"severity":          p.severity,
+				"finding_severity": findingSeverity(p.severity),
+				"signal":            p.signal,
 				"baseline":      base,
 				"candidate":     cand,
 				"delta":         delta,
@@ -346,11 +348,11 @@ func BehavioralDiff(
 	recommendation := "allow"
 	if len(findings) > 0 {
 		decision = "regression"
-		recommendation = "review"
 		if blockMerge(findings) {
 			recommendation = "block"
 		}
 	}
+	warningCount, blockingCount := findingCounts(findings)
 
 	return map[string]any{
 		"schema_version":       "1",
@@ -360,6 +362,8 @@ func BehavioralDiff(
 		"signals":              signals,
 		"runtime_diagnosis":    behavioralRuntimeDiagnosis(signals),
 		"findings":             findings,
+		"warning_count":        warningCount,
+		"blocking_count":       blockingCount,
 		"recommended_action":   recommendedAction(findings),
 	}
 }
@@ -781,11 +785,37 @@ func sameSource(left, right map[string]any) bool {
 	return true
 }
 
+func findingSeverity(legacy string) string {
+	switch legacy {
+	case "critical", "high":
+		return "BLOCKING"
+	case "medium":
+		return "WARNING"
+	default:
+		return "INFO"
+	}
+}
+
+func findingCounts(findings []any) (int, int) {
+	warnings, blocking := 0, 0
+	for _, raw := range findings {
+		finding, _ := raw.(map[string]any)
+		severity, _ := stringValue(finding["finding_severity"])
+		switch severity {
+		case "WARNING":
+			warnings++
+		case "BLOCKING":
+			blocking++
+		}
+	}
+	return warnings, blocking
+}
+
 func blockMerge(findings []any) bool {
 	for _, raw := range findings {
 		finding, _ := raw.(map[string]any)
-		severity, _ := stringValue(finding["severity"])
-		if severity == "critical" || severity == "high" {
+		severity, _ := stringValue(finding["finding_severity"])
+		if severity == "BLOCKING" {
 			return true
 		}
 	}
