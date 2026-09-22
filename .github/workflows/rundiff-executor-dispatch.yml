@@ -1,0 +1,115 @@
+name: RunDiff Executor Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      execution_id:
+        description: Exact RunDiff execution ID
+        required: true
+        type: string
+      attempt_number:
+        description: Exact RunDiff attempt number
+        required: true
+        type: string
+      repository:
+        description: Customer repository identity
+        required: true
+        type: string
+      candidate_sha:
+        description: Candidate SHA for audit output
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rundiff-execution-${{ inputs.execution_id }}
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rundiff_bridge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rundiff_bridge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
+      RUNDIFF_EXECUTOR_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
+      RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ runner.temp }}/rundiff-dependency-cache
+      RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: ${{ inputs.repository }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache: false
+
+      - name: Restore RunDiff dependency cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/rundiff-dependency-cache
+          key: rundiff-dispatch-deps-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.repository }}
+          restore-keys: |
+            rundiff-dispatch-deps-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build Go executor
+        working-directory: apps/executor-go
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+
+      - name: Validate dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ inputs.execution_id }}" =~ ^[0-9a-f-]{36}$ ]]
+          [[ "${{ inputs.attempt_number }}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${{ inputs.repository }}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ "${{ inputs.candidate_sha }}" =~ ^[a-f0-9]{40}$ ]]
+          test -n "$RUNDIFF_EXECUTOR_TOKEN"
+
+      - name: Execute exact RunDiff assignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/rundiff/go-executor
+          /tmp/rundiff-executor agent \
+            --control-plane-url "$RUNDIFF_CONTROL_PLANE_URL" \
+            --token-env RUNDIFF_EXECUTOR_TOKEN \
+            --execution-id "${{ inputs.execution_id }}" \
+            --attempt "${{ inputs.attempt_number }}" \
+            --unclaimable-ok \
+            --result tmp/rundiff/dispatched-result.json \
+            --cwd "$GITHUB_WORKSPACE"
+
+      - name: Upload phase metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rundiff-executor-phase-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/go-executor/*.metrics.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
