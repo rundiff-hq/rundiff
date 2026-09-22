@@ -1,6 +1,6 @@
 # VS18 - Automatic External Executor Dispatch v1
 
-Status: clean main-branch cutover re-proof pending
+Status: production acceptance proven
 
 ## Goal
 
@@ -173,7 +173,39 @@ The dedicated workflow now uses one canonical dependency-cache root for both the
 ${{ github.workspace }}/tmp/rundiff-dependency-cache
 ```
 
-The remaining acceptance action is one fresh external PR synchronize event after redeploying the Worker with `RUNDIFF_EXECUTOR_DISPATCH_REF=main`. Once that event completes through the dedicated workflow and publishes the production GitHub review automatically, this status can return to `production acceptance proven`.
+The clean main-branch cutover re-proof is complete.
+
+Final production evidence:
+
+```text
+Cloudflare Worker       04538f9b-7729-49be-815d-6135aa5d485f
+dispatch ref            main
+main executor commit    00d623cb340c36039e4962ce6df5b198e6e3c124
+external candidate      76331a49113abbd9aa8bd639057e5ce8fb9018e5
+workflow                .github/workflows/rundiff-executor-dispatch.yml
+workflow run            35746196535
+workflow run number     12
+actor                   rundiff-checks[bot]
+execution               da6113c9-0207-474e-8543-2b0c8578bd61
+attempt                 1
+result_status           succeeded
+submission_status       accepted
+```
+
+The synchronize trigger changed only `.rundiff-proof-trigger`; customer application behavior was not modified.
+
+The dedicated executor completed all production bootstrap and execution steps successfully, including dependency-cache restore, Go build, dispatch validation, exact assignment execution, Result v1 submission, and cleanup.
+
+GitHub publication completed automatically on the external PR as:
+
+```text
+RunDiff / Behavioral Review
+ALLOW · 1 warning
+candidate 76331a49113abbd9aa8bd639057e5ce8fb9018e5
+execution da6113c9-0207-474e-8543-2b0c8578bd61
+```
+
+This is the final clean proof that production automatic external dispatch runs from `main` through the dedicated executor workflow without the legacy bridge or a manual proof workflow.
 
 ## Production acceptance evidence
 
