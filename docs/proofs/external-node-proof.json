@@ -2,5 +2,5 @@
   "repository": "rundiff-hq/example-node-express-postgres",
   "pull_request_number": 1,
   "baseline_sha": "e90bbe1a7055dece4f1cdffe0d5ef9fb3a5b69fb",
-  "candidate_sha": "43cc658576779db6663a115c28564dc9b17f7401"
+  "candidate_sha": "1493afbd92bbd3c2d7bc2d6f3b7f009a8d322e42"
 }
