@@ -4,6 +4,7 @@ import {
   type WorkflowStep,
 } from "cloudflare:workers";
 import { publishReview } from "../../adapters/github/publication";
+import { dispatchExecutor } from "../../adapters/github/executor-dispatch";
 import { D1ExecutionRepository } from "../../adapters/d1/execution-repository";
 import { D1ReviewRepository } from "../../adapters/d1/review-repository";
 import {
@@ -38,6 +39,19 @@ export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
           reviewId,
           new Date().toISOString(),
         );
+      });
+      await step.do("dispatch exact executor", async () => {
+        const execution = await new D1ExecutionRepository(this.env.DB).get(
+          executionId,
+        );
+        if (!execution || execution.attemptNumber !== attemptNumber) {
+          throw new Error("executor dispatch identity mismatch");
+        }
+        if (execution.status !== "available") {
+          return { status: "not_needed", executionStatus: execution.status };
+        }
+        await dispatchExecutor(this.env, execution.request);
+        return { status: "dispatched" };
       });
       const resultEvent = await step.waitForEvent<ExecutorResultEvent>(
         "wait for executor result",
