@@ -41,6 +41,8 @@ type Submission struct {
 	Status string `json:"status"`
 }
 
+var ErrAttemptUnclaimable = errors.New("execution attempt is not claimable")
+
 type Client struct {
 	BaseURL string
 	Token   string
@@ -49,18 +51,20 @@ type Client struct {
 
 func (c *Client) Claim(ctx context.Context, assignment Assignment) (Claim, error) {
 	var wire claimWire
-	if err := c.postJSON(
-		ctx,
-		fmt.Sprintf(
-			"/api/executions/%s/attempts/%d/claim",
-			assignment.ExecutionID,
-			assignment.AttemptNumber,
-		),
-		nil,
-		&wire,
-		http.StatusOK,
-	); err != nil {
+	path := fmt.Sprintf(
+		"/api/executions/%s/attempts/%d/claim",
+		assignment.ExecutionID,
+		assignment.AttemptNumber,
+	)
+	status, err := c.postJSONStatus(ctx, path, nil, &wire)
+	if err != nil {
 		return Claim{}, err
+	}
+	if status == http.StatusConflict {
+		return Claim{}, ErrAttemptUnclaimable
+	}
+	if status != http.StatusOK {
+		return Claim{}, fmt.Errorf("%s returned HTTP %d", path, status)
 	}
 	if err := wire.Request.Validate(); err != nil {
 		return Claim{}, fmt.Errorf("invalid claimed request: %w", err)
