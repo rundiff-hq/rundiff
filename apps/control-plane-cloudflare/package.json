@@ -1,0 +1,33 @@
+{
+  "name": "@rundiff/control-plane-cloudflare",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "build:production": "CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH=wrangler.production.jsonc vite build",
+    "preview": "npm run build && vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:production": "npm run build:production && wrangler deploy --config dist/rundiff_control_plane/wrangler.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "hono": "^4.13.8",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.56.0",
+    "@cloudflare/workers-types": "^5.20260920.1",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.2",
+    "vite": "^8.2.2",
+    "wrangler": "^4.135.0"
+  }
+}

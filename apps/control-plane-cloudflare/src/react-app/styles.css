@@ -1,0 +1,22 @@
+:root {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #111;
+  background: #f5f5f3;
+}
+
+body { margin: 0; }
+main { max-width: 900px; margin: 0 auto; padding: 72px 24px; }
+header { margin-bottom: 40px; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+h1 { font-size: clamp(40px, 8vw, 76px); margin: 12px 0; letter-spacing: -0.06em; }
+p { line-height: 1.6; }
+form { display: flex; gap: 8px; margin: 32px 0; }
+input { flex: 1; padding: 14px; font: inherit; border: 1px solid #bbb; background: white; }
+button { padding: 14px 18px; font: inherit; border: 1px solid #111; background: #111; color: white; cursor: pointer; }
+section { margin-top: 32px; padding: 24px; border: 1px solid #ccc; background: white; }
+.decision { font-size: 28px; font-weight: 700; margin-bottom: 24px; }
+dl { display: grid; grid-template-columns: 120px 1fr; gap: 10px 18px; }
+dt { color: #666; }
+dd { margin: 0; overflow-wrap: anywhere; }
+pre { overflow: auto; padding: 16px; background: #111; color: #eee; }
+.error { color: #a00; }

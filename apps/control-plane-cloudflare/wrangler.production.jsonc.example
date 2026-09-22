@@ -1,0 +1,54 @@
+// Production cutover template.
+// Production custom-domain config for the existing RunDiff Cloudflare resources.
+// The landing artifact is now served at / on this branch. Verify typecheck/build locally
+// before the first apex deploy. Keep workers.dev enabled through first verification.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rundiff-control-plane",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-09-20",
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  },
+  "vars": {
+    "RUNDIFF_EXECUTOR_AUTODISPATCH": "disabled",
+    "RUNDIFF_EXECUTOR_DISPATCH_REPOSITORY": "rundiff-hq/rundiff",
+    "RUNDIFF_EXECUTOR_DISPATCH_WORKFLOW": "rundiff-executor-dispatch.yml",
+    "RUNDIFF_EXECUTOR_DISPATCH_REF": "main"
+  },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rundiff-control-plane",
+      "database_id": "c794e38c-487b-4574-a8b6-e43504ff472e",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "rundiff-artifacts"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "REVIEW_WORKFLOW",
+      "name": "rundiff-behavioral-review",
+      "class_name": "BehavioralReviewWorkflow"
+    }
+  ],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "rundiff.com",
+      "custom_domain": true
+    }
+  ]
+}
