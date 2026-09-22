@@ -46,7 +46,8 @@ class RunDiffGithubCheckRendererTest < ActiveSupport::TestCase
     rendered = RunDiff::Github::CheckRenderer.call(payload: async_regression_payload)
     summary = rendered.fetch("summary")
 
-    assert_equal "neutral", rendered.fetch("conclusion")
+    assert_equal "success", rendered.fetch("conclusion")
+    assert_includes summary, "**ALLOW · 1 WARNING**"
     assert_includes summary, "Async change attribution"
     assert_includes summary, "**Regression source:** enqueue-to-start stage"
     assert_includes summary, "Enqueue → worker start | +264.1 ms | 100.0%"
