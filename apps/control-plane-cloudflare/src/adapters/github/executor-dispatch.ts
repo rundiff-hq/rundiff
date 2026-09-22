@@ -8,7 +8,7 @@ export interface ExecutorDispatchEnv extends GitHubCredentials {
 }
 
 const DEFAULT_REPOSITORY = "rundiff-hq/rundiff";
-const DEFAULT_WORKFLOW = "rundiff-executor-bridge.yml";
+const DEFAULT_WORKFLOW = "rundiff-executor-dispatch.yml";
 const DEFAULT_REF = "main";
 
 export async function dispatchExecutor(
