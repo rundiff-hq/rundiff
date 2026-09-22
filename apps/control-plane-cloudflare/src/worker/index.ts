@@ -65,11 +65,10 @@ app.post("/api/github/webhooks", async (c) => {
   if (!identity) return c.json({ status: "ignored" }, 202);
   if (
     !c.env.RUNDIFF_GITHUB_APP_ID ||
-    !c.env.RUNDIFF_GITHUB_APP_PRIVATE_KEY ||
-    !c.env.RUNDIFF_GITHUB_SCENARIO_ID
+    !c.env.RUNDIFF_GITHUB_APP_PRIVATE_KEY
   )
     return c.json(
-      { error: "GitHub App and proof scenario are not configured" },
+      { error: "GitHub App is not configured" },
       503,
     );
   const github = await GitHubClient.installation(
