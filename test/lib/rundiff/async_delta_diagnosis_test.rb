@@ -91,7 +91,8 @@ class RunDiffAsyncDeltaDiagnosisTest < ActiveSupport::TestCase
 
     diagnosis = result.dig("runtime_diagnosis", "async_delta")
 
-    assert_equal "review", result.fetch("merge_recommendation")
+    assert_equal "allow", result.fetch("merge_recommendation")
+    assert_equal "WARNING", result.fetch("findings").first.fetch("finding_severity")
     assert_equal "enqueue_to_start_regression", diagnosis.fetch("classification")
     assert_equal 264.1, diagnosis.fetch("queue_wait_delta_ms")
     assert_equal 0.0, diagnosis.fetch("worker_wall_delta_ms")

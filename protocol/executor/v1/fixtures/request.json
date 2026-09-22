@@ -1,0 +1,15 @@
+{
+  "schema_version": "1",
+  "execution_id": "execution-v1-fixture",
+  "scenario_id": "rails.sqlite.query-behavior",
+  "baseline_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "candidate_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "attempt_number": 1,
+  "context": {
+    "repository": "demo/shop",
+    "pull_request_number": 42,
+    "baseline_ref": "main",
+    "candidate_ref": "feature/query-change",
+    "candidate_repository": "demo/shop"
+  }
+}

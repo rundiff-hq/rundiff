@@ -66,7 +66,8 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
     assert_not process_cpu_signal.fetch("decision_relevant")
     assert_not process_cpu_signal.fetch("regression")
     assert_equal "CPU_TIME_REGRESSION", result.fetch("findings").first.fetch("reason_code")
-    assert_equal "review", result.fetch("merge_recommendation")
+    assert_equal "allow", result.fetch("merge_recommendation")
+    assert_equal "WARNING", result.fetch("findings").first.fetch("finding_severity")
   end
 
   test "treats a newly introduced optional CPU probe as unavailable instead of zero" do
@@ -107,5 +108,19 @@ class RunDiffBehavioralDiffTest < ActiveSupport::TestCase
 
     assert_equal "no_regression", result.fetch("decision")
     assert_equal "allow", result.fetch("merge_recommendation")
+  end
+  test "allows a warning-only response size increase" do
+    baseline = { duration_ms: 100, response_bytes: 64, errors: 0 }
+    candidate = { duration_ms: 100, response_bytes: 160, errors: 0 }
+
+    result = RunDiff::BehavioralDiff.call(baseline:, candidate:)
+
+    assert_equal "regression", result.fetch("decision")
+    assert_equal "allow", result.fetch("merge_recommendation")
+    assert_equal 1, result.fetch("warning_count")
+    assert_equal 0, result.fetch("blocking_count")
+    finding = result.fetch("findings").first
+    assert_equal "WARNING", finding.fetch("finding_severity")
+    assert_equal "RESPONSE_SIZE_INCREASE", finding.fetch("reason_code")
   end
 end

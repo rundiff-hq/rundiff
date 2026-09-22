@@ -23,7 +23,8 @@ class RunDiffQueueStageBehavioralDiffTest < ActiveSupport::TestCase
     )
 
     assert_equal "regression", result.fetch("decision")
-    assert_equal "review", result.fetch("merge_recommendation")
+    assert_equal "allow", result.fetch("merge_recommendation")
+    assert_equal "WARNING", result.fetch("findings").first.fetch("finding_severity")
     assert_not result.dig("signals", "queue_wait_ms", "decision_relevant")
     assert result.dig("signals", "dispatch_wait_ms", "regression")
     assert_equal [ "DISPATCH_WAIT_REGRESSION" ], result.fetch("findings").map { |finding| finding.fetch("reason_code") }

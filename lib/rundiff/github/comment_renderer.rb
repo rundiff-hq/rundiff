@@ -16,6 +16,7 @@ module RunDiff
         "background_jobs" => "Background jobs",
         "emails" => "Emails",
         "http_requests" => "HTTP requests",
+        "response_bytes" => "Response size",
         "errors" => "Runtime errors"
       }.freeze
       SEVERITY_ICONS = {
@@ -73,11 +74,11 @@ module RunDiff
         if findings.empty?
           "> [!TIP]\n> **ALLOW** - No behavioral regression detected."
         else
-          counts = findings.group_by { |finding| finding.fetch("severity") }.transform_values(&:size)
-          severity_summary = %w[critical high medium low].filter_map do |severity|
-            "#{counts.fetch(severity)} #{severity}" if counts.key?(severity)
+          counts = findings.group_by { |finding| finding.fetch("finding_severity", finding.fetch("severity").upcase) }.transform_values(&:size)
+          severity_summary = %w[BLOCKING WARNING INFO].filter_map do |severity|
+            "#{counts.fetch(severity)} #{severity.downcase}" if counts.key?(severity)
           end.join(" · ")
-          regression_label = findings.one? ? "regression" : "regressions"
+          regression_label = findings.one? ? "finding" : "findings"
           admonition = recommendation == "BLOCK" ? "CAUTION" : "WARNING"
           behavior_message = if functional_scenario_passed?
             "Tests passed, but runtime behavior changed."
@@ -251,9 +252,10 @@ module RunDiff
 
         lines = [ "<details open>", "<summary><strong>Findings</strong> · #{findings.size} detected</summary>", "" ]
         findings.each do |finding|
-          severity = finding.fetch("severity")
+          legacy_severity = finding.fetch("severity")
+          severity = finding.fetch("finding_severity", legacy_severity.upcase)
           signal = finding.fetch("signal")
-          lines << "- #{SEVERITY_ICONS.fetch(severity, "⚪")} **#{severity.upcase}** · " \
+          lines << "- #{SEVERITY_ICONS.fetch(legacy_severity, "⚪")} **#{severity}** · " \
             "`#{finding.fetch("reason_code")}` · **#{SIGNAL_LABELS.fetch(signal, signal)}** · " \
             "#{format_value(signal, finding.fetch("baseline"))} → #{format_value(signal, finding.fetch("candidate"))} " \
             "(#{display_percent(finding.fetch("delta_percent"))})"

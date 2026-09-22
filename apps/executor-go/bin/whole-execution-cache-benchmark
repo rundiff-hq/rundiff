@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+BIN="${RUNDIFF_GO_EXECUTOR_BIN:-/tmp/rundiff-executor}"
+PAIRS="${RUNDIFF_WALL_BENCHMARK_PAIRS:-3}"
+BASELINE_REF="${RUNDIFF_WALL_BENCHMARK_BASELINE_REF:-HEAD^}"
+CANDIDATE_REF="${RUNDIFF_WALL_BENCHMARK_CANDIDATE_REF:-HEAD}"
+REPOSITORY="${RUNDIFF_WALL_BENCHMARK_REPOSITORY:-${GITHUB_REPOSITORY:-rundiff-hq/rundiff}}"
+SCENARIO_ID="${RUNDIFF_WALL_BENCHMARK_SCENARIO_ID:-dogfood.git.behavior}"
+OUTPUT_ROOT="${RUNDIFF_WALL_BENCHMARK_OUTPUT_ROOT:-$ROOT/tmp/rundiff/whole-execution-cache-benchmark}"
+
+if [[ ! "$PAIRS" =~ ^[1-9][0-9]*$ ]] || (( PAIRS > 10 )); then
+  echo "RUNDIFF_WALL_BENCHMARK_PAIRS must be an integer from 1 to 10" >&2
+  exit 64
+fi
+if [[ ! -x "$BIN" ]]; then
+  echo "RunDiff Go executor binary is not executable: $BIN" >&2
+  exit 64
+fi
+command -v jq >/dev/null || {
+  echo "jq is required" >&2
+  exit 64
+}
+
+cd "$ROOT"
+BASELINE_SHA="$(git rev-parse "${BASELINE_REF}^{commit}")"
+CANDIDATE_SHA="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
+
+rm -rf "$OUTPUT_ROOT"
+mkdir -p "$OUTPUT_ROOT"
+printf "pair\ttemperature\tduration_ms\tresult_status\n" > "$OUTPUT_ROOT/samples.tsv"
+
+run_one() {
+  local pair="$1"
+  local temperature="$2"
+  local cache_root="$3"
+  local execution_id="wall-${pair}-${temperature}-${CANDIDATE_SHA:0:8}"
+  local prefix="$OUTPUT_ROOT/$(printf '%02d' "$pair")-${temperature}"
+  local request_path="${prefix}.request.json"
+  local result_path="${prefix}.result.json"
+  local journal_path="${prefix}.journal.jsonl"
+  local metrics_path="${prefix}.metrics.jsonl"
+
+  jq -n \
+    --arg execution_id "$execution_id" \
+    --arg scenario_id "$SCENARIO_ID" \
+    --arg baseline_sha "$BASELINE_SHA" \
+    --arg candidate_sha "$CANDIDATE_SHA" \
+    --arg repository "$REPOSITORY" \
+    --arg baseline_ref "$BASELINE_REF" \
+    --arg candidate_ref "$CANDIDATE_REF" \
+    '{
+      schema_version: "1",
+      execution_id: $execution_id,
+      scenario_id: $scenario_id,
+      baseline_sha: $baseline_sha,
+      candidate_sha: $candidate_sha,
+      attempt_number: 1,
+      context: {
+        repository: $repository,
+        pull_request_number: 1,
+        baseline_ref: $baseline_ref,
+        candidate_ref: $candidate_ref,
+        candidate_repository: $repository
+      }
+    }' > "$request_path"
+
+  local started_ns
+  local finished_ns
+  started_ns="$(date +%s%N)"
+
+  echo "::group::whole execution pair=$pair temperature=$temperature"
+  RUNDIFF_DEPENDENCY_CACHE_ROOT="$cache_root" \
+  RUNDIFF_DEPENDENCY_CACHE_NAMESPACE="$REPOSITORY" \
+    "$BIN" run-local \
+      --request "$request_path" \
+      --result "$result_path" \
+      --journal "$journal_path" \
+      --metrics "$metrics_path" \
+      --cwd "$ROOT"
+  echo "::endgroup::"
+
+  finished_ns="$(date +%s%N)"
+  local duration_ms=$(( (finished_ns - started_ns) / 1000000 ))
+  local result_status
+  result_status="$(jq -r '.status' "$result_path")"
+  if [[ "$result_status" != "succeeded" ]]; then
+    echo "Whole execution returned status=$result_status for pair=$pair temperature=$temperature" >&2
+    cat "$result_path" >&2
+    exit 1
+  fi
+
+  printf "%s\t%s\t%s\t%s\n" "$pair" "$temperature" "$duration_ms" "$result_status" \
+    >> "$OUTPUT_ROOT/samples.tsv"
+}
+
+for pair in $(seq 1 "$PAIRS"); do
+  cache_root="$OUTPUT_ROOT/cache/$(printf '%02d' "$pair")"
+  rm -rf "$cache_root"
+  mkdir -p "$cache_root"
+
+  run_one "$pair" cold "$cache_root"
+  run_one "$pair" warm "$cache_root"
+done
+
+ruby - "$OUTPUT_ROOT/samples.tsv" "$OUTPUT_ROOT/summary.tsv" <<'RUBY'
+samples_path, summary_path = ARGV
+rows = File.readlines(samples_path, chomp: true).drop(1).map do |line|
+  pair, temperature, duration_ms, status = line.split("\t")
+  { pair: pair.to_i, temperature:, duration_ms: duration_ms.to_i, status: }
+end
+
+percentile = lambda do |values, quantile|
+  sorted = values.sort
+  index = [(sorted.length * quantile).ceil - 1, 0].max
+  sorted[index]
+end
+
+median = lambda do |values|
+  sorted = values.sort
+  midpoint = sorted.length / 2
+  if sorted.length.odd?
+    sorted[midpoint]
+  else
+    ((sorted[midpoint - 1] + sorted[midpoint]) / 2.0).round
+  end
+end
+
+summaries = %w[cold warm].to_h do |temperature|
+  values = rows.select { |row| row[:temperature] == temperature }.map { |row| row[:duration_ms] }
+  [temperature, {
+    count: values.length,
+    median_ms: median.call(values),
+    p95_ms: percentile.call(values, 0.95),
+    min_ms: values.min,
+    max_ms: values.max,
+  }]
+end
+
+cold = summaries.fetch("cold")
+warm = summaries.fetch("warm")
+saved_ms = cold.fetch(:median_ms) - warm.fetch(:median_ms)
+speedup = cold.fetch(:median_ms).fdiv(warm.fetch(:median_ms))
+reduction = saved_ms.fdiv(cold.fetch(:median_ms)) * 100.0
+
+File.open(summary_path, "w") do |file|
+  file.puts "temperature\tcount\tmedian_ms\tp95_ms\tmin_ms\tmax_ms"
+  summaries.each do |temperature, summary|
+    file.puts [
+      temperature,
+      summary.fetch(:count),
+      summary.fetch(:median_ms),
+      summary.fetch(:p95_ms),
+      summary.fetch(:min_ms),
+      summary.fetch(:max_ms),
+    ].join("\t")
+  end
+  file.puts
+  file.puts "median_saved_ms\t#{saved_ms}"
+  file.puts "median_speedup_x\t#{format('%.3f', speedup)}"
+  file.puts "median_reduction_pct\t#{format('%.2f', reduction)}"
+end
+RUBY
+
+{
+  echo "baseline_sha=$BASELINE_SHA"
+  echo "candidate_sha=$CANDIDATE_SHA"
+  echo "pairs=$PAIRS"
+  echo "repository=$REPOSITORY"
+  echo "scope=managed_executor_wall_clock"
+  echo "excludes=control_plane_dispatch,provider_queue"
+} > "$OUTPUT_ROOT/metadata.txt"
+
+cat "$OUTPUT_ROOT/summary.tsv"

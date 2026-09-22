@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rundiff.com/protocol/executor/v1/request.schema.json",
+  "title": "RunDiff Executor Request v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "execution_id",
+    "scenario_id",
+    "baseline_sha",
+    "candidate_sha",
+    "attempt_number",
+    "context"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "execution_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseline_sha": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_sha": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_request_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseline_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_repository": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

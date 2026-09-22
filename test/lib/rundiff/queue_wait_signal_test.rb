@@ -92,7 +92,8 @@ class RunDiffQueueWaitSignalTest < ActiveSupport::TestCase
 
     assert queue_signal.fetch("regression")
     assert_includes reason_codes, "QUEUE_WAIT_REGRESSION"
-    assert_equal "review", result.fetch("merge_recommendation")
+    assert_equal "allow", result.fetch("merge_recommendation")
+    assert_equal "WARNING", result.fetch("findings").first.fetch("finding_severity")
     assert_equal "queue_bound", result.dig("runtime_diagnosis", "async", "candidate", "classification")
     assert_equal "worker_bound", result.dig("runtime_diagnosis", "async", "baseline", "classification")
   end

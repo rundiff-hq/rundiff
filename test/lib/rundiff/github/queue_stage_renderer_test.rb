@@ -11,7 +11,8 @@ class RunDiffGithubQueueStageRendererTest < ActiveSupport::TestCase
     check = RunDiff::Github::CheckRenderer.call(payload:)
     summary = check.fetch("summary")
 
-    assert_equal "neutral", check.fetch("conclusion")
+    assert_equal "success", check.fetch("conclusion")
+    assert_includes summary, "**ALLOW · 1 WARNING**"
     assert_includes comment, "Eligible → worker start (dispatch)"
     assert_includes comment, "Regression source: dispatch wait after eligibility"
     assert_includes comment, "Scheduled delay | unchanged | 0.0%"
