@@ -56,3 +56,11 @@ class RunDiffGithubCheckPublisherTest < ActiveSupport::TestCase
     }
   end
 end
+
+class RunDiffGithubCheckNameIsolationTest < ActiveSupport::TestCase
+  test "CI dogfood check name is distinct from production behavioral review" do
+    workflow = File.read(Rails.root.join(".github/workflows/ci.yml"))
+
+    assert_includes workflow, "RUNDIFF_CHECK_NAME: RunDiff / CI Dogfood"
+  end
+end
