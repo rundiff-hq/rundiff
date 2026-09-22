@@ -50,6 +50,9 @@ export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
         if (!execution || execution.attemptNumber !== attemptNumber) {
           throw new Error("executor dispatch identity mismatch");
         }
+        if (!execution.installationId) {
+          return { status: "not_applicable" };
+        }
         if (execution.status !== "available") {
           return { status: "not_needed", executionStatus: execution.status };
         }
