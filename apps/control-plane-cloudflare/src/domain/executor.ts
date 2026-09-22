@@ -125,11 +125,11 @@ export function validateExecutorResult(value: unknown): ExecutorResultV1 {
 
 export function decisionFromExecutorResult(
   result: ExecutorResultV1,
-): "ALLOW" | "REVIEW" | "BLOCK" | "INFRA_FAILURE" {
+): "ALLOW" | "BLOCK" | "INFRA_FAILURE" {
   if (result.status === "failed") return "INFRA_FAILURE";
 
   const payload = result.payload;
-  if (!payload || typeof payload !== "object") return "REVIEW";
+  if (!payload || typeof payload !== "object") return "INFRA_FAILURE";
 
   const outer = payload as Record<string, unknown>;
   const behavioral =
@@ -143,8 +143,8 @@ export function decisionFromExecutorResult(
     case "block":
       return "BLOCK";
     case "review":
-      return "REVIEW";
+      return "BLOCK";
     default:
-      return "REVIEW";
+      return "INFRA_FAILURE";
   }
 }
