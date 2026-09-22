@@ -45,12 +45,31 @@ VS19 is complete only when one external Rails repository proves all of the follo
 
 ## External fixture
 
-Use a public Rails fixture repository outside `rundiff-hq` so the proof exercises the real GitHub App installation boundary.
+Selected fixture: `sergii/happytest`.
+
+The repository is outside `rundiff-hq`, so the proof exercises the real GitHub App installation boundary. The acceptance work is isolated from the repository default branch:
+
+```text
+main:                      6f5d81e482bd176e494cb626418f56e4baca6e41
+rundiff/vs19-base:         8b9228e69bd7782a821267d5908f24fbff5dc9db
+rundiff/vs19-regression:   e13ff1cdc4ba72668335688c08bbf974880d30b9
+```
+
+Fixture runtime:
+
+- Rails 8.0.2;
+- repository Ruby 3.4.4;
+- SQLite;
+- committed Gemfile.lock with x86_64 Linux platform;
+- portable Rails sensor;
+- deterministic `POST /rundiff-fixture` scenario.
+
+The base fixture returns HTTP 200. The regression branch returns HTTP 503 and adds candidate-owned `rundiff.yml`. The resulting new `errors` signal maps to the decision-relevant `NEW_RUNTIME_ERROR` rule and is expected to BLOCK.
 
 The fixture must stay intentionally small:
 
 - Rails application;
-- SQLite first unless PostgreSQL is required by an existing production contract;
+- SQLite for this first external proof;
 - one deterministic HTTP or application scenario;
 - one deliberate candidate-only behavioral regression;
 - one follow-up fixing commit;
@@ -76,6 +95,8 @@ subject:
 VS19 should not require a RunDiff gem, initializer, middleware, executor configuration, Docker setup, or customer-owned CI workflow.
 
 If the current executor needs a narrower temporary configuration for the first proof, record that explicitly and keep it candidate-owned.
+
+For the first proof the central dispatch runner provisions Ruby 3.4.1 and the Go bootstrap enforces compatibility with the repository-declared Ruby major/minor line. `sergii/happytest` declares Ruby 3.4.4, so it is compatible without modifying the customer default branch.
 
 ## Implementation slices
 
