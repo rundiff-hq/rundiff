@@ -41,6 +41,9 @@ export class BehavioralReviewWorkflow extends WorkflowEntrypoint<
         );
       });
       await step.do("dispatch exact executor", async () => {
+        if (this.env.RUNDIFF_EXECUTOR_AUTODISPATCH !== "github_actions") {
+          return { status: "disabled" };
+        }
         const execution = await new D1ExecutionRepository(this.env.DB).get(
           executionId,
         );
