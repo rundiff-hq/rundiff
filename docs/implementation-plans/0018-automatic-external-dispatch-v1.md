@@ -1,6 +1,6 @@
 # VS18 - Automatic External Executor Dispatch v1
 
-Status: implementation slice
+Status: production acceptance proven
 
 ## Goal
 
@@ -150,3 +150,62 @@ After that proof:
 - remove `.github/workflows/external-node-proof.yml`;
 - remove `docs/proofs/external-node-proof.json`;
 - keep the public external fixture PR as the long-lived acceptance/demo target.
+
+
+## Production acceptance evidence
+
+Cloudflare Worker:
+
+```text
+5a0e5ad6-7993-443a-87b7-6d161e0078fd
+```
+
+A fresh synchronize event was created on:
+
+```text
+rundiff-hq/example-node-express-postgres#1
+candidate 1ba2a384cdccbbce307404de0f530a02e431aac6
+```
+
+No manual proof workflow and no manual GitHub Actions run were invoked.
+
+The production control plane automatically dispatched:
+
+```text
+workflow event        workflow_dispatch
+workflow run          35723560419
+actor                 rundiff-checks[bot]
+execution             5185e93b-fb31-4fbb-aee7-28e45ae1e42c
+attempt               1
+repository            rundiff-hq/example-node-express-postgres
+scenario_id           http.request.behavior
+result_status         succeeded
+submission_status     accepted
+```
+
+GitHub publication completed automatically:
+
+```text
+RunDiff / Behavioral Review
+conclusion            success
+title                 RunDiff: ALLOW · 1 warning
+```
+
+The PR comment was updated to the same candidate and execution.
+
+This proves the customer path:
+
+```text
+customer PR synchronize
+-> GitHub App webhook
+-> Cloudflare Workflow
+-> automatic workflow_dispatch
+-> central GitHub-hosted Go executor
+-> exact claim
+-> external repository clone
+-> Node + Express + PostgreSQL scenario
+-> Result v1
+-> GitHub Check/comment
+```
+
+During cutover we also discovered a GitHub Actions validation boundary: the `runner` context is not available in job-level `env`. The initial bootstrap used `runner.temp` there, which GitHub rejected before creating jobs. The durable fix uses `github.workspace/tmp/...` and moves steady-state production dispatch to the dedicated `rundiff-executor-dispatch.yml` workflow.
