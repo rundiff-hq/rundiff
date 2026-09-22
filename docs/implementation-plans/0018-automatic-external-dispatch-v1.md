@@ -62,7 +62,7 @@ Customer installations are never used to control RunDiff's platform repository.
 Workflow:
 
 ```text
-.github/workflows/rundiff-executor-bridge.yml
+.github/workflows/rundiff-executor-dispatch.yml
 ```
 
 Inputs:
