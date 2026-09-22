@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -311,6 +312,11 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 	metricsPath := flags.String("metrics", "", "Phase metrics JSONL path")
 	cwd := flags.String("cwd", ".", "Working directory for the reference adapter")
 	heartbeatInterval := flags.Duration("heartbeat-interval", 20*time.Second, "Heartbeat interval")
+	unclaimableOK := flags.Bool(
+		"unclaimable-ok",
+		false,
+		"Exit successfully when the exact attempt was already claimed or completed",
+	)
 	timeout := flags.Duration("timeout", 35*time.Minute, "Overall execution timeout")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -369,6 +375,10 @@ func runAgent(args []string, stdout, stderr io.Writer) int {
 		AttemptNumber: *attemptNumber,
 	})
 	if err != nil {
+		if *unclaimableOK && errors.Is(err, controlplane.ErrAttemptUnclaimable) {
+			fmt.Fprintln(stdout, "assignment_status=already_claimed_or_complete")
+			return 0
+		}
 		fmt.Fprintf(stderr, "agent execution failed: %v\n", err)
 		return 1
 	}
