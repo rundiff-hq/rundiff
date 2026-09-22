@@ -50,7 +50,7 @@ jobs:
     env:
       RUNDIFF_CONTROL_PLANE_URL: https://rundiff.com
       RUNDIFF_EXECUTOR_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
-      RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ runner.temp }}/rundiff-dependency-cache
+      RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ github.workspace }}/tmp/rundiff-dependency-cache
       RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: ${{ inputs.repository }}
 
     steps:
