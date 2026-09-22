@@ -1,13 +1,11 @@
 {
-  "name": "RunDiff",
-  "description": "Behavioral change validation for pull requests.",
-  "url": "https://github.com/rundiff-hq/rundiff",
+  "name": "RunDiff Checks",
+  "description": "Know what changed before you merge.",
+  "url": "https://rundiff.com",
   "hook_attributes": {
-    "url": "{{RUNDIFF_PUBLIC_URL}}/github/webhooks",
+    "url": "{{RUNDIFF_PUBLIC_URL}}/api/github/webhooks",
     "active": true
   },
-  "redirect_url": "{{RUNDIFF_PUBLIC_URL}}/github/app/manifest/callback",
-  "setup_url": "{{RUNDIFF_PUBLIC_URL}}/onboarding",
   "public": true,
   "default_permissions": {
     "checks": "write",
@@ -18,6 +16,5 @@
     "pull_request",
     "check_run"
   ],
-  "request_oauth_on_install": false,
-  "setup_on_update": true
+  "request_oauth_on_install": false
 }
