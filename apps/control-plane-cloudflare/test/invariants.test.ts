@@ -346,3 +346,87 @@ test("exact attempts use renewable leases and reject late results after cancella
     "not_live",
   );
 });
+
+
+test("platform installation token dispatches exact executor workflow", async () => {
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+  const calls: Array<{ path: string; method: string; body: unknown; authorization: string | null }> = [];
+
+  const transport = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const body = init?.body ? JSON.parse(String(init.body)) : null;
+    calls.push({
+      path: url.pathname,
+      method: init?.method ?? "GET",
+      body,
+      authorization: new Headers(init?.headers).get("authorization"),
+    });
+
+    if (url.pathname === "/repos/rundiff-hq/rundiff/installation") {
+      return Response.json({ id: 99 });
+    }
+    if (url.pathname === "/app/installations/99/access_tokens") {
+      assert.deepEqual(body, {
+        repositories: ["rundiff"],
+        permissions: { actions: "write" },
+      });
+      return Response.json({ token: "platform-installation-token" });
+    }
+    if (
+      url.pathname ===
+      "/repos/rundiff-hq/rundiff/actions/workflows/rundiff-executor-bridge.yml/dispatches"
+    ) {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "Bearer platform-installation-token",
+      );
+      assert.deepEqual(body, {
+        ref: "main",
+        inputs: {
+          execution_id: "exec-1",
+          attempt_number: "1",
+          repository: "customer/shop",
+          candidate_sha: "b".repeat(40),
+        },
+      });
+      return new Response(null, { status: 204 });
+    }
+
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+
+  const client = await GitHubClient.repositoryInstallation(
+    {
+      RUNDIFF_GITHUB_APP_ID: "123",
+      RUNDIFF_GITHUB_APP_PRIVATE_KEY: pem,
+    },
+    "rundiff-hq/rundiff",
+    { actions: "write" },
+    transport,
+  );
+
+  await client.dispatchWorkflow(
+    "rundiff-hq/rundiff",
+    "rundiff-executor-bridge.yml",
+    "main",
+    {
+      execution_id: "exec-1",
+      attempt_number: "1",
+      repository: "customer/shop",
+      candidate_sha: "b".repeat(40),
+    },
+  );
+
+  assert.deepEqual(
+    calls.map((call) => [call.method, call.path]),
+    [
+      ["GET", "/repos/rundiff-hq/rundiff/installation"],
+      ["POST", "/app/installations/99/access_tokens"],
+      [
+        "POST",
+        "/repos/rundiff-hq/rundiff/actions/workflows/rundiff-executor-bridge.yml/dispatches",
+      ],
+    ],
+  );
+});
