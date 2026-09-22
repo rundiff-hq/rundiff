@@ -53,6 +53,13 @@ module RunDiff
       "background_jobs" => { reason_code: "SIDE_EFFECT_CHANGED", threshold_absolute: 0, severity: "medium" },
       "emails" => { reason_code: "SIDE_EFFECT_CHANGED", threshold_absolute: 0, severity: "high" },
       "http_requests" => { reason_code: "NETWORK_BEHAVIOR_CHANGED", threshold_percent: 25.0, severity: "medium" },
+      "response_bytes" => {
+        reason_code: "RESPONSE_SIZE_INCREASE",
+        threshold_percent: 25.0,
+        threshold_absolute: 32.0,
+        severity: "medium",
+        optional: true
+      },
       "errors" => { reason_code: "NEW_RUNTIME_ERROR", threshold_absolute: 0, severity: "critical" }
     }.freeze
 
@@ -99,6 +106,7 @@ module RunDiff
           "type" => "behavioral_regression",
           "reason_code" => policy.fetch(:reason_code),
           "severity" => policy.fetch(:severity),
+          "finding_severity" => finding_severity(policy.fetch(:severity)),
           "signal" => signal,
           "baseline" => baseline_value,
           "candidate" => candidate_value,
@@ -111,10 +119,12 @@ module RunDiff
         "schema_version" => "1",
         "status" => "completed",
         "decision" => findings.empty? ? "no_regression" : "regression",
-        "merge_recommendation" => block_merge?(findings) ? "block" : (findings.empty? ? "allow" : "review"),
+        "merge_recommendation" => block_merge?(findings) ? "block" : "allow",
         "signals" => signals,
         "runtime_diagnosis" => runtime_diagnosis(signals),
         "findings" => findings,
+        "warning_count" => findings.count { |finding| finding.fetch("finding_severity") == "WARNING" },
+        "blocking_count" => findings.count { |finding| finding.fetch("finding_severity") == "BLOCKING" },
         "recommended_action" => recommended_action(findings)
       }
     end
@@ -242,8 +252,15 @@ module RunDiff
       ).slice("classification", "queue_share_percent")
     end
 
+    def finding_severity(legacy)
+      return "BLOCKING" if %w[critical high].include?(legacy)
+      return "WARNING" if legacy == "medium"
+
+      "INFO"
+    end
+
     def block_merge?(findings)
-      findings.any? { |finding| %w[critical high].include?(finding.fetch("severity")) }
+      findings.any? { |finding| finding.fetch("finding_severity") == "BLOCKING" }
     end
 
     def recommended_action(findings)
