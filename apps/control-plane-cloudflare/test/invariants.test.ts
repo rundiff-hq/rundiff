@@ -430,3 +430,17 @@ test("platform installation token dispatches exact executor workflow", async () 
     ],
   );
 });
+
+
+test("central executor workflow exposes exact workflow_dispatch inputs", () => {
+  const workflow = readFileSync(
+    "../../.github/workflows/rundiff-executor-bridge.yml",
+    "utf8",
+  );
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /execution_id:/);
+  assert.match(workflow, /attempt_number:/);
+  assert.match(workflow, /repository:/);
+  assert.match(workflow, /candidate_sha:/);
+  assert.match(workflow, /--unclaimable-ok/);
+});
