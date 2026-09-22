@@ -1,6 +1,6 @@
 # VS18 - Automatic External Executor Dispatch v1
 
-Status: production acceptance proven
+Status: clean main-branch cutover re-proof pending
 
 ## Goal
 
@@ -151,6 +151,29 @@ After that proof:
 - remove `docs/proofs/external-node-proof.json`;
 - keep the public external fixture PR as the long-lived acceptance/demo target.
 
+
+## Clean main-branch cutover re-proof
+
+The original automatic external acceptance proof succeeded, but the final cutover is intentionally re-proven after hardening the dispatch surface.
+
+Current clean topology:
+
+```text
+Cloudflare Worker
+-> RUNDIFF_EXECUTOR_DISPATCH_REF=main
+-> .github/workflows/rundiff-executor-dispatch.yml
+-> exact Go executor assignment
+```
+
+The legacy mixed executor bridge is removed from `main` and from the VS18 feature branch.
+
+The dedicated workflow now uses one canonical dependency-cache root for both the executor and `actions/cache`:
+
+```text
+${{ github.workspace }}/tmp/rundiff-dependency-cache
+```
+
+The remaining acceptance action is one fresh external PR synchronize event after redeploying the Worker with `RUNDIFF_EXECUTOR_DISPATCH_REF=main`. Once that event completes through the dedicated workflow and publishes the production GitHub review automatically, this status can return to `production acceptance proven`.
 
 ## Production acceptance evidence
 
