@@ -48,7 +48,7 @@ module RunDiff
       def title
         case result.fetch("merge_recommendation")
         when "allow"
-          "No behavioral regression detected"
+          findings.empty? ? "No behavioral regression detected" : "Behavior changed - warnings detected"
         when "review"
           "Behavior changed - review required"
         when "block"
@@ -80,7 +80,8 @@ module RunDiff
         unless findings.empty?
           lines.concat([ "", "### Findings", "" ])
           findings.each do |finding|
-            lines << "- **#{finding.fetch("severity").upcase}** - `#{finding.fetch("reason_code")}` - " \
+            severity = finding.fetch("finding_severity", finding.fetch("severity").upcase)
+            lines << "- **#{severity}** - `#{finding.fetch("reason_code")}` - " \
               "#{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}"
           end
         end
@@ -189,7 +190,7 @@ module RunDiff
             "path" => source.fetch("path"),
             "start_line" => source.fetch("start_line"),
             "end_line" => source.fetch("end_line"),
-            "annotation_level" => ANNOTATION_LEVELS.fetch(finding.fetch("severity"), "warning"),
+            "annotation_level" => finding.fetch("finding_severity", nil) == "BLOCKING" ? "failure" : "warning",
             "title" => "RunDiff: #{SIGNAL_LABELS.fetch(finding.fetch("signal"), finding.fetch("signal"))}",
             "message" => annotation_message(finding)
           }
@@ -207,10 +208,20 @@ module RunDiff
         recommendation = result.fetch("merge_recommendation").upcase
         return "**#{recommendation}** - no behavioral regression detected." if findings.empty?
 
+        warning_count = result.fetch("warning_count", 0)
+        blocking_count = result.fetch("blocking_count", 0)
+        label = if recommendation == "ALLOW" && warning_count.positive?
+          "#{recommendation} · #{warning_count} WARNING#{warning_count == 1 ? "" : "S"}"
+        elsif recommendation == "BLOCK" && blocking_count.positive?
+          "#{recommendation} · #{blocking_count} BLOCKING"
+        else
+          recommendation
+        end
+
         primary = findings.first
         signal = primary.fetch("signal")
         label = SIGNAL_LABELS.fetch(signal, signal)
-        "**#{recommendation}** - tests passed, but runtime behavior changed. " \
+        "**#{label}** - tests passed, but runtime behavior changed. " \
           "`#{primary.fetch("reason_code")}` · #{label} " \
           "#{format_value(signal, primary.fetch("baseline"))} → #{format_value(signal, primary.fetch("candidate"))} " \
           "(#{display_percent(primary.fetch("delta_percent"))})."
