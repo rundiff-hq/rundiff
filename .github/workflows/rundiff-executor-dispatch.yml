@@ -52,11 +52,17 @@ jobs:
       RUNDIFF_EXECUTOR_TOKEN: ${{ secrets.RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN }}
       RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ github.workspace }}/tmp/rundiff-dependency-cache
       RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: ${{ inputs.repository }}
+      RUNDIFF_LOCAL_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.1"
+          bundler-cache: false
 
       - uses: actions/setup-node@v4
         with:
@@ -90,6 +96,7 @@ jobs:
           [[ "${{ inputs.repository }}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           [[ "${{ inputs.candidate_sha }}" =~ ^[a-f0-9]{40}$ ]]
           test -n "$RUNDIFF_EXECUTOR_TOKEN"
+          ruby -e 'abort "unexpected executor Ruby #{RUBY_VERSION}" unless RUBY_VERSION.start_with?("3.4.")'
 
       - name: Execute exact RunDiff assignment
         shell: bash
