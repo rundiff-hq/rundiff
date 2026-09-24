@@ -67,7 +67,8 @@ module RunDiff
           "baseline_sha" => pull_request.dig("base", "sha"),
           "candidate_ref" => pull_request.dig("head", "ref"),
           "candidate_sha" => pull_request.dig("head", "sha"),
-          "candidate_repository" => pull_request.dig("head", "repo", "full_name")
+          "candidate_repository" => pull_request.dig("head", "repo", "full_name"),
+          "execution_orchestrator" => ENV.fetch("RUNDIFF_EXECUTION_ORCHESTRATOR", "native")
         }
       end
 

@@ -13,14 +13,14 @@ class GithubPullRequestExecutionJob < ApplicationJob
     end
 
     request = RunDiff::Executor::Request.from_execution(execution)
-    heartbeat_job_class.schedule(execution.execution_id, execution.attempt_count)
-    executor_job_class.perform_later(request.to_h)
+    orchestrator = orchestrator_dispatcher.call(request:)
+    heartbeat_job_class.schedule(execution.execution_id, execution.attempt_count) if orchestrator == "native"
 
     Rails.logger.info(
       "RunDiff GitHub execution dispatched execution_id=#{execution.execution_id.inspect} " \
       "repository=#{execution.context.fetch("repository").inspect} " \
       "pr=#{execution.context.fetch("pull_request_number").inspect} " \
-      "attempt=#{execution.attempt_count.inspect}"
+      "attempt=#{execution.attempt_count.inspect} orchestrator=#{orchestrator.inspect}"
     )
   rescue StandardError => error
     if execution&.fail!(error)
@@ -86,6 +86,10 @@ class GithubPullRequestExecutionJob < ApplicationJob
 
   def executor_job_class
     RunDiffExecutorJob
+  end
+
+  def orchestrator_dispatcher
+    RunDiff::Execution::OrchestratorDispatch.new(executor_job: executor_job_class)
   end
 
   def heartbeat_job_class

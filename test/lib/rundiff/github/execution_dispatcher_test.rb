@@ -16,6 +16,23 @@ class RunDiffGithubExecutionDispatcherTest < ActiveSupport::TestCase
     assert_match(/\Agithub-[0-9a-f]{64}\z/, first.execution_id)
   end
 
+  test "records execution orchestrator provenance outside the portable request" do
+    previous = ENV["RUNDIFF_EXECUTION_ORCHESTRATOR"]
+    ENV["RUNDIFF_EXECUTION_ORCHESTRATOR"] = "github_actions"
+
+    delivery = create_delivery
+    execution, = RunDiff::Github::ExecutionDispatcher.new(scenario_id: "scenario").call(
+      delivery:,
+      pull_request: pull_request_payload
+    )
+
+    assert_equal "github_actions", execution.context.fetch("execution_orchestrator")
+    request = RunDiff::Executor::Request.from_execution(execution)
+    refute_includes request.context, "execution_orchestrator"
+  ensure
+    ENV["RUNDIFF_EXECUTION_ORCHESTRATOR"] = previous
+  end
+
   test "cancels an older active revision of the same pull request" do
     notification_job = recording_notification_job
     cancellation = RunDiff::Executor::Cancellation.new(notification_job:)

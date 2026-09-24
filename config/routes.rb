@@ -10,6 +10,12 @@ Rails.application.routes.draw do
     get "/github/app/register" => "github/app_manifests#new", as: :github_app_register
     get "/github/app/manifest/callback" => "github/app_manifests#callback", as: :github_app_manifest_callback
     post "/github/webhooks" => "github/webhooks#create", as: :github_webhooks
+
+    post "/v1/execution-bridges/github-actions/claim" => "execution_bridges/github_actions#claim",
+      as: :github_actions_execution_bridge_claim
+    post "/v1/execution-bridges/github-actions/executions/:execution_id/attempts/:attempt_number/result" =>
+      "execution_bridges/github_actions#result",
+      as: :github_actions_execution_bridge_result
   end
 
   if runtime_role.executor_service?

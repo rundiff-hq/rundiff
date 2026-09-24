@@ -51,6 +51,29 @@ class GithubPullRequestExecutionJobTest < ActiveJob::TestCase
     assert_equal 0, publisher.infra_calls
   end
 
+  test "github actions orchestrator leaves the live attempt for external claim without blind heartbeats" do
+    previous = ENV["RUNDIFF_EXECUTION_ORCHESTRATOR"]
+    ENV["RUNDIFF_EXECUTION_ORCHESTRATOR"] = "github_actions"
+
+    execution = create_execution
+    dispatcher = counting_executor_job
+
+    assert_no_enqueued_jobs(only: GithubPullRequestExecutionHeartbeatJob) do
+      perform_job(
+        execution:,
+        client: sequence_client([ current_pull_request ]),
+        dispatcher:,
+        publisher: counting_publisher
+      )
+    end
+
+    assert_equal "running", execution.reload.status
+    assert_equal 1, execution.attempt_count
+    assert_empty dispatcher.payloads
+  ensure
+    ENV["RUNDIFF_EXECUTION_ORCHESTRATOR"] = previous
+  end
+
   test "ignores a stale head before executor dispatch" do
     execution = create_execution
     stale = current_pull_request.deep_dup

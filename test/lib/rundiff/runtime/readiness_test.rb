@@ -38,8 +38,44 @@ class RunDiff::Runtime::ReadinessTest < ActiveSupport::TestCase
 
       assert_not result.ready?
       assert_includes result.errors, "RUNDIFF_PUBLIC_URL must be an absolute HTTPS URL"
-      assert_includes result.errors, "RUNDIFF_EXECUTOR must be remote for a production control plane"
+      assert_includes result.errors, "RUNDIFF_EXECUTOR must be remote for a native production control plane"
       assert_includes result.errors, "RUNDIFF_REMOTE_EXECUTOR_URL must be an absolute HTTPS URL"
+    end
+  end
+
+  test "production control plane supports GitHub Actions orchestrator without a remote executor" do
+    Dir.mktmpdir("rundiff-readiness-") do |root|
+      File.write(File.join(root, "github.pem"), "private-key-placeholder")
+      env = control_plane_env.merge(
+        "RUNDIFF_GITHUB_PRIVATE_KEY_PATH" => "github.pem",
+        "RUNDIFF_EXECUTION_ORCHESTRATOR" => "github_actions",
+        "RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN" => "bridge-secret"
+      )
+      env.delete("RUNDIFF_EXECUTOR")
+      env.delete("RUNDIFF_REMOTE_EXECUTOR_URL")
+      env.delete("RUNDIFF_REMOTE_EXECUTOR_TOKEN")
+
+      result = readiness(root:, env:).call
+
+      assert result.ready?, result.errors.inspect
+    end
+  end
+
+  test "production GitHub Actions orchestrator requires a bridge token" do
+    Dir.mktmpdir("rundiff-readiness-") do |root|
+      File.write(File.join(root, "github.pem"), "private-key-placeholder")
+      env = control_plane_env.merge(
+        "RUNDIFF_GITHUB_PRIVATE_KEY_PATH" => "github.pem",
+        "RUNDIFF_EXECUTION_ORCHESTRATOR" => "github_actions"
+      )
+      env.delete("RUNDIFF_EXECUTOR")
+      env.delete("RUNDIFF_REMOTE_EXECUTOR_URL")
+      env.delete("RUNDIFF_REMOTE_EXECUTOR_TOKEN")
+
+      result = readiness(root:, env:).call
+
+      assert_not result.ready?
+      assert_includes result.errors, "RUNDIFF_GITHUB_ACTIONS_BRIDGE_TOKEN is required"
     end
   end
 
