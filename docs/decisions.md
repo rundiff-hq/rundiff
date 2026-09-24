@@ -202,3 +202,44 @@ Use OpenTelemetry Semantic Conventions as preferred evidence vocabulary where ap
 Schema v1 remains compatible: legacy `reason_code` stays valid while stable dotted `rule_id` values are introduced incrementally.
 
 See RFC 0010.
+
+## ADR 0016 - Cloudflare CI is orchestration; Sandbox and Containers are compute
+
+Status: Accepted working direction
+
+Model Cloudflare products by architectural role rather than by vendor name.
+
+For RunDiff:
+
+- Cloudflare CI is an external CI/orchestration surface, peer to GitHub Actions, Buildkite, GitLab CI, and similar systems.
+- Cloudflare Sandbox is the preferred first integration surface for RunDiff-managed Cloudflare execution because it provides isolated command, process, filesystem, service, timeout, and lifecycle primitives.
+- Cloudflare Containers are the underlying compute primitive. A direct Containers adapter remains a valid future implementation if Sandbox becomes too restrictive or hides capabilities RunDiff needs.
+- Cloudflare CI must not be a required internal layer beneath the managed RunDiff Executor. RunDiff already owns execution semantics such as Prepare -> Clone -> Bootstrap -> Build -> Start -> Ready -> Scenario -> Collect -> Teardown, cancellation, leases, evidence contracts, and baseline/candidate comparison.
+- The initial Cloudflare-native managed path should therefore be:
+
+~~~text
+RunDiff Control Plane
+  -> Execution Plan
+  -> Cloudflare compute adapter
+  -> Cloudflare Sandbox
+  -> Cloudflare Containers
+~~~
+
+- A Cloudflare CI integration, if added, belongs on the external-orchestrator side:
+
+~~~text
+Cloudflare CI
+  -> RunDiff API / runner bridge
+  -> Behavioral Review contract
+~~~
+
+This role separation prevents a CI orchestrator from becoming an accidental dependency of the managed compute path and keeps Cloudflare replaceable behind the Execution Plan boundary.
+
+Cloudflare Sandbox/Containers must be capability-detected for networking, nested execution, privileges, architecture, host visibility, performance stability, and evidence depth. Deep evidence is never assumed merely because execution runs on Cloudflare.
+
+The managed Go Executor remains the owner of RunDiff execution semantics. A Cloudflare adapter translates the Execution Plan into provider-specific lifecycle operations without changing the portable Request/Result or Behavioral Review contracts.
+
+This is a provider-integration assumption, not a public protocol dependency. If Cloudflare changes Sandbox or Containers APIs, the adapter may change without requiring a RunDiff protocol change.
+
+See RFC 0004 and RFC 0009.
+
