@@ -73,7 +73,8 @@ class GithubPullRequestExecutionFinalizeJob < ApplicationJob
 
     publication = execution_publisher(token: token.value).infra_failure(
       execution:,
-      error_class: result.error_class
+      error_class: result.error_class,
+      error_message: result.error_message
     )
 
     Rails.logger.info(

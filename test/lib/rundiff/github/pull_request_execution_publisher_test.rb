@@ -66,7 +66,8 @@ class RunDiffGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
 
     result = publisher.infra_failure(
       execution: execution,
-      error_class: "Errno::ECONNREFUSED"
+      error_class: "RunDiff::Executor::HttpAdapter::Error",
+      error_message: "Remote executor returned HTTP 401"
     )
 
     assert_equal({ check: :created, comment: :created }, result)
@@ -80,7 +81,9 @@ class RunDiffGithubPullRequestExecutionPublisherTest < ActiveSupport::TestCase
     assert_equal "github-execution", check_call.fetch(:external_id)
     assert_match "INFRA_FAILURE", check_call.fetch(:summary)
     assert_match "not a product regression", check_call.fetch(:summary)
+    assert_match "Remote executor returned HTTP 401", check_call.fetch(:summary)
     assert_match "INFRA_FAILURE", comment_call.fetch(:body)
+    assert_match "Remote executor returned HTTP 401", comment_call.fetch(:body)
   end
 
   private
