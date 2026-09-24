@@ -28,5 +28,6 @@ Read in this order:
 24. rfcs/0008-ownership-aware-routing.md
 25. rfcs/0009-managed-go-executor-host-runtime.md
 26. rfcs/0010-behavioral-analysis-finding-taxonomy.md
-27. rules/README.md
-28. roadmap.md
+27. rfcs/0011-control-plane-executor-protocol.md
+28. rules/README.md
+29. roadmap.md
