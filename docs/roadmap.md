@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current product vertical slice - External repository -> first review
+## Current product vertical slice - VS19 zero-operator external Rails review
 
 The current product goal is to make the already-working behavioral engine visible as a complete customer workflow:
 
@@ -40,16 +40,25 @@ The customer should not need a RunDiff gem, GitHub Action, middleware, initializ
 - hermetic full production topology lab
 - production identity and proof verification tooling
 - fail-fast Production Lab budgets and timeout diagnostics
+- Cloudflare-native production control plane
+- dedicated automatic GitHub Actions executor dispatch from `main`
+- external Node production acceptance through the Go executor with no manual proof workflow
 
 ### Remaining production gate
 
-1. Complete the first real infrastructure apply from #92.
-2. Complete the live external identity cutover from #121.
-3. Run #75 from a GitHub account or organization outside `rundiff-hq`.
-4. On one external PR, prove GitHub-originated `opened -> BLOCK`, push the behavioral fix, then prove `synchronize -> ALLOW`.
-5. Run Production Proof v2 and retain GitHub-confirmed delivery GUIDs, exact execution/Check/comment identities, both candidate SHAs, and install-to-first-review elapsed time.
+VS18 proved automatic external execution and publication. VS19 now narrows the remaining gate to one customer-shaped Rails proof:
 
-Definition of done: a new external Rails repository can go from **Install RunDiff** to its first Behavioral Review without RunDiff operator intervention.
+1. Install the production GitHub App on a Rails repository outside `rundiff-hq`.
+2. Add the minimal candidate-owned RunDiff configuration.
+3. Open one PR with a deliberate deterministic regression and prove GitHub-originated `opened -> BLOCK`.
+4. Push only the behavioral fix to the same PR and prove `synchronize -> ALLOW`.
+5. Verify one stable Check identity, one updateable PR comment, and hosted Review Detail continuity.
+6. Prove bootstrap/runtime failure maps to explicit `INFRA_FAILURE`, never false BLOCK/ALLOW.
+7. Retain delivery GUIDs, exact execution/attempt/workflow identities, both candidate SHAs, production Worker/main commit, and elapsed timings.
+
+Definition of done: a new external Rails repository can go from **Install RunDiff** through **BLOCK -> fix -> ALLOW** without RunDiff operator intervention after the customer GitHub events are generated.
+
+See `docs/implementation-plans/0019-zero-operator-external-rails-review.md`.
 
 Timing sampling hardening from #103/#137 remains important, but it is not allowed to hide or delay this end-to-end product proof.
 
