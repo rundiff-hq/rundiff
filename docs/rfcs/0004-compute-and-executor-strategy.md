@@ -542,6 +542,277 @@ The relevant RunDiff lesson is:
 
 This directly supports Workload Profile -> Placement Engine -> Execution Plan.
 
+### Research block: hermetic / reproducible computation and remote execution
+
+This subsection is **non-normative research**. It does not select Nix, Bazel, REAPI, BuildKit, or any other build backend. It records a separate architectural axis that RunDiff should understand before inventing its own build/cache protocol.
+
+The key distinction is:
+
+~~~text
+traditional CI job
+  = execute an imperative sequence of commands
+
+hermetic / reproducible action
+  = inputs + environment + operation + declared outputs
+~~~
+
+When an action identity is strong enough, a system can ask whether an equivalent result already exists before scheduling more compute.
+
+That creates a second reuse layer alongside RunDiff's existing execution/evidence reuse:
+
+~~~text
+source + toolchain + dependencies + build definition
+                  |
+                  v
+          deterministic action
+                  |
+          +-------+-------+
+          |               |
+      cache hit        cache miss
+          |               |
+          |          choose worker
+          |               |
+          +-------+-------+
+                  |
+                  v
+              artifact
+~~~
+
+This is not equivalent to Behavioral Review reuse. A build artifact can be reusable even when the behavioral execution must still run, while candidate/baseline evidence has stronger scenario, environment, instrumentation, fixture, and provenance requirements.
+
+#### Nix / Nixpkgs / NixOS / Hydra
+
+These names are related but represent different layers:
+
+- **Nix** is a package/build system with derivations, a dedicated store, binary substitution, and remote-build support.
+- **Nixpkgs** is the large package collection commonly consumed by Nix.
+- **NixOS** is a Linux distribution whose system configuration is built declaratively with Nix. NixOS is not required to use Nix.
+- **Hydra** is a Nix-native continuous build, test, and release system used as a build-farm/orchestration reference.
+
+Nix can forward builds to remote machines and use multiple builders in parallel. This makes it interesting for expensive deterministic preparation such as toolchains, native dependencies, helper binaries, and prebuilt subject environments.
+
+RunDiff relevance:
+
+- reproducible developer/executor environments;
+- exact toolchain and system dependency identity;
+- remote builders on owned/BYOC machines;
+- binary artifact reuse across ephemeral workers;
+- multi-platform preparation;
+- a possible backend for deterministic build/preparation actions.
+
+Important boundary:
+
+> Nix should be evaluated as an implementation backend, not adopted as RunDiff's product model.
+
+The portable RunDiff model should not require customers to write Nix expressions, and RunDiff should not require NixOS.
+
+References:
+
+- Nix remote builds: https://nix.dev/manual/nix/stable/advanced-topics/distributed-builds
+- Nix distributed-build tutorial: https://nix.dev/tutorials/nixos/distributed-builds-setup.html
+- Hydra: https://github.com/NixOS/hydra
+
+#### Bazel and the Remote Execution API
+
+Bazel is important prior art for representing build/test work as a dependency graph of cacheable actions and distributing those actions across remote workers.
+
+The more reusable concept for RunDiff is the **Remote Execution API (REAPI)**, not Bazel syntax.
+
+REAPI separates three important services:
+
+~~~text
+Content Addressable Storage (CAS)
+        |
+        +--> immutable inputs / outputs by digest
+
+Action Cache
+        |
+        +--> action identity -> prior result
+
+Execution Service
+        |
+        +--> schedule action on compatible worker
+~~~
+
+This is a useful reference architecture for a future RunDiff action/cache boundary because it separates:
+
+- data identity;
+- result reuse;
+- execution scheduling;
+- worker capabilities;
+- transport protocol.
+
+Bazel, Pants, and Buck2 can all participate in REAPI-style remote execution ecosystems. BuildBuddy, EngFlow, Buildbarn, Buildfarm, and similar systems demonstrate server-side implementations.
+
+RunDiff relevance:
+
+- do not invent CAS semantics casually;
+- study Action/Command/InputRoot identity before defining a proprietary cache key;
+- keep scheduler/worker contracts independent from a specific build frontend;
+- consider interoperability with REAPI-compatible infrastructure if RunDiff later needs fine-grained distributed execution.
+
+References:
+
+- Bazel remote execution: https://bazel.build/remote/rbe
+- REAPI specification: https://github.com/bazelbuild/remote-apis
+
+#### BuildKit
+
+BuildKit is the closest reference when the workload is naturally container/image oriented.
+
+Its Low-Level Build (LLB) representation is a content-addressable dependency graph. BuildKit can:
+
+- skip unused build stages;
+- execute independent graph branches concurrently;
+- reuse precise build cache entries;
+- export/import cache;
+- run behind Dockerfile or other frontends.
+
+RunDiff relevance:
+
+- many web applications already have Dockerfiles;
+- BuildKit may provide high-value caching without asking a repository to adopt a new build language;
+- LLB is useful prior art for separating human-facing build definition from an internal execution graph;
+- container/image preparation may stay in BuildKit even if runtime Behavioral Review execution uses another backend.
+
+Reference:
+
+- BuildKit architecture and LLB: https://docs.docker.com/build/buildkit/
+
+#### Pants and Buck2
+
+Pants and Buck2 are useful references for fine-grained build graphs, affected-work computation, caching, and remote execution.
+
+Pants explicitly models local execution, remote caching, and REAPI remote execution as separate modes. Buck2 can also use REAPI-compatible services.
+
+RunDiff relevance:
+
+- changed-file -> affected-target -> minimal action-set planning;
+- fine-grained cache reuse across CI workers;
+- separation of build graph semantics from worker fleet implementation;
+- evidence that REAPI is not Bazel-only.
+
+References:
+
+- Pants remote caching/execution: https://www.pantsbuild.org/dev/docs/using-pants/remote-caching-and-execution
+- Buck2 remote execution: https://buck2.build/docs/users/remote_execution/
+
+#### Earthly and Dagger
+
+Earthly and Dagger are higher-level references for portable build/CI execution around container primitives.
+
+Earthly demonstrates a useful economic point: persistent remote builders can keep cache near compute instead of repeatedly uploading and downloading large caches from ephemeral CI workers.
+
+Dagger remains useful prior art for expressing portable workflows independently of a particular CI vendor.
+
+RunDiff relevance:
+
+- local/CI parity;
+- persistent cache close to execution;
+- portable orchestration definitions;
+- possible bridge technology, but not a required product dependency.
+
+References:
+
+- Earthly remote BuildKit: https://docs.earthly.dev/ci-integration/remote-buildkit
+- Dagger: https://docs.dagger.io/
+
+#### Rails, Go, and web-application placement
+
+The expected value is different by ecosystem.
+
+For a Rails application:
+
+~~~text
+Nix / BuildKit / similar
+  -> Ruby + Node + libpq + libvips + native system dependencies
+
+Bundler
+  -> Ruby gems
+
+pnpm/yarn/npm
+  -> JavaScript packages
+
+RunDiff executor
+  -> database/services + scenario + evidence collection
+~~~
+
+The main opportunity is exact system/toolchain identity and reuse of expensive native dependencies or prepared images. RunDiff should not replace Bundler or the repository's normal JavaScript package manager.
+
+For a simple Go service, native Go module/build caching may already be sufficient. The value rises when the repository also depends on protobuf generators, C/C++ libraries, eBPF toolchains, browser assets, native databases, or multi-language build steps.
+
+For containerized web applications, BuildKit may be the lowest-friction first experiment because many repositories already describe a large part of the environment in Dockerfiles.
+
+#### Candidate internal abstraction
+
+Do not expose any of these systems directly as RunDiff's core contract yet.
+
+The research target is a backend-neutral action model such as:
+
+~~~text
+Action
+  identity inputs
+  environment / platform requirements
+  command or operation
+  declared outputs
+  dependency actions
+  cache policy
+  network policy
+  resource requirements
+  timeout
+  provenance requirements
+~~~
+
+Then an implementation could evolve toward:
+
+~~~text
+Execution Plan
+      |
+      +--> runtime Behavioral Review actions
+      |
+      +--> deterministic preparation/build actions
+                  |
+                  +--> local/container execution
+                  +--> BuildKit
+                  +--> Nix
+                  +--> REAPI
+                  +--> another backend
+~~~
+
+The architectural rule is:
+
+> RunDiff owns the action semantics and evidence/provenance contract. Build systems and remote-execution protocols are replaceable backends.
+
+#### Research questions before adoption
+
+1. Which RunDiff phases are deterministic enough to cache safely: clone, dependency install, build, bootstrap, fixture preparation, or only selected artifacts?
+2. What exact inputs must participate in an action identity for Rails, Go, Node, Python, Java, Rust, and container workloads?
+3. Can an Action model reuse or map cleanly onto REAPI rather than creating a proprietary CAS/action-cache protocol?
+4. Is BuildKit the lowest-friction first backend for repositories that already provide Dockerfiles?
+5. Is Nix valuable primarily for RunDiff-owned executor/toolchain environments, or should it also be offered for customer workload preparation?
+6. Where is cache reuse unsafe because secrets, mutable external services, clock/time, network access, database state, or nondeterministic generators affect the result?
+7. How should artifact provenance be signed/attested before reuse across tenants or BYOC workers?
+8. Should deterministic build reuse be global, tenant-scoped, repository-scoped, or selected by artifact class?
+9. How does cancellation/supersede interact with shared remote actions that may still be useful to another execution?
+10. What metrics prove that fine-grained remote execution is worth its complexity over persistent runners plus BuildKit/Nix caches?
+
+#### Suggested experiments
+
+Do not begin by deploying Hydra or a general REAPI cluster.
+
+Use narrow experiments:
+
+1. **BuildKit baseline** - measure a real Rails/Go repository with cold ephemeral CI, registry cache, and a persistent remote builder.
+2. **Nix environment experiment** - reproduce one RunDiff executor/toolchain environment on macOS/local Linux and a remote Linux builder without requiring NixOS.
+3. **REAPI model experiment** - encode a small deterministic build/test workload as Action + CAS + Action Cache concepts and compare the model to RunDiff's proposed Execution Plan.
+4. **Cache safety experiment** - intentionally vary environment variables, toolchain versions, secrets availability, generated files, and network state to identify missing identity dimensions.
+5. **Economics experiment** - compare cost and wall time for ephemeral GitHub Actions, persistent Hetzner/OVH-style builders, and managed remote execution.
+
+Decision gate:
+
+> Adopt a concrete backend only when measurements show a material latency/cost/reproducibility improvement and the backend can remain behind a portable RunDiff contract.
+
+
 ### Specialized architecture references
 
 #### Dagger
