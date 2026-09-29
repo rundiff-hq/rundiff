@@ -45,6 +45,54 @@ func (runner *fakeRunner) Run(
 	return result, err
 }
 
+func TestCreateUsesIsolatedLifecycleArgv(t *testing.T) {
+	runner := &fakeRunner{
+		results: []commandResult{{exitCode: 0}},
+	}
+	client := &CLI{
+		binary: "boxd",
+		runner: runner,
+	}
+
+	machine, err := client.Create(
+		context.Background(),
+		"rundiff-proof-parent",
+		true,
+	)
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+	if machine.Name != "rundiff-proof-parent" {
+		t.Fatalf("machine name = %q, want rundiff-proof-parent", machine.Name)
+	}
+
+	want := fakeCall{
+		binary: "boxd",
+		args: []string{
+			"machine",
+			"new",
+			"rundiff-proof-parent",
+			"--isolated",
+			"--json",
+		},
+	}
+	if !reflect.DeepEqual(runner.calls[0], want) {
+		t.Fatalf("call = %#v, want %#v", runner.calls[0], want)
+	}
+}
+
+func TestCreateRejectsEmptyName(t *testing.T) {
+	client := &CLI{
+		binary: "boxd",
+		runner: &fakeRunner{},
+	}
+
+	_, err := client.Create(context.Background(), "", true)
+	if err == nil {
+		t.Fatal("expected empty name error")
+	}
+}
+
 func TestForkUsesDocumentedArgvWithoutShell(t *testing.T) {
 	runner := &fakeRunner{
 		results: []commandResult{{exitCode: 0}},
