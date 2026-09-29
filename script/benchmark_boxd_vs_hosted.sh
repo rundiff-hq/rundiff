@@ -113,7 +113,59 @@ run_boxd() {
   local started ended proof_id
   proof_id="bench-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$id"
   started="$(now_ms)"
-  RUNDIFF_BOXD_PROOF_ID="$proof_id"   RUNDIFF_BOXD_TOOL_SHA="$tool_sha"     "$boxd_test_bin" -test.v -test.run '^TestLiveBehavioralDiff$' -test.count=1     >"$log" 2>&1
+  (
+    cd "$GITHUB_WORKSPACE/apps/executor-go/internal/compute/boxd"
+    RUNDIFF_BOXD_PROOF_ID="$proof_id" RUNDIFF_BOXD_TOOL_SHA="$tool_sha" "$boxd_test_bin" -test.v -test.run '^TestLiveBehavioralDiff
+
+  grep -q 'product.behavioral_diff=block' "$log"
+  grep -q 'product.finding=NEW_RUNTIME_ERROR' "$log"
+
+  local create_ms prepare_ms fork_ms base_ms candidate_ms execution_ms cleanup_pair_ms cleanup_golden_ms
+  create_ms="$(extract_metric provider.create.golden_ready_ms "$log")"
+  prepare_ms="$(extract_metric subject.golden_prepare_ms "$log")"
+  fork_ms="$(extract_metric provider.fork_pair_ready_ms "$log")"
+  base_ms="$(extract_metric scenario.baseline_capture_ms "$log")"
+  candidate_ms="$(extract_metric scenario.candidate_capture_ms "$log")"
+  execution_ms="$(extract_metric execution.total_ms "$log")"
+  cleanup_pair_ms="$(extract_metric provider.cleanup.pair_ms "$log")"
+  cleanup_golden_ms="$(extract_metric provider.cleanup.golden_ms "$log")"
+
+  jq -nc     --arg provider boxd     --argjson pair "$pair"     --argjson sequence_position "$position"     --argjson wall_ms "$((ended - started))"     --argjson create_ms "$create_ms"     --argjson golden_prepare_ms "$prepare_ms"     --argjson fork_pair_ms "$fork_ms"     --argjson baseline_capture_ms "$base_ms"     --argjson candidate_capture_ms "$candidate_ms"     --argjson execution_ms "$execution_ms"     --argjson cleanup_pair_ms "$cleanup_pair_ms"     --argjson cleanup_golden_ms "$cleanup_golden_ms"     --arg log_path "$log"     '{
+      provider: $provider,
+      pair: $pair,
+      sequence_position: $sequence_position,
+      wall_ms: $wall_ms,
+      outcome: "block",
+      finding: "NEW_RUNTIME_ERROR",
+      phases: {
+        create_golden_ms: $create_ms,
+        golden_prepare_ms: $golden_prepare_ms,
+        fork_pair_ms: $fork_pair_ms,
+        baseline_capture_ms: $baseline_capture_ms,
+        candidate_capture_ms: $candidate_capture_ms,
+        execution_before_deferred_cleanup_ms: $execution_ms,
+        cleanup_pair_ms: $cleanup_pair_ms,
+        cleanup_golden_ms: $cleanup_golden_ms
+      },
+      log_path: $log_path
+    }' >> "$samples_jsonl"
+}
+
+for ((pair = 1; pair <= pairs; pair++)); do
+  if (( pair % 2 == 1 )); then
+    run_hosted "$pair" 1
+    run_boxd "$pair" 2
+  else
+    run_boxd "$pair" 1
+    run_hosted "$pair" 2
+  fi
+done
+
+python3 script/provider_benchmark_report.py   --samples "$samples_jsonl"   --output "$output_root/report.json"
+
+cat "$output_root/report.json"
+ -test.count=1
+  ) >"$log" 2>&1
   ended="$(now_ms)"
 
   grep -q 'product.behavioral_diff=block' "$log"
