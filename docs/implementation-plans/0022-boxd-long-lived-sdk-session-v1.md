@@ -1,6 +1,6 @@
 # Implementation Plan 0022: Long-lived Boxd SDK Session v1
 
-Status: in progress
+Status: complete - long-lived SDK session proven live
 
 Tracking issue: #224
 
@@ -114,3 +114,71 @@ No latency threshold is an acceptance condition in v1. The timing is evidence fo
 - live persistent golden session proof;
 - normal CI green;
 - no Request v1 / Result v1 changes.
+
+
+## Live evidence - 2026-09-29
+
+GitHub Actions Boxd provider proof run `36598445624` completed successfully on
+the long-lived-session branch.
+
+The same workflow re-proved:
+
+~~~text
+copy-on-write fork isolation   PASS
+persistent golden reuse        PASS
+long-lived SDK session reuse   PASS
+real Behavioral Diff           PASS
+product result                 regression -> block
+finding                        NEW_RUNTIME_ERROR
+~~~
+
+Observed golden timings:
+
+| Path | Operation | Time |
+| --- | --- | ---: |
+| BOXD4.1 one-shot bridge | reuse | ~3,654 ms |
+| current one-shot control in this run | reuse | 3,089 ms |
+| BOXD4.2 long-lived session | first reuse | 386 ms |
+| BOXD4.2 long-lived session | second reuse | 467 ms |
+
+The session reuse path therefore reduced the measured repeated golden
+lookup+ready-marker verification from multi-second one-shot calls to
+sub-second calls in this proof. Relative to the BOXD4.1 live observation,
+386 ms is about 9.5x lower latency and 467 ms is about 7.8x lower latency.
+
+The session proof also reduced initial golden Ensure in this small proof:
+
+~~~text
+one-shot Ensure(create)    8,871 ms
+session Ensure(create)     1,889 ms
+~~~
+
+This comparison is directional rather than a production SLO: the provider
+service, network and VM state can vary between calls.
+
+In the real Behavioral Diff proof from the same workflow:
+
+~~~text
+provider.create.golden_ready_ms = 2295
+provider.fork_pair_ready_ms     = 2016
+product.behavioral_diff         = block
+product.finding                 = NEW_RUNTIME_ERROR
+provider.cleanup.pair_ms        = 330
+provider.cleanup.golden_ms      = 165
+~~~
+
+The earlier BOXD3 benchmark measured pair fork readiness around 4.47 s median
+with process-per-operation transport, so the ~2.02 s live observation is also
+consistent with removing repeated bridge/session setup. It is not yet a formal
+five-pair benchmark result.
+
+### Decision
+
+Keep the long-lived SDK session as the preferred Boxd transport for
+fork-native experiments. Keep the one-shot bridge as a bounded
+reference/fallback during the spike.
+
+BOXD4.3 should now address the next structural limitation: the provider session
+serializes operations and `compute.ForkPair` creates baseline and candidate
+sequentially. Parallel pair fork must preserve partial-failure cleanup and
+cancellation semantics.
