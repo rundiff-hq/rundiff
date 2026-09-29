@@ -194,7 +194,6 @@ func TestSDKRejectsBridgeMachineNameMismatch(t *testing.T) {
 	}
 }
 
-
 func TestSDKGetReturnsMachineByName(t *testing.T) {
 	runner := &fakeSDKBridgeRunner{
 		responses: []sdkBridgeResponse{{
