@@ -2,9 +2,6 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/boxd-prerunning-postgres-behavioral-diff
 
 permissions:
   contents: read
