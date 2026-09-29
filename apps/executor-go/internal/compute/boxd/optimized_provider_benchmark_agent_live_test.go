@@ -20,10 +20,10 @@ type optimizedProviderAgentCommand struct {
 }
 
 type optimizedProviderAgentReady struct {
-	Type             string `json:"type"`
-	CreateGoldenMS   int64  `json:"create_golden_ms"`
-	PrepareGoldenMS  int64  `json:"prepare_golden_ms"`
-	ParentStartedAt  string `json:"parent_started_at"`
+	Type            string `json:"type"`
+	CreateGoldenMS  int64  `json:"create_golden_ms"`
+	PrepareGoldenMS int64  `json:"prepare_golden_ms"`
+	ParentStartedAt string `json:"parent_started_at"`
 }
 
 type optimizedProviderAgentSample struct {
