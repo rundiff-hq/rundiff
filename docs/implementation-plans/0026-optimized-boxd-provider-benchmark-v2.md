@@ -1,6 +1,6 @@
 # Implementation Plan 0026: Optimized Boxd Provider Benchmark v2
 
-Status: in progress
+Status: complete - optimized whole-provider benchmark recorded
 
 Tracking issue: #235
 
@@ -210,3 +210,178 @@ available.
 - direct historical comparison to BOXD3;
 - normal CI credential-free;
 - final benchmark workflow manual-only.
+
+
+## Live result - 2026-09-30
+
+The canonical final-code benchmark is GitHub Actions run `36645026663` on
+commit `b172efbe5ac0669c7394ae93bdb054d160e1834d`.
+
+Artifact:
+
+~~~text
+boxd-provider-benchmark-v2-36645026663-1
+artifact id: 11068012328
+retention: 14 days
+sha256: f783d3b964d8ed99a42d641328cd85f1665406665d2d30d40a55d88383657efb
+~~~
+
+All ten provider samples produced:
+
+~~~text
+decision=regression
+merge_recommendation=block
+finding=NEW_RUNTIME_ERROR
+~~~
+
+### Primary steady-state result
+
+| Pair | First | Hosted | Optimized Boxd |
+| ---: | --- | ---: | ---: |
+| 1 | hosted | 2,993 ms | 7,856 ms |
+| 2 | Boxd | 2,468 ms | 6,440 ms |
+| 3 | hosted | 2,452 ms | 6,844 ms |
+| 4 | Boxd | 2,464 ms | 6,314 ms |
+| 5 | hosted | 2,467 ms | 6,509 ms |
+
+Summary:
+
+| Path | n | Median | p95 | Min | Max |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hosted managed Go | 5 | 2,467 ms | 2,993 ms | 2,452 ms | 2,993 ms |
+| Optimized Boxd | 5 | 6,509 ms | 7,856 ms | 6,314 ms | 7,856 ms |
+
+~~~text
+optimized Boxd / hosted median = 2.638x
+absolute median gap            = 4.042 s
+~~~
+
+The benchmark-only agent's internal median was `6,506 ms`, only 3 ms below
+the shell-observed `6,509 ms`, so JSONL control-channel overhead is negligible
+for this result.
+
+### Improvement versus BOXD3
+
+The original BOXD3 canonical result was:
+
+~~~text
+run 36587660042
+hosted median   =  2,417 ms
+Boxd v1 median  = 39,738 ms
+Boxd / hosted   = 16.44x
+~~~
+
+The optimized Boxd median is:
+
+~~~text
+6,509 ms
+~~~
+
+Therefore the measured Boxd implementation improved by:
+
+~~~text
+39,738 / 6,509 = 6.105x
+~~~
+
+The hosted path remained in the same approximate range across the two canonical
+runs (2,417 ms then 2,467 ms), which makes the before/after provider comparison
+especially useful for this fixture.
+
+The original gap was reduced from approximately:
+
+~~~text
+37.321 s
+~~~
+
+to:
+
+~~~text
+4.042 s
+~~~
+
+### Optimized Boxd phase evidence
+
+Per-sample phase ranges:
+
+~~~text
+parallel pair fork            1,038-2,387 ms
+inherited PostgreSQL ready    1,695-1,823 ms
+baseline capture              1,564-1,895 ms
+candidate capture             1,554-1,761 ms
+pair cleanup                    339-343 ms
+comparison                         0 ms
+~~~
+
+The first Boxd sample carried a visibly slower fork (2,387 ms). Later samples
+were roughly 1.0-1.25 s for pair fork, which is why the benchmark uses five
+alternating samples instead of a single timing.
+
+### Cold and amortized lifecycle
+
+One-time lifecycle measured in the canonical run:
+
+~~~text
+create golden       2,569 ms
+prepare golden     15,979 ms
+cold setup total   18,548 ms
+final cleanup         167 ms
+~~~
+
+Using the steady-state median of 6,509 ms:
+
+| Executions sharing the golden | Amortized Boxd median |
+| ---: | ---: |
+| 1 | 25,224 ms |
+| 5 | 10,252 ms |
+| 10 | 8,380.5 ms |
+| 50 | 6,883.3 ms |
+
+This is why the persistent-golden provider model must distinguish cold
+construction from steady-state PR execution.
+
+### Repeatability
+
+An earlier code-equivalent run `36644844056` completed successfully before
+the final gofmt-only commit:
+
+~~~text
+hosted median          2,069 ms
+optimized Boxd median  6,244 ms
+Boxd / hosted          3.018x
+Boxd vs v1 speedup     6.364x
+~~~
+
+Its artifact:
+
+~~~text
+boxd-provider-benchmark-v2-36644844056-1
+artifact id: 11067589284
+sha256: a11ba3310078d48a71df4311abd9c7a74f4f046dbe5f5fa761eb7a89bf8a0b2b
+~~~
+
+The absolute hosted timing varied between runs, but both whole-provider
+experiments agree that the optimized Boxd path is now around 6-6.5 seconds and
+is dramatically faster than the original 39.7-second implementation.
+
+### Decision
+
+BOXD4 succeeded architecturally: persistent golden state, long-lived SDK
+sessions, parallel forks and inherited running PostgreSQL removed most of the
+original Boxd execution overhead.
+
+The optimized Boxd path is **not** yet a latency winner against the hosted
+managed executor on this fixture. The canonical steady-state median remains
+about 2.64x the hosted median.
+
+Therefore:
+
+- keep Boxd as an experimental/fork-native provider;
+- do not make it the default placement based on latency;
+- move the next investigation from broad lifecycle optimization to the
+  remaining ~4-second steady-state gap and provider economics;
+- evaluate whether the remaining Boxd latency buys capabilities that hosted
+  execution does not provide, especially persistent fork-native state,
+  isolation and BYOC-style placement.
+
+Cost/economics, queue latency and control-plane/provider dispatch remain separate
+questions and must not be inferred from this executor-runtime benchmark.
