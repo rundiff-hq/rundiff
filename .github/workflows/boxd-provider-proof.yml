@@ -63,52 +63,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLiveForkIsolation$' \
-            -count=1
+          go test -v ./internal/compute/boxd -run '^TestLiveForkIsolation$' -count=1
 
       - name: Prove persistent golden reuse
         shell: bash
         run: |
           set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLivePersistentGoldenReuse$' \
-            -count=1
+          go test -v ./internal/compute/boxd -run '^TestLivePersistentGoldenReuse$' -count=1
 
       - name: Prove long-lived SDK session reuse
         shell: bash
         run: |
           set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLivePersistentGoldenReuseSession$' \
-            -count=1
+          go test -v ./internal/compute/boxd -run '^TestLivePersistentGoldenReuseSession$' -count=1
 
       - name: Prove parallel pair fork isolation
         shell: bash
         run: |
           set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLiveParallelForkIsolation$' \
-            -count=1
+          go test -v ./internal/compute/boxd -run '^TestLiveParallelForkIsolation$' -count=1
 
       - name: Benchmark sequential versus parallel pair fork
         shell: bash
         run: |
           set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLiveParallelForkBenchmark        shell: bash
-        run: |
-          set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLiveBehavioralDiff$' \
-            -count=1
- \
-            -count=1
+          go test -v ./internal/compute/boxd -run '^TestLiveParallelForkBenchmark$' -count=1
 
       - name: Prove real Behavioral Diff on forked subjects
         shell: bash
         run: |
           set -euo pipefail
-          go test -v ./internal/compute/boxd \
-            -run '^TestLiveBehavioralDiff$' \
-            -count=1
+          go test -v ./internal/compute/boxd -run '^TestLiveBehavioralDiff$' -count=1
