@@ -8,6 +8,16 @@ on:
         required: false
         default: "5"
         type: string
+  push:
+    branches:
+      - feat/boxd-optimized-provider-benchmark
+
+    inputs:
+      pairs:
+        description: Paired alternating samples
+        required: false
+        default: "5"
+        type: string
 permissions:
   contents: read
 
@@ -88,7 +98,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: boxd-provider-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          name: boxd-provider-benchmark-v2-${{ github.run_id }}-${{ github.run_attempt }}
           path: tmp/rundiff/provider-benchmark
           if-no-files-found: error
           retention-days: 14
