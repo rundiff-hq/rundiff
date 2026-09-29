@@ -11,3 +11,11 @@
 !.env.example
 /deploy/production/.secrets/
 .DS_Store
+
+# Cloudflare control-plane local artifacts
+apps/control-plane-cloudflare/.dev.vars
+apps/control-plane-cloudflare/.wrangler/
+apps/control-plane-cloudflare/dist/
+apps/control-plane-cloudflare/node_modules/
+apps/control-plane-cloudflare/wrangler.jsonc
+apps/control-plane-cloudflare/wrangler.production.jsonc
