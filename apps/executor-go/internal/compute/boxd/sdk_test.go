@@ -231,7 +231,6 @@ func TestSDKGetReturnsTypedNotFound(t *testing.T) {
 	}
 }
 
-
 func TestSDKRemoveRetriesTransientProviderFailure(t *testing.T) {
 	runner := &fakeSDKBridgeRunner{
 		errs: []error{
