@@ -88,7 +88,7 @@ The manager writes a provider-internal readiness marker after successful trusted
 /var/lib/rundiff/golden/<full-fingerprint>.ready
 ~~~
 
-The deterministic name plus full fingerprint marker protects reuse from partially prepared or manually replaced machines.
+The deterministic name plus full fingerprint marker protects reuse from partially prepared or manually replaced machines. The marker is deliberately user-writable and ephemeral: if a reboot or tmp cleanup removes it, the manager refreshes the golden rather than trusting ambiguous state.
 
 ## Boxd transport
 
