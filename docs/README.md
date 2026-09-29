@@ -29,5 +29,7 @@ Read in this order:
 25. rfcs/0009-managed-go-executor-host-runtime.md
 26. rfcs/0010-behavioral-analysis-finding-taxonomy.md
 27. rfcs/0011-control-plane-executor-protocol.md
-28. rules/README.md
-29. roadmap.md
+28. rfcs/0012-verification-plan-change-aware-validation.md
+29. rfcs/0013-boxd-forkable-compute-provider.md
+30. rules/README.md
+31. roadmap.md
