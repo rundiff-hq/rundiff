@@ -56,11 +56,10 @@ jobs:
           node --check bridge.mjs
           node -e 'import("@boxd-sh/sdk").then(({ VERSION }) => console.log("boxd_sdk_version=" + VERSION))'
 
-      - name: Prove create, fork and copy-on-write isolation
+      - name: Inventory Boxd base image
         shell: bash
         run: |
           set -euo pipefail
           go test -v ./internal/compute/boxd \
-            -run '^TestLiveEnvironmentInventory            -count=1
- \
+            -run '^TestLiveEnvironmentInventory$' \
             -count=1
