@@ -11,7 +11,7 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/compute/golden"
 )
 
-const defaultGoldenMarkerRoot = "/var/lib/rundiff/golden"
+const defaultGoldenMarkerRoot = "/tmp/rundiff/golden"
 
 type goldenProvider interface {
 	Get(context.Context, string) (compute.Machine, error)
