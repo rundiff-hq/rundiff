@@ -2,6 +2,9 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ops/boxd-provider-proof-run
 
 permissions:
   contents: read
