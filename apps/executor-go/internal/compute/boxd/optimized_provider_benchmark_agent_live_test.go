@@ -128,13 +128,12 @@ func TestLiveOptimizedProviderBenchmarkAgent(t *testing.T) {
 				t.Fatalf("benchmark agent sequence_position must be 1 or 2")
 			}
 
-			sample := runBehavioralDBSample(
+			sample := runCollapsedBehavioralDBSample(
 				t,
 				ctx,
 				client,
 				parent,
 				parentStartedAt,
-				behavioralDBInherited,
 				command.Pair,
 				command.SequencePosition,
 				proofID,

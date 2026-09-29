@@ -8,6 +8,8 @@ from pathlib import Path
 
 PREVIOUS_BOXD_MEDIAN_MS = 39738
 PREVIOUS_HOSTED_MEDIAN_MS = 2417
+BOXD5_BOXD_MEDIAN_MS = 6509
+BOXD5_HOSTED_MEDIAN_MS = 2467
 AMORTIZATION_COUNTS = (1, 5, 10, 50)
 
 
@@ -102,8 +104,10 @@ def main():
         boxd_over_hosted = boxd["median_ms"] / hosted["median_ms"]
 
     optimized_vs_previous = 0
+    optimized_vs_boxd5 = 0
     if boxd["median_ms"]:
         optimized_vs_previous = PREVIOUS_BOXD_MEDIAN_MS / boxd["median_ms"]
+        optimized_vs_boxd5 = BOXD5_BOXD_MEDIAN_MS / boxd["median_ms"]
 
     paired = []
     pairs = sorted({item["pair"] for item in samples})
@@ -138,7 +142,7 @@ def main():
         )
 
     report = {
-        "schema_version": "2",
+        "schema_version": "3",
         "method": {
             "comparison": "executor_runtime_without_provider_queue",
             "pairs": len(pairs),
@@ -157,6 +161,8 @@ def main():
                 "long_lived_pair_sdk",
                 "parallel_pair_fork",
                 "inherited_running_postgresql",
+                "inline_postgresql_verification",
+                "parallel_role_capture",
             ],
         },
         "summary": {
@@ -175,6 +181,9 @@ def main():
             "optimized_boxd_vs_v1_speedup": round(
                 optimized_vs_previous, 3
             ),
+            "collapsed_boxd_vs_boxd5_speedup": round(
+                optimized_vs_boxd5, 3
+            ),
         },
         "boxd_lifecycle": amortized_boxd(
             boxd["median_ms"],
@@ -184,6 +193,11 @@ def main():
             "run_id": 36587660042,
             "hosted_median_ms": PREVIOUS_HOSTED_MEDIAN_MS,
             "boxd_median_ms": PREVIOUS_BOXD_MEDIAN_MS,
+        },
+        "boxd5_reference": {
+            "run_id": 36645026663,
+            "hosted_median_ms": BOXD5_HOSTED_MEDIAN_MS,
+            "boxd_median_ms": BOXD5_BOXD_MEDIAN_MS,
         },
         "paired": paired,
         "samples": samples,

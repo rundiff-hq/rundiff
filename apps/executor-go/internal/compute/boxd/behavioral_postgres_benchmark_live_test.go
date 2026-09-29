@@ -32,6 +32,7 @@ type behavioralDBSample struct {
 	InheritedPostgresReadyMS int64            `json:"inherited_postgres_ready_ms,omitempty"`
 	BaselineCaptureMS        int64            `json:"baseline_capture_ms"`
 	CandidateCaptureMS       int64            `json:"candidate_capture_ms"`
+	RoleCriticalPathMS       int64            `json:"role_critical_path_ms,omitempty"`
 	ComparisonMS             int64            `json:"comparison_ms"`
 	CleanupMS                int64            `json:"cleanup_ms"`
 	TotalMS                  int64            `json:"total_ms"`
@@ -395,6 +396,153 @@ func runBehavioralDBSample(
 	return result
 }
 
+func runCollapsedBehavioralDBSample(
+	t *testing.T,
+	ctx context.Context,
+	client *PairSDK,
+	parent compute.Machine,
+	parentStartedAt string,
+	sample int,
+	sequencePosition int,
+	proofID string,
+) behavioralDBSample {
+	t.Helper()
+
+	totalStarted := time.Now()
+	baselineName := fmt.Sprintf("rundiff-opt-b%d-%s", sample, proofID)
+	candidateName := fmt.Sprintf("rundiff-opt-c%d-%s", sample, proofID)
+
+	forkStarted := time.Now()
+	pair, err := compute.ForkPair(
+		ctx,
+		client,
+		parent.Name,
+		baselineName,
+		candidateName,
+	)
+	if err != nil {
+		t.Fatalf("optimized sample %d fork pair: %v", sample, err)
+	}
+	pairForkMS := time.Since(forkStarted).Milliseconds()
+
+	cleaned := false
+	defer func() {
+		if !cleaned {
+			cleanupPair(t, client, pair)
+		}
+	}()
+
+	runID := fmt.Sprintf(
+		"boxd-behavioral-db-opt-%d-%s",
+		sample,
+		proofID,
+	)
+	scenarioID := "node.http.widgets"
+
+	captures := runParallelRoleCaptures(
+		ctx,
+		func(roleCtx context.Context) ([]byte, error) {
+			return captureBoxdRoleInheritedPostgresChecked(
+				roleCtx,
+				client.primary,
+				pair.Baseline,
+				"baseline",
+				boxdFixtureBaselineSHA,
+				runID,
+				scenarioID,
+				parentStartedAt,
+			)
+		},
+		func(roleCtx context.Context) ([]byte, error) {
+			return captureBoxdRoleInheritedPostgresChecked(
+				roleCtx,
+				client.secondary,
+				pair.Candidate,
+				"candidate",
+				boxdFixtureCandidateSHA,
+				runID,
+				scenarioID,
+				parentStartedAt,
+			)
+		},
+	)
+
+	if captures.Baseline.Err != nil || captures.Candidate.Err != nil {
+		t.Fatalf(
+			"optimized sample %d capture errors baseline/candidate = %v/%v",
+			sample,
+			captures.Baseline.Err,
+			captures.Candidate.Err,
+		)
+	}
+
+	baselineCapture := captures.Baseline.Body
+	candidateCapture := captures.Candidate.Body
+
+	validateBehavioralBenchmarkCapture(
+		t,
+		baselineCapture,
+		runID,
+		scenarioID,
+		"baseline",
+		boxdFixtureBaselineSHA,
+		"passed",
+		200,
+	)
+	validateBehavioralBenchmarkCapture(
+		t,
+		candidateCapture,
+		runID,
+		scenarioID,
+		"candidate",
+		boxdFixtureCandidateSHA,
+		"failed",
+		500,
+	)
+
+	compareStarted := time.Now()
+	assertBehavioralBenchmarkResult(
+		t,
+		baselineCapture,
+		candidateCapture,
+	)
+	comparisonMS := time.Since(compareStarted).Milliseconds()
+
+	cleanupStarted := time.Now()
+	cleanupPair(t, client, pair)
+	cleanupMS := time.Since(cleanupStarted).Milliseconds()
+	cleaned = true
+
+	result := behavioralDBSample{
+		Mode:                     behavioralDBInherited,
+		Sample:                   sample,
+		SequencePosition:         sequencePosition,
+		PairForkReadyMS:          pairForkMS,
+		InheritedPostgresReadyMS: 0,
+		BaselineCaptureMS:        captures.Baseline.Elapsed.Milliseconds(),
+		CandidateCaptureMS:       captures.Candidate.Elapsed.Milliseconds(),
+		RoleCriticalPathMS:       captures.Critical.Milliseconds(),
+		ComparisonMS:             comparisonMS,
+		CleanupMS:                cleanupMS,
+		TotalMS:                  time.Since(totalStarted).Milliseconds(),
+		Decision:                 "block",
+		Finding:                  "NEW_RUNTIME_ERROR",
+	}
+	t.Logf(
+		"behavioral_db_collapsed.sample=%d position=%d fork_ms=%d role_critical_ms=%d baseline_ms=%d candidate_ms=%d compare_ms=%d cleanup_ms=%d total_ms=%d",
+		sample,
+		sequencePosition,
+		result.PairForkReadyMS,
+		result.RoleCriticalPathMS,
+		result.BaselineCaptureMS,
+		result.CandidateCaptureMS,
+		result.ComparisonMS,
+		result.CleanupMS,
+		result.TotalMS,
+	)
+	return result
+}
+
 func assertInheritedBehavioralPostgres(
 	t *testing.T,
 	ctx context.Context,
@@ -464,22 +612,52 @@ func captureBoxdRoleInheritedPostgres(
 ) []byte {
 	t.Helper()
 
-	result, err := execBoxdOK(ctx, client, machine, []string{
-		"bash", "-lc", boxdInheritedPostgresRoleCaptureScript, "rundiff-role",
-		sha, label, runID, scenarioID,
-	})
+	body, err := captureBoxdRoleInheritedPostgresChecked(
+		ctx,
+		client,
+		machine,
+		label,
+		sha,
+		runID,
+		scenarioID,
+		"",
+	)
 	if err != nil {
 		t.Fatalf("capture inherited PostgreSQL %s: %v", label, err)
 	}
+	return body
+}
+
+func captureBoxdRoleInheritedPostgresChecked(
+	ctx context.Context,
+	client compute.Provider,
+	machine compute.Machine,
+	label string,
+	sha string,
+	runID string,
+	scenarioID string,
+	expectedStartedAt string,
+) ([]byte, error) {
+	result, err := execBoxdOK(ctx, client, machine, []string{
+		"bash", "-lc", boxdInheritedPostgresRoleCaptureScript, "rundiff-role",
+		sha, label, runID, scenarioID, expectedStartedAt,
+	})
+	if err != nil {
+		return nil, fmt.Errorf(
+			"capture inherited PostgreSQL %s: %w",
+			label,
+			err,
+		)
+	}
 	body := []byte(strings.TrimSpace(result.Stdout))
 	if !json.Valid(body) {
-		t.Fatalf(
+		return nil, fmt.Errorf(
 			"capture inherited PostgreSQL %s returned invalid JSON: %s",
 			label,
 			result.Stdout,
 		)
 	}
-	return body
+	return body, nil
 }
 
 func validateBehavioralBenchmarkCapture(
@@ -653,6 +831,7 @@ sha="$1"
 label="$2"
 run_id="$3"
 scenario_id="$4"
+expected_started_at="${5:-}"
 
 docker_cmd() {
   if docker info >/dev/null 2>&1; then
@@ -666,6 +845,13 @@ cd /tmp/rundiff-subject
 git checkout --detach "$sha" >&2
 
 docker_cmd exec rundiff-postgres pg_isready -U postgres -d rundiff_bridge >&2
+if [[ -n "$expected_started_at" ]]; then
+  actual_started_at="$(docker_cmd inspect -f '{{.State.StartedAt}}' rundiff-postgres)"
+  if [[ "$actual_started_at" != "$expected_started_at" ]]; then
+    echo "inherited PostgreSQL StartedAt mismatch: expected=$expected_started_at actual=$actual_started_at" >&2
+    exit 1
+  fi
+fi
 
 cleanup() {
   if [[ -n "${subject_pid:-}" ]]; then
