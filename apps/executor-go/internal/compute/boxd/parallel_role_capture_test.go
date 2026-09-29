@@ -8,10 +8,10 @@ import (
 )
 
 type roleCaptureResult struct {
-	Role     string
-	Body     []byte
-	Elapsed  time.Duration
-	Err      error
+	Role    string
+	Body    []byte
+	Elapsed time.Duration
+	Err     error
 }
 
 type pairedCaptureResult struct {
