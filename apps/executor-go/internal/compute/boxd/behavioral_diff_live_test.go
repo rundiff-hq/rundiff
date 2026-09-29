@@ -38,13 +38,17 @@ func TestLiveBehavioralDiff(t *testing.T) {
 		t.Fatal("RUNDIFF_BOXD_TOOL_SHA is required for the live Boxd behavioral diff proof")
 	}
 
-	client, err := NewSessionSDK("node", "sdkbridge/session.mjs")
+	client, err := NewSessionPairSDK(
+		"node",
+		"sdkbridge/session.mjs",
+		"sdkbridge/bridge.mjs",
+	)
 	if err != nil {
-		t.Fatalf("start SDK session: %v", err)
+		t.Fatalf("start SDK pair sessions: %v", err)
 	}
 	defer func() {
 		if closeErr := client.Close(); closeErr != nil {
-			t.Errorf("close SDK session: %v", closeErr)
+			t.Errorf("close SDK pair sessions: %v", closeErr)
 		}
 	}()
 
