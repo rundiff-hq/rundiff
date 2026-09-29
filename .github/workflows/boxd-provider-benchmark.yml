@@ -1,0 +1,94 @@
+name: Boxd Provider Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: Paired alternating samples
+        required: false
+        default: "5"
+        type: string
+permissions:
+  contents: read
+
+concurrency:
+  group: boxd-provider-benchmark
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rundiff_bridge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rundiff_bridge"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      BOXD_API_KEY: ${{ secrets.BOXD_API_KEY }}
+      RUNDIFF_BOXD_LIVE: "1"
+      RUNDIFF_BOXD_TOOL_SHA: "${{ github.sha }}"
+      RUNDIFF_PROVIDER_BENCHMARK_PAIRS: "${{ inputs.pairs || '5' }}"
+      RUNDIFF_PROVIDER_BENCHMARK_OUTPUT_ROOT: tmp/rundiff/provider-benchmark
+      RUNDIFF_PROVIDER_BENCHMARK_EXECUTOR_BIN: /tmp/rundiff-executor
+      RUNDIFF_PROVIDER_BENCHMARK_BOXD_TEST_BIN: /tmp/rundiff-boxd-live.test
+      RUNDIFF_DEPENDENCY_CACHE_ROOT: ${{ github.workspace }}/tmp/rundiff-provider-benchmark-deps
+      RUNDIFF_DEPENDENCY_CACHE_NAMESPACE: rundiff-hq/example-node-express-postgres
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache-dependency-path: apps/executor-go/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Require Boxd API key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${BOXD_API_KEY}"
+
+      - name: Install pinned Boxd SDK bridge
+        working-directory: apps/executor-go/internal/compute/boxd/sdkbridge
+        run: npm install --no-audit --no-fund
+
+      - name: Build benchmark executables
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd apps/executor-go
+            CGO_ENABLED=0 go build -o /tmp/rundiff-executor ./cmd/rundiff-executor
+            go test -c -o /tmp/rundiff-boxd-live.test ./internal/compute/boxd
+          )
+
+      - name: Run alternating provider benchmark
+        shell: bash
+        run: bash script/benchmark_boxd_vs_hosted.sh
+
+      - name: Upload provider benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxd-provider-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/provider-benchmark
+          if-no-files-found: error
+          retention-days: 14
