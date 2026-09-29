@@ -8,10 +8,6 @@ on:
         required: false
         default: "5"
         type: string
-  push:
-    branches:
-      - feat/boxd-optimized-provider-benchmark
-
 permissions:
   contents: read
 
