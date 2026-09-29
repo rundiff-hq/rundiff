@@ -129,8 +129,8 @@ func (runner *nodeSDKSessionRunner) Run(
 	case read = <-responseCh:
 	}
 	if read.err != nil {
-		stderr := strings.TrimSpace(runner.stderr.String())
 		_ = runner.terminateLocked(true)
+		stderr := strings.TrimSpace(runner.stderr.String())
 		if stderr != "" {
 			return sdkBridgeResponse{}, fmt.Errorf(
 				"read boxd sdk session response: %w: %s",
