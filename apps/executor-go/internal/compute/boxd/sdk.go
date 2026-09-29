@@ -30,7 +30,10 @@ type sdkBridgeResponse struct {
 	Stdout   string            `json:"stdout,omitempty"`
 	Stderr   string            `json:"stderr,omitempty"`
 	ExitCode int               `json:"exitCode,omitempty"`
+	NotFound bool              `json:"notFound,omitempty"`
 }
+
+var ErrMachineNotFound = errors.New("boxd machine not found")
 
 type sdkBridgeRunner interface {
 	Run(context.Context, sdkBridgeRequest) (sdkBridgeResponse, error)
@@ -124,6 +127,31 @@ func (client *SDK) Create(
 	)
 	if err != nil {
 		return compute.Machine{}, fmt.Errorf("boxd sdk create %q: %w", name, err)
+	}
+
+	return machineFromBridge(response, name)
+}
+
+func (client *SDK) Get(
+	ctx context.Context,
+	name string,
+) (compute.Machine, error) {
+	if name == "" {
+		return compute.Machine{}, errors.New("boxd machine name is required")
+	}
+
+	response, err := client.runner.Run(
+		ctx,
+		sdkBridgeRequest{
+			Operation: "get",
+			Name:      name,
+		},
+	)
+	if err != nil {
+		return compute.Machine{}, fmt.Errorf("boxd sdk get %q: %w", name, err)
+	}
+	if response.NotFound {
+		return compute.Machine{}, fmt.Errorf("%w: %s", ErrMachineNotFound, name)
 	}
 
 	return machineFromBridge(response, name)
