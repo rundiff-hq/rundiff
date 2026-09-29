@@ -183,6 +183,7 @@ run_boxd() {
         inherited_postgres_ready_ms:$sample.inherited_postgres_ready_ms,
         baseline_capture_ms:$sample.baseline_capture_ms,
         candidate_capture_ms:$sample.candidate_capture_ms,
+        role_critical_path_ms:$sample.role_critical_path_ms,
         comparison_ms:$sample.comparison_ms,
         cleanup_pair_ms:$sample.cleanup_ms
       }
