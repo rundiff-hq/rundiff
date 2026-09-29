@@ -86,6 +86,12 @@ jobs:
           set -euo pipefail
           go test -v ./internal/compute/boxd -run '^TestLiveParallelForkBenchmark$' -count=1
 
+      - name: Prove running PostgreSQL fork isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd -run '^TestLiveRunningPostgresForkIsolation$' -count=1
+
       - name: Prove real Behavioral Diff on forked subjects
         shell: bash
         run: |
