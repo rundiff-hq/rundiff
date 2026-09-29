@@ -1,5 +1,5 @@
 import process from "node:process";
-import { Boxd } from "@boxd-sh/sdk";
+import { Boxd, NotFoundError } from "@boxd-sh/sdk";
 
 async function readRequest() {
   let input = "";
@@ -67,6 +67,27 @@ try {
           status: ready.status,
         },
       });
+      break;
+    }
+
+    case "get": {
+      const name = requireString(request.name, "name");
+      try {
+        const machine = await boxd.machines.get(name);
+        writeResponse({
+          machine: {
+            id: machine.id,
+            name: machine.name,
+            status: machine.status,
+          },
+        });
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          writeResponse({ notFound: true });
+          break;
+        }
+        throw error;
+      }
       break;
     }
 
