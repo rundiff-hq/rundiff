@@ -82,3 +82,46 @@ func TestPairCleanupAttemptsBothChildren(t *testing.T) {
 		t.Fatalf("removed = %#v, want candidate then baseline", provider.removed)
 	}
 }
+
+
+type fakePairForkProvider struct {
+	fakeProvider
+	pairCalls int
+}
+
+func (provider *fakePairForkProvider) ForkPair(
+	_ context.Context,
+	_ string,
+	baselineName string,
+	candidateName string,
+) (Pair, error) {
+	provider.pairCalls++
+	return Pair{
+		Baseline:  Machine{Name: baselineName},
+		Candidate: Machine{Name: candidateName},
+	}, nil
+}
+
+func TestForkPairUsesProviderPairCapabilityWhenAvailable(t *testing.T) {
+	provider := &fakePairForkProvider{}
+
+	pair, err := ForkPair(
+		context.Background(),
+		provider,
+		"golden",
+		"baseline",
+		"candidate",
+	)
+	if err != nil {
+		t.Fatalf("ForkPair returned error: %v", err)
+	}
+	if provider.pairCalls != 1 {
+		t.Fatalf("pair calls = %d, want 1", provider.pairCalls)
+	}
+	if provider.forkCount != 0 {
+		t.Fatalf("fallback fork calls = %d, want 0", provider.forkCount)
+	}
+	if pair.Baseline.Name != "baseline" || pair.Candidate.Name != "candidate" {
+		t.Fatalf("unexpected pair: %#v", pair)
+	}
+}
