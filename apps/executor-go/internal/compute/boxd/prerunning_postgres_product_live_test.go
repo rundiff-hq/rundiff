@@ -22,6 +22,7 @@ type productPathTiming struct {
 	BaselineCaptureMS        int64 `json:"baseline_capture_ms"`
 	CandidateCaptureMS       int64 `json:"candidate_capture_ms"`
 	ComparisonMS             int64 `json:"comparison_ms"`
+	IsolationVerificationMS  int64 `json:"isolation_verification_ms,omitempty"`
 	CleanupMS                int64 `json:"cleanup_ms"`
 	TotalMS                  int64 `json:"total_ms"`
 }
@@ -388,8 +389,10 @@ func runProductPathSample(
 		spec,
 	)
 	timing.ComparisonMS = time.Since(compareStarted).Milliseconds()
+	productReadyMS := time.Since(totalStarted).Milliseconds()
 
 	if inheritedStartedAt != "" {
+		verificationStarted := time.Now()
 		baselineMarker := fmt.Sprintf("baseline-%d", sample)
 		candidateMarker := fmt.Sprintf("candidate-%d", sample)
 		postgresExec(
@@ -436,13 +439,14 @@ func runProductPathSample(
 		)); count != "0" {
 			t.Fatalf("baseline saw candidate DB marker %q", candidateMarker)
 		}
+		timing.IsolationVerificationMS = time.Since(verificationStarted).Milliseconds()
 	}
 
 	cleanupStarted := time.Now()
 	cleanupPair(t, client, pair)
 	cleaned = true
 	timing.CleanupMS = time.Since(cleanupStarted).Milliseconds()
-	timing.TotalMS = time.Since(totalStarted).Milliseconds()
+	timing.TotalMS = productReadyMS + timing.CleanupMS
 	return timing
 }
 
