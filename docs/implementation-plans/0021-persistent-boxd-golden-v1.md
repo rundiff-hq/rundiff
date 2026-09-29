@@ -1,6 +1,6 @@
 # Implementation Plan 0021: Persistent Boxd Golden Environments v1
 
-Status: in progress
+Status: complete - persistent golden identity and reuse proven live
 
 Tracking issue: #222
 
@@ -138,3 +138,44 @@ Those are BOXD4 follow-up slices after persistent identity/reuse is proven.
 - live Boxd reuse proof;
 - normal CI remains green;
 - no Request v1 / Result v1 changes.
+
+
+## Live evidence - 2026-09-29
+
+GitHub Actions Boxd provider proof run `36594681063` passed on commit
+`b0298c6337f93ea26fbcf6c17b04ef273f448d95`.
+
+Observed persistent-golden proof:
+
+~~~text
+golden.ensure.create_ms = 9828
+golden.ensure.reuse_ms  = 3654
+golden.persistent_reuse = ok
+~~~
+
+The first `Ensure` created an isolated machine, ran preparation once, and
+marked the full fingerprint ready. The second `Ensure` resolved the same
+machine by deterministic name through `machines.get(name)`, verified the
+ready marker, returned `Reused=true`, and did not call preparation again.
+
+The proof also verified that prepared machine state remained present after
+reuse. The test machine was removed at the end of the proof.
+
+The same workflow then reran the existing live fork isolation and real
+Behavioral Diff proofs successfully, including the expected product result:
+
+~~~text
+regression -> block
+~~~
+
+### Interpretation
+
+BOXD4.1 removes **re-preparation**, not all provider overhead.
+
+The measured ~3.65 s reuse lookup is still materially expensive for a tiny
+fixture because the current SDK transport starts a fresh Node process/client
+for `Get` and another for the ready-marker `Exec`. That directly motivates
+BOXD4.2: a long-lived SDK session/client.
+
+The next latency work should therefore preserve this golden identity/lifecycle
+contract while changing the transport underneath it.
