@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/comparison"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/journal"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/protocol"
-	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/sensor"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/serviceplan"
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/workspace"
 )
@@ -115,7 +113,7 @@ func (r *CapturePair) Run(
 	if err := r.capture(
 		ctx,
 		request,
-		"base",
+		CaptureRoleBase,
 		prepared.BaselineRoot,
 		request.Context.BaselineRef,
 		request.BaselineSHA,
@@ -128,7 +126,7 @@ func (r *CapturePair) Run(
 	if err := r.capture(
 		ctx,
 		request,
-		"candidate",
+		CaptureRoleCandidate,
 		prepared.CandidateRoot,
 		request.Context.CandidateRef,
 		request.CandidateSHA,
@@ -164,7 +162,7 @@ func (r *CapturePair) Run(
 func (r *CapturePair) capture(
 	ctx context.Context,
 	request protocol.RequestV1,
-	role string,
+	role CaptureRole,
 	root string,
 	label string,
 	sha string,
@@ -172,60 +170,25 @@ func (r *CapturePair) capture(
 	preparedEnv map[string]string,
 	output string,
 ) error {
-	spec, err := sensor.NewRegistry(r.ToolRoot).Resolve(root)
-	if err != nil {
-		return fmt.Errorf("resolve %s sensor: %w", role, err)
-	}
-	if label == "" {
-		label = sha
-	}
-	env := cloneCaptureEnvironment(preparedEnv)
-	env["RUNDIFF_RUN_ID"] = request.ExecutionID
-	env["RUNDIFF_SCENARIO_ID"] = request.ScenarioID
-	env["RUNDIFF_SUBJECT"] = "github-pull-request"
-	env["RUNDIFF_EXECUTION_LABEL"] = label
-	env["RUNDIFF_EXECUTION_SHA"] = sha
-	env["RUNDIFF_OUTPUT"] = output
-	env["RUNDIFF_CAPTURE_RUNTIME"] = spec.Mode
-	env["RUNDIFF_SENSOR_SCHEMA_VERSION"] = sensor.SchemaVersion
-	env["RUNDIFF_SENSOR_ADAPTER"] = spec.Adapter
-	env["RUNDIFF_SENSOR_RUNTIME"] = spec.Runtime
-	env["RUNDIFF_SCENARIO_PATH"] = scenarioPath
-	if spec.TargetURLEnv != "" {
-		baseURL := preparedEnv[spec.TargetURLEnv]
-		if baseURL == "" {
-			return fmt.Errorf("capture %s requires service URL environment %s", role, spec.TargetURLEnv)
-		}
-		env["RUNDIFF_SCENARIO_BASE_URL"] = baseURL
-	}
-
-	if err := r.commandRunner().Run(ctx, CaptureCommand{
-		Dir:     root,
-		Command: spec.Command,
-		Env:     env,
-		Stdout:  r.Stdout,
-		Stderr:  r.Stderr,
-	}); err != nil {
-		return fmt.Errorf("capture %s: %w", role, err)
-	}
-	body, err := os.ReadFile(output)
-	if err != nil {
-		return fmt.Errorf("capture %s output: %w", role, err)
-	}
-	if !json.Valid(body) {
-		return fmt.Errorf("capture %s output is invalid JSON", role)
-	}
-	if err := sensor.ValidateCapture(body, sensor.ExpectedCapture{
-		RunID:      request.ExecutionID,
-		ScenarioID: request.ScenarioID,
-		Subject:    "github-pull-request",
-		Label:      label,
-		SHA:        sha,
-		Spec:       spec,
-	}); err != nil {
-		return fmt.Errorf("capture %s contract: %w", role, err)
-	}
-	return nil
+	_, err := (&RoleCapture{
+		ToolRoot: r.ToolRoot,
+		Runner:   r.commandRunner(),
+		Stdout:   r.Stdout,
+		Stderr:   r.Stderr,
+	}).Capture(
+		ctx,
+		request,
+		CaptureRoleInput{
+			Role:                role,
+			Root:                root,
+			Label:               label,
+			SHA:                 sha,
+			ScenarioPath:        scenarioPath,
+			PreparedEnvironment: preparedEnv,
+			OutputPath:          output,
+		},
+	)
+	return err
 }
 
 func (r *CapturePair) changedPaths(
