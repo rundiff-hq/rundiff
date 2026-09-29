@@ -39,7 +39,7 @@ type productPathBenchmarkReport struct {
 	BaselineSHA   string                       `json:"baseline_sha"`
 	CandidateSHA  string                       `json:"candidate_sha"`
 	Samples       []productPathBenchmarkSample `json:"samples"`
-	Summary       map[string]any                `json:"summary"`
+	Summary       map[string]any               `json:"summary"`
 }
 
 func TestLivePreRunningPostgresBehavioralDiffBenchmark(t *testing.T) {
