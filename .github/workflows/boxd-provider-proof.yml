@@ -2,6 +2,9 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/boxd-prerunning-postgres-behavioral-diff
 
 permissions:
   contents: read
@@ -22,6 +25,7 @@ jobs:
       RUNDIFF_BOXD_LIVE: "1"
       RUNDIFF_BOXD_PROOF_ID: "gha-${{ github.run_id }}-${{ github.run_attempt }}"
       RUNDIFF_BOXD_TOOL_SHA: "${{ github.sha }}"
+      RUNDIFF_BOXD_BEHAVIORAL_DB_BENCHMARK_REPORT: tmp/rundiff/boxd-prerunning-postgres-benchmark.json
 
     steps:
       - uses: actions/checkout@v6
@@ -91,6 +95,21 @@ jobs:
         run: |
           set -euo pipefail
           go test -v ./internal/compute/boxd -run '^TestLiveRunningPostgresForkIsolation$' -count=1
+
+      - name: Benchmark inherited PostgreSQL Behavioral Diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd -run '^TestLiveBehavioralDiffInheritedPostgresBenchmark$' -count=1
+
+      - name: Upload inherited PostgreSQL benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxd-prerunning-postgres-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/executor-go/tmp/rundiff/boxd-prerunning-postgres-benchmark.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Prove real Behavioral Diff on forked subjects
         shell: bash
