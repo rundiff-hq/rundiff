@@ -2,6 +2,9 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/boxd-behavioral-diff-proof
 
 permissions:
   contents: read
@@ -58,5 +61,13 @@ jobs:
         run: |
           set -euo pipefail
           go test -v ./internal/compute/boxd \
-            -run '^TestLiveForkIsolation$' \
+            -run '^TestLiveForkIsolation \
+            -count=1
+
+      - name: Prove real Behavioral Diff on forked subjects
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd \
+            -run '^TestLiveBehavioralDiff \
             -count=1
