@@ -26,6 +26,15 @@ type Pair struct {
 	Candidate Machine
 }
 
+type PairForker interface {
+	ForkPair(
+		ctx context.Context,
+		sourceName string,
+		baselineName string,
+		candidateName string,
+	) (Pair, error)
+}
+
 func ForkPair(
 	ctx context.Context,
 	provider Provider,
@@ -33,6 +42,15 @@ func ForkPair(
 	baselineName string,
 	candidateName string,
 ) (Pair, error) {
+	if pairForker, ok := provider.(PairForker); ok {
+		return pairForker.ForkPair(
+			ctx,
+			sourceName,
+			baselineName,
+			candidateName,
+		)
+	}
+
 	baseline, err := provider.Fork(ctx, sourceName, baselineName)
 	if err != nil {
 		return Pair{}, err
