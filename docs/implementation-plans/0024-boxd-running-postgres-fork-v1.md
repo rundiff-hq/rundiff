@@ -1,6 +1,6 @@
 # Implementation Plan 0024: Running PostgreSQL Fork Proof v1
 
-Status: in progress
+Status: complete - running PostgreSQL fork proven live
 
 Tracking issue: #230
 
@@ -116,3 +116,105 @@ No latency threshold is an acceptance condition in v1. Correctness comes first.
 - normal CI remains credential-free;
 - live proof remains opt-in/manual in final main;
 - no Request v1 / Result v1 changes.
+
+
+## Live evidence - 2026-09-29
+
+GitHub Actions Boxd provider proof run `36613904351` completed successfully on
+commit `ca22b1bd411a4798507838edc85a41a1b3f226bd`.
+
+The same workflow first re-proved the existing Boxd primitives:
+
+~~~text
+copy-on-write VM isolation          PASS
+persistent golden reuse             PASS
+long-lived SDK session reuse        PASS
+parallel pair fork isolation        PASS
+parallel pair fork benchmark        PASS
+~~~
+
+The running PostgreSQL proof then passed end to end.
+
+Observed timings:
+
+~~~text
+postgres.parent_prepare_ms                    = 12567
+provider.running_postgres_fork_pair_ready_ms =  2467
+postgres.baseline_inherited_ready_ms          =  1707
+postgres.candidate_inherited_ready_ms         =  1706
+postgres.baseline_restart_ready_ms            =  3504
+postgres.candidate_restart_ready_ms           =  3602
+~~~
+
+Both child containers reported the same pre-fork Docker `StartedAt` value as
+the parent. No child-side `docker run` or PostgreSQL recreation occurred
+before the inherited-ready checks.
+
+The parent began with:
+
+~~~text
+probe=golden
+baseline_events=0
+candidate_events=0
+~~~
+
+After fork:
+
+~~~text
+baseline:
+  probe=baseline
+  baseline_events=64
+  candidate_events=0
+
+candidate:
+  probe=candidate
+  baseline_events=0
+  candidate_events=64
+
+parent:
+  probe=golden
+  baseline_events=0
+  candidate_events=0
+~~~
+
+Both child databases accepted real writes and `CHECKPOINT`.
+
+Each child PostgreSQL container was then restarted independently. After restart,
+the same divergent state was still present in each child, while the parent
+remained unchanged.
+
+The proof emitted:
+
+~~~text
+postgres.running_fork_isolation=ok
+postgres.running_fork_restart_durability=ok
+~~~
+
+The existing real Behavioral Diff proof also passed afterward:
+
+~~~text
+provider.fork_pair_ready_ms = 2457
+product.behavioral_diff     = block
+product.finding             = NEW_RUNTIME_ERROR
+~~~
+
+### Decision
+
+Running PostgreSQL inheritance is viable enough to proceed to a product-path
+experiment.
+
+This proof does not yet mean every PostgreSQL topology is safe to fork. The
+evidence currently covers:
+
+- PostgreSQL 16 Alpine;
+- one local Docker container;
+- one database;
+- no external replicas;
+- no external network clients during the fork;
+- no distributed storage;
+- no active migration during the fork.
+
+The next slice should move the known Node/PostgreSQL Behavioral Diff fixture to
+a pre-running PostgreSQL golden and compare capture latency against the current
+post-fork database-start path. Keep that change behind the Boxd experimental
+provider path until repeated benchmark evidence exists.
