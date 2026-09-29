@@ -48,11 +48,10 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Verify Boxd SDK bridge
+        working-directory: apps/executor-go/internal/compute/boxd/sdkbridge
         run: |
-          node --check internal/compute/boxd/sdkbridge/bridge.mjs
+          node --check bridge.mjs
           node -e 'import("@boxd-sh/sdk").then(({ VERSION }) => console.log("boxd_sdk_version=" + VERSION))'
-        env:
-          NODE_PATH: ${{ github.workspace }}/apps/executor-go/internal/compute/boxd/sdkbridge/node_modules
 
       - name: Prove create, fork and copy-on-write isolation
         shell: bash
