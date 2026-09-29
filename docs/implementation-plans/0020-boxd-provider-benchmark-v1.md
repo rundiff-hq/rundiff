@@ -247,3 +247,112 @@ Only after those changes should the same five-pair benchmark be rerun.
 The raw artifact from run `36587660042` contains all five Result v1 payloads,
 hosted phase metrics, Boxd live logs, per-pair order, and the machine-readable
 report.
+
+
+## Results - 2026-09-29
+
+GitHub Actions benchmark run `36587660042` completed successfully with five
+paired alternating samples. Every hosted and Boxd sample produced the same
+portable product outcome:
+
+~~~text
+decision=regression
+merge_recommendation=block
+finding=NEW_RUNTIME_ERROR
+~~~
+
+Primary wall-clock result:
+
+| Path | Samples | Median | p95 | Min | Max |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| hosted managed Go | 5 | 2.417 s | 2.965 s | 2.412 s | 2.965 s |
+| Boxd current proven path | 5 | 39.738 s | 48.207 s | 38.985 s | 48.207 s |
+
+The current Boxd path therefore took about **16.4x** the hosted median wall
+time on this fixture. This is a statement about these measured implementations,
+not a general Boxd-vs-GitHub claim.
+
+Per-pair wall time:
+
+~~~text
+pair 1  hosted first  hosted 2.965 s  boxd 39.738 s
+pair 2  boxd first   hosted 2.412 s  boxd 38.985 s
+pair 3  hosted first hosted 2.414 s  boxd 39.162 s
+pair 4  boxd first   hosted 2.417 s  boxd 45.687 s
+pair 5  hosted first hosted 2.438 s  boxd 48.207 s
+~~~
+
+Median Boxd phase evidence:
+
+~~~text
+create golden ready       2.054 s
+golden preparation       11.522 s
+fork pair ready           4.473 s
+baseline capture          7.817 s
+candidate capture         7.765 s
+execution before cleanup 35.495 s
+pair cleanup              2.835 s
+golden cleanup            1.405 s
+~~~
+
+Median hosted managed-Go phase evidence:
+
+~~~text
+prepare                    0.003 s
+clone                      0.512 s
+bootstrap base             0.657 s
+bootstrap candidate        0.661 s
+ready base                 0.172 s
+ready candidate            0.172 s
+scenario                   0.171 s
+stop candidate             0.010 s
+stop base                  0.008 s
+teardown                   0.055 s
+~~~
+
+The first hosted sample had a colder base bootstrap (1.015 s); later samples
+used the same normal RunDiff dependency-cache root and converged near the
+reported median.
+
+### Interpretation
+
+The first comparison rejects the idea that the **currently proven** Boxd path
+should replace the hosted managed executor on this small fixture.
+
+It does **not** reject forkable compute as an architecture. The benchmark
+reveals that the current Boxd proof repeatedly pays work that a production
+fork-oriented design should amortize:
+
+1. creating a new golden VM for every execution;
+2. cloning the fixture and running `npm ci` in every golden preparation;
+3. pulling/preparing the PostgreSQL image in every golden preparation;
+4. starting PostgreSQL and Node separately for each role after the fork;
+5. paying provider exec/session round trips around each child operation.
+
+The fork itself is not the dominant cost, but its measured ~4.47 s pair-ready
+time is also material compared with this fixture's ~2.42 s entire hosted run.
+
+### Next hypothesis
+
+The next Boxd benchmark, if pursued, must test a genuinely fork-native design:
+
+~~~text
+persistent trusted golden
+  already contains repo/dependencies/tooling/images
+  optionally contains safely forkable ready services
+        |
+        +--> baseline fork
+        +--> candidate fork
+                |
+          minimal SHA delta / mutable reset
+                |
+          captures + comparison
+~~~
+
+That experiment should report two views:
+
+- **steady-state execution latency** excluding one-time golden construction;
+- **amortized latency/cost** including golden refresh over N executions.
+
+Until that evidence exists, RFC 0013 should keep Boxd excluded from normal
+placement by default.
