@@ -1,6 +1,6 @@
 # Implementation Plan 0025: Pre-running PostgreSQL Product Path v1
 
-Status: in progress
+Status: complete - pre-running PostgreSQL product path benchmarked live
 
 Tracking issue: #232
 
@@ -159,3 +159,118 @@ A positive result does not automatically enable Boxd placement or establish perf
 - normal CI green;
 - final live workflow manual-only;
 - no Request v1 / Result v1 changes.
+
+
+## Live evidence - 2026-09-29
+
+GitHub Actions Boxd provider proof run `36616948185` completed successfully on
+commit `c780f996080356f0045880e629b8ec8486c199c1`.
+
+All existing Boxd provider proofs remained green, including the running
+PostgreSQL fork durability proof. Every current-path and pre-running-path sample
+also produced the same portable product result:
+
+~~~text
+decision=regression
+merge_recommendation=block
+finding=NEW_RUNTIME_ERROR
+~~~
+
+### Paired samples
+
+| Sample | First | Current total | Pre-running total | Current captures | Pre-running captures |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 1 | current | 15,698 ms | 6,226 ms | 13,310 ms | 3,441 ms |
+| 2 | pre-running | 14,034 ms | 6,116 ms | 12,851 ms | 3,262 ms |
+| 3 | current | 13,661 ms | 5,877 ms | 12,342 ms | 3,049 ms |
+| 4 | pre-running | 13,784 ms | 6,139 ms | 12,621 ms | 3,227 ms |
+| 5 | current | 14,655 ms | 5,791 ms | 13,483 ms | 2,883 ms |
+
+Median result:
+
+~~~text
+current total median       = 14034 ms
+pre-running total median   =  6116 ms
+current/pre-running ratio  = 2.295x
+
+current capture median     = 12851 ms
+pre-running capture median =  3227 ms
+current/pre-running ratio  = 3.982x
+~~~
+
+On this fixture, moving PostgreSQL startup into the golden reduced median
+combined capture time by 9,624 ms and reduced median steady-state
+fork-to-result-plus-cleanup time by 7,918 ms.
+
+### Timing semantics
+
+For the pre-running path, `total_ms` contains:
+
+~~~text
+parallel pair fork
++ inherited PostgreSQL readiness/identity verification
++ baseline capture
++ candidate capture
++ comparison
++ pair cleanup
+~~~
+
+The benchmark also performs additional SQL marker writes and cross-role
+isolation queries as test-only correctness checks. Those checks took roughly
+4.3-4.8 seconds per sample and are recorded separately as
+`isolation_verification_ms`; they are deliberately excluded from product
+`total_ms`.
+
+This fixes an earlier intermediate measurement that accidentally included
+test-only isolation work in the experimental product latency.
+
+### Golden preparation
+
+One-time preparation observed in the same run:
+
+~~~text
+current golden prepare     =  9467 ms
+pre-running golden prepare = 13758 ms
+extra pre-running prepare  =  4291 ms
+~~~
+
+The pre-running golden pays additional one-time service startup. On this small
+fixture, the observed median steady-state saving is larger than that one-time
+difference, so the extra preparation would be amortized within the first
+execution. This is fixture-specific evidence, not a general production cost
+claim.
+
+### Machine-readable evidence
+
+Workflow artifact:
+
+~~~text
+boxd-prerunning-postgres-product-36616948185-1
+artifact id: 11055113830
+retention: 14 days
+digest:
+sha256:6844df129d42388b6f6c5d5fe280f950351ab2a507536e0373e8c9eb77badfb6
+~~~
+
+The JSON artifact contains exact fixture SHAs, all paired phase timings,
+test-only isolation verification timings and summary medians/ratios.
+
+### Decision
+
+For the known Node/PostgreSQL fixture, **pre-running PostgreSQL should become
+the preferred Boxd experimental product path**.
+
+Do not yet enable Boxd as a default placement provider. The next step is to
+connect this pre-running service state to the persistent fingerprinted Golden
+Environment Manager and rerun the broader Boxd-vs-hosted benchmark with a
+reused golden across executions.
+
+The safe scope remains narrow:
+
+- PostgreSQL 16 Alpine;
+- local Docker PostgreSQL;
+- known Node fixture;
+- no replicas;
+- no external DB clients during fork;
+- no migration in progress;
+- no distributed/external storage.
