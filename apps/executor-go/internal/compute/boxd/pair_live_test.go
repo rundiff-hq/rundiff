@@ -59,6 +59,23 @@ func TestLiveParallelForkIsolation(t *testing.T) {
 		t.Fatalf("seed parallel-fork parent: %v", err)
 	}
 
+	sequentialBaselineName := "rundiff-sb-" + proofID
+	sequentialCandidateName := "rundiff-sc-" + proofID
+	sequentialStarted := time.Now()
+	sequentialPair, err := compute.ForkPair(
+		ctx,
+		client.primary,
+		parent.Name,
+		sequentialBaselineName,
+		sequentialCandidateName,
+	)
+	if err != nil {
+		t.Fatalf("sequential session fork pair: %v", err)
+	}
+	sequentialMS := time.Since(sequentialStarted).Milliseconds()
+	t.Logf("provider.sequential_session_fork_pair_ready_ms=%d", sequentialMS)
+	cleanupPair(t, client, sequentialPair)
+
 	forkStarted := time.Now()
 	pair, err := compute.ForkPair(
 		ctx,
@@ -70,10 +87,14 @@ func TestLiveParallelForkIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parallel fork pair: %v", err)
 	}
-	t.Logf(
-		"provider.parallel_fork_pair_ready_ms=%d",
-		time.Since(forkStarted).Milliseconds(),
-	)
+	parallelMS := time.Since(forkStarted).Milliseconds()
+	t.Logf("provider.parallel_fork_pair_ready_ms=%d", parallelMS)
+	if parallelMS > 0 {
+		t.Logf(
+			"provider.parallel_fork_pair_speedup=%.3f",
+			float64(sequentialMS)/float64(parallelMS),
+		)
+	}
 	defer cleanupPair(t, client, pair)
 
 	if _, err := execEventually(
