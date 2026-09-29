@@ -13,7 +13,7 @@ concurrency:
 jobs:
   fork-isolation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: apps/executor-go
@@ -21,6 +21,7 @@ jobs:
       BOXD_API_KEY: ${{ secrets.BOXD_API_KEY }}
       RUNDIFF_BOXD_LIVE: "1"
       RUNDIFF_BOXD_PROOF_ID: "gha-${{ github.run_id }}-${{ github.run_attempt }}"
+      RUNDIFF_BOXD_TOOL_SHA: "${{ github.sha }}"
 
     steps:
       - uses: actions/checkout@v6
@@ -59,4 +60,12 @@ jobs:
           set -euo pipefail
           go test -v ./internal/compute/boxd \
             -run '^TestLiveForkIsolation$' \
+            -count=1
+
+      - name: Prove real Behavioral Diff on forked subjects
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd \
+            -run '^TestLiveBehavioralDiff$' \
             -count=1
