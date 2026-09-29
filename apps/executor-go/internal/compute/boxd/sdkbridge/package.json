@@ -1,0 +1,9 @@
+{
+  "name": "@rundiff/boxd-sdk-bridge",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "@boxd-sh/sdk": "0.2.11"
+  }
+}

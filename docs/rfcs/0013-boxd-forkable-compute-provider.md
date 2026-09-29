@@ -204,29 +204,55 @@ If the first child is created and the second fork fails, the first child must be
 
 The Resource Journal remains the eventual durable cleanup authority when this progresses beyond the spike.
 
-## First integration transport
+## Integration transport
 
-The first repository-safe spike uses the Boxd CLI rather than a direct gRPC client.
+The repository-safe Slice A initially used the Boxd CLI because it was a small,
+dependency-light way to prove the Compute Provider seam.
 
-Documented command surface:
+A live GitHub Actions proof on 2026-09-29 found an important headless-auth
+constraint: Boxd CLI v0.2.20 did not consume the repository's
+`BOXD_API_KEY` for an external CI session. A machine command fell back to the
+interactive browser login flow and waited for confirmation. The secret was
+present in the job; the CLI session was not authenticated by it.
+
+The live spike therefore uses the official TypeScript SDK behind a tiny
+JSON stdin/stdout bridge:
 
 ~~~text
-boxd machine new <name> --json
-boxd machine fork <source> <child> --json
-boxd machine exec <machine> -- <command...>
-boxd machine remove <machine> -y --json
+Go compute.Provider
+        |
+        v
+structured JSON request
+        |
+        v
+pinned @boxd-sh/sdk bridge
+        |
+        v
+Boxd gRPC API
 ~~~
 
-Reasons:
+The SDK explicitly supports `BOXD_API_KEY` and exchanges it for a short-lived
+session token. Its machine API exposes create, fork, exec, delete, and
+wait-until-ready operations, including preservation of the remote command exit
+code.
 
-1. the CLI is already the documented automation surface;
-2. management commands support JSON output;
-3. it is dependency-light for the Go executor;
-4. command construction can be unit tested without network access;
-5. it avoids freezing a protobuf/API dependency before the live proof;
-6. transport can later move to gRPC without changing the Compute Provider contract.
+The old CLI adapter remains useful as a repository-safe contract/reference, but
+it is not the headless live transport.
 
-The adapter must use argv directly. It must never construct a shell command string.
+The bridge is intentionally below `compute.Provider`. It must:
+
+1. never construct a customer shell command;
+2. pass argv as a structured string array;
+3. keep non-zero remote workload exits as `ExecResult`, not provider errors;
+4. map SDK/auth/network failures to provider infrastructure errors;
+5. pin the SDK version for the spike.
+
+The first bridge starts one short-lived SDK process per provider operation. That
+is acceptable for the bounded live proof, but it is not the desired production
+shape: the SDK documents an API-key exchange rate limit and recommends sharing
+a session token for fleets behind one NAT. A production Boxd provider should
+use a long-lived SDK bridge/client or a future supported native Go client/proto
+without changing the Compute Provider contract.
 
 ## Candidate internal contract
 

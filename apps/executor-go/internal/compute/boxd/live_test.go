@@ -24,7 +24,7 @@ func TestLiveForkIsolation(t *testing.T) {
 		t.Fatal("RUNDIFF_BOXD_PROOF_ID is required for the live Boxd provider proof")
 	}
 
-	client := New("boxd")
+	client := NewSDK("node", "sdkbridge/bridge.mjs")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -37,7 +37,7 @@ func TestLiveForkIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create isolated parent: %v", err)
 	}
-	t.Logf("provider.create.parent_ms=%d", time.Since(createStarted).Milliseconds())
+	t.Logf("provider.create.parent_ready_ms=%d", time.Since(createStarted).Milliseconds())
 	defer removeMachine(t, client, parent)
 
 	if _, err := execEventually(
@@ -60,7 +60,7 @@ func TestLiveForkIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fork pair: %v", err)
 	}
-	t.Logf("provider.fork_pair_ms=%d", time.Since(forkStarted).Milliseconds())
+	t.Logf("provider.fork_pair_ready_ms=%d", time.Since(forkStarted).Milliseconds())
 	defer cleanupPair(t, client, pair)
 
 	if _, err := execEventually(
@@ -125,7 +125,7 @@ func TestLiveForkIsolation(t *testing.T) {
 
 func execEventually(
 	ctx context.Context,
-	client *CLI,
+	client compute.Provider,
 	machine compute.Machine,
 	argv []string,
 ) (compute.ExecResult, error) {
@@ -164,7 +164,7 @@ func execEventually(
 	}
 }
 
-func cleanupPair(t *testing.T, client *CLI, pair compute.Pair) {
+func cleanupPair(t *testing.T, client compute.Provider, pair compute.Pair) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -174,7 +174,7 @@ func cleanupPair(t *testing.T, client *CLI, pair compute.Pair) {
 	}
 }
 
-func removeMachine(t *testing.T, client *CLI, machine compute.Machine) {
+func removeMachine(t *testing.T, client compute.Provider, machine compute.Machine) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

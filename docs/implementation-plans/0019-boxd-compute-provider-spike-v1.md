@@ -1,6 +1,6 @@
 # VS19 - Boxd forked paired-execution spike v1
 
-Status: planned
+Status: in progress
 
 Tracking issue: #210
 
@@ -40,14 +40,29 @@ Land without Boxd credentials or network access:
 
 This slice must not alter Request v1, Result v1, Rails control-plane contracts, or current production dispatch.
 
+### Slice A.1 - headless transport correction
+
+The first live GitHub Actions run proved that Boxd CLI v0.2.20 falls back to
+interactive browser authentication in an external CI session even when
+`BOXD_API_KEY` is present. The live transport is therefore the official
+`@boxd-sh/sdk`, pinned behind a structured JSON bridge.
+
+The correction preserves the same internal `compute.Provider` contract and
+the same workload/provider failure distinction. The CLI adapter remains inert
+reference code.
+
+For this bounded proof the bridge is process-per-operation. Before any
+production promotion, replace that with a long-lived SDK client/session (or a
+supported native Go client) so API-key exchange is not repeated per operation.
+
 ## Slice B - one-time live provider setup
 
 Operator prerequisites:
 
 ~~~text
-boxd CLI installed
-authenticated Boxd account
-payment method added for the initial credits
+BOXD_API_KEY available only to the provisioning job
+Node 20+ for the pinned Boxd SDK bridge
+account quota / credits sufficient for the proof
 one trusted golden machine
 ~~~
 
