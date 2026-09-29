@@ -40,11 +40,11 @@ type behavioralDBSample struct {
 }
 
 type behavioralDBSummary struct {
-	Count       int   `json:"count"`
-	MedianMS    int64 `json:"median_ms"`
-	P95MS       int64 `json:"p95_ms"`
-	MinMS       int64 `json:"min_ms"`
-	MaxMS       int64 `json:"max_ms"`
+	Count    int   `json:"count"`
+	MedianMS int64 `json:"median_ms"`
+	P95MS    int64 `json:"p95_ms"`
+	MinMS    int64 `json:"min_ms"`
+	MaxMS    int64 `json:"max_ms"`
 }
 
 type behavioralDBBenchmarkReport struct {
