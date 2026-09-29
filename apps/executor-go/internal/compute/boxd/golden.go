@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"path"
 	"time"
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/compute"
@@ -178,5 +178,5 @@ func (manager GoldenManager) markerRoot() string {
 }
 
 func (manager GoldenManager) markerPath(fingerprint string) string {
-	return filepath.Join(manager.markerRoot(), fingerprint+".ready")
+	return path.Join(manager.markerRoot(), fingerprint+".ready")
 }
