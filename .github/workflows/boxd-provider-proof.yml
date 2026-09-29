@@ -13,7 +13,7 @@ concurrency:
 jobs:
   fork-isolation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 8
     defaults:
       run:
         working-directory: apps/executor-go
@@ -30,6 +30,10 @@ jobs:
           go-version-file: apps/executor-go/go.mod
           cache-dependency-path: apps/executor-go/go.sum
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Require Boxd API key
         shell: bash
         run: |
@@ -39,28 +43,21 @@ jobs:
             exit 1
           fi
 
-      - name: Install Boxd CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsSL https://boxd.sh/downloads/install.sh -o /tmp/install-boxd.sh
-          sh /tmp/install-boxd.sh
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-          echo "${HOME}/bin" >> "${GITHUB_PATH}"
+      - name: Install pinned Boxd SDK bridge
+        working-directory: apps/executor-go/internal/compute/boxd/sdkbridge
+        run: npm install --no-audit --no-fund
 
-      - name: Verify Boxd CLI
-        shell: bash
+      - name: Verify Boxd SDK bridge
         run: |
-          set -euo pipefail
-          export PATH="${HOME}/.local/bin:${HOME}/bin:${PATH}"
-          command -v boxd
-          boxd --help >/dev/null
+          node --check internal/compute/boxd/sdkbridge/bridge.mjs
+          node -e 'import("@boxd-sh/sdk").then(({ VERSION }) => console.log("boxd_sdk_version=" + VERSION))'
+        env:
+          NODE_PATH: ${{ github.workspace }}/apps/executor-go/internal/compute/boxd/sdkbridge/node_modules
 
       - name: Prove create, fork and copy-on-write isolation
         shell: bash
         run: |
           set -euo pipefail
-          export PATH="${HOME}/.local/bin:${HOME}/bin:${PATH}"
           go test -v ./internal/compute/boxd \
             -run '^TestLiveForkIsolation$' \
             -count=1
