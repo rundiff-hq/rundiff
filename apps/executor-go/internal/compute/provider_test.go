@@ -83,7 +83,6 @@ func TestPairCleanupAttemptsBothChildren(t *testing.T) {
 	}
 }
 
-
 type fakePairForkProvider struct {
 	fakeProvider
 	pairCalls int
