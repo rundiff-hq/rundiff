@@ -93,6 +93,21 @@ type SDK struct {
 	runner sdkBridgeRunner
 }
 
+type sdkBridgeCloser interface {
+	Close() error
+}
+
+func (client *SDK) Close() error {
+	if client == nil || client.runner == nil {
+		return nil
+	}
+	closer, ok := client.runner.(sdkBridgeCloser)
+	if !ok {
+		return nil
+	}
+	return closer.Close()
+}
+
 func NewSDK(nodeBinary, scriptPath string) *SDK {
 	if nodeBinary == "" {
 		nodeBinary = "node"
