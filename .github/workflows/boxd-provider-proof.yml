@@ -62,6 +62,14 @@ jobs:
             -run '^TestLiveForkIsolation$' \
             -count=1
 
+      - name: Prove persistent golden reuse
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd \
+            -run '^TestLivePersistentGoldenReuse$' \
+            -count=1
+
       - name: Prove real Behavioral Diff on forked subjects
         shell: bash
         run: |
