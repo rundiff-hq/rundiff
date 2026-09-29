@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-pairs="\${RUNDIFF_PROVIDER_BENCHMARK_PAIRS:-5}"
-output_root="\${RUNDIFF_PROVIDER_BENCHMARK_OUTPUT_ROOT:-tmp/rundiff/provider-benchmark}"
-executor_bin="\${RUNDIFF_PROVIDER_BENCHMARK_EXECUTOR_BIN:-/tmp/rundiff-executor}"
-boxd_test_bin="\${RUNDIFF_PROVIDER_BENCHMARK_BOXD_TEST_BIN:-/tmp/rundiff-boxd-live.test}"
-tool_sha="\${RUNDIFF_BOXD_TOOL_SHA:?RUNDIFF_BOXD_TOOL_SHA is required}"
+pairs="${RUNDIFF_PROVIDER_BENCHMARK_PAIRS:-5}"
+output_root="${RUNDIFF_PROVIDER_BENCHMARK_OUTPUT_ROOT:-tmp/rundiff/provider-benchmark}"
+executor_bin="${RUNDIFF_PROVIDER_BENCHMARK_EXECUTOR_BIN:-/tmp/rundiff-executor}"
+boxd_test_bin="${RUNDIFF_PROVIDER_BENCHMARK_BOXD_TEST_BIN:-/tmp/rundiff-boxd-live.test}"
+tool_sha="${RUNDIFF_BOXD_TOOL_SHA:?RUNDIFF_BOXD_TOOL_SHA is required}"
 
 baseline_sha="e90bbe1a7055dece4f1cdffe0d5ef9fb3a5b69fb"
 candidate_sha="a1663f54380e3a117989ebc6f1ab8f525f6bed4e"
@@ -26,15 +26,7 @@ now_ms() {
 
 assert_block_result() {
   local result_path="$1"
-  jq -e '
-    .status == "succeeded" and
-    .payload.result.decision == "regression" and
-    .payload.result.merge_recommendation == "block" and
-    any(.payload.result.findings[]?;
-      .reason_code == "NEW_RUNTIME_ERROR" and
-      .finding_severity == "BLOCKING"
-    )
-  ' "$result_path" >/dev/null
+  jq -e '.status == "succeeded" and .payload.result.decision == "regression" and .payload.result.merge_recommendation == "block" and any(.payload.result.findings[]?; .reason_code == "NEW_RUNTIME_ERROR" and .finding_severity == "BLOCKING")' "$result_path" >/dev/null
 }
 
 run_hosted() {
@@ -77,30 +69,14 @@ JSON
 
   assert_block_result "$result"
 
-  jq -nc \
-    --arg provider hosted \
-    --argjson pair "$pair" \
-    --argjson sequence_position "$position" \
-    --argjson wall_ms "$((ended - started))" \
-    --arg result_path "$result" \
-    --arg metrics_path "$metrics" \
-    '{
-      provider: $provider,
-      pair: $pair,
-      sequence_position: $sequence_position,
-      wall_ms: $wall_ms,
-      outcome: "block",
-      finding: "NEW_RUNTIME_ERROR",
-      result_path: $result_path,
-      metrics_path: $metrics_path
-    }' >>"$samples_jsonl"
+  jq -nc --arg provider hosted --argjson pair "$pair" --argjson sequence_position "$position" --argjson wall_ms "$((ended - started))" --arg result_path "$result" --arg metrics_path "$metrics" '{provider:$provider,pair:$pair,sequence_position:$sequence_position,wall_ms:$wall_ms,outcome:"block",finding:"NEW_RUNTIME_ERROR",result_path:$result_path,metrics_path:$metrics_path}' >>"$samples_jsonl"
 }
 
 extract_metric() {
   local key="$1"
   local log="$2"
   local value
-  value="$(grep -Eo "\${key}=[0-9]+" "$log" | tail -1 | cut -d= -f2 || true)"
+  value="$(grep -Eo "${key}=[0-9]+" "$log" | tail -1 | cut -d= -f2 || true)"
   if [[ -z "$value" ]]; then
     echo "missing Boxd metric $key in $log" >&2
     return 1
@@ -118,7 +94,7 @@ run_boxd() {
   local log="$root/test.log"
 
   local proof_id started ended
-  proof_id="bench-\${GITHUB_RUN_ID:-local}-\${GITHUB_RUN_ATTEMPT:-1}-$id"
+  proof_id="bench-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$id"
   started="$(now_ms)"
 
   (
@@ -141,39 +117,7 @@ run_boxd() {
   cleanup_pair_ms="$(extract_metric provider.cleanup.pair_ms "$log")"
   cleanup_golden_ms="$(extract_metric provider.cleanup.golden_ms "$log")"
 
-  jq -nc \
-    --arg provider boxd \
-    --argjson pair "$pair" \
-    --argjson sequence_position "$position" \
-    --argjson wall_ms "$((ended - started))" \
-    --argjson create_ms "$create_ms" \
-    --argjson golden_prepare_ms "$prepare_ms" \
-    --argjson fork_pair_ms "$fork_ms" \
-    --argjson baseline_capture_ms "$base_ms" \
-    --argjson candidate_capture_ms "$candidate_ms" \
-    --argjson execution_ms "$execution_ms" \
-    --argjson cleanup_pair_ms "$cleanup_pair_ms" \
-    --argjson cleanup_golden_ms "$cleanup_golden_ms" \
-    --arg log_path "$log" \
-    '{
-      provider: $provider,
-      pair: $pair,
-      sequence_position: $sequence_position,
-      wall_ms: $wall_ms,
-      outcome: "block",
-      finding: "NEW_RUNTIME_ERROR",
-      phases: {
-        create_golden_ms: $create_ms,
-        golden_prepare_ms: $golden_prepare_ms,
-        fork_pair_ms: $fork_pair_ms,
-        baseline_capture_ms: $baseline_capture_ms,
-        candidate_capture_ms: $candidate_capture_ms,
-        execution_before_deferred_cleanup_ms: $execution_ms,
-        cleanup_pair_ms: $cleanup_pair_ms,
-        cleanup_golden_ms: $cleanup_golden_ms
-      },
-      log_path: $log_path
-    }' >>"$samples_jsonl"
+  jq -nc --arg provider boxd --argjson pair "$pair" --argjson sequence_position "$position" --argjson wall_ms "$((ended - started))" --argjson create_ms "$create_ms" --argjson golden_prepare_ms "$prepare_ms" --argjson fork_pair_ms "$fork_ms" --argjson baseline_capture_ms "$base_ms" --argjson candidate_capture_ms "$candidate_ms" --argjson execution_ms "$execution_ms" --argjson cleanup_pair_ms "$cleanup_pair_ms" --argjson cleanup_golden_ms "$cleanup_golden_ms" --arg log_path "$log" '{provider:$provider,pair:$pair,sequence_position:$sequence_position,wall_ms:$wall_ms,outcome:"block",finding:"NEW_RUNTIME_ERROR",phases:{create_golden_ms:$create_ms,golden_prepare_ms:$golden_prepare_ms,fork_pair_ms:$fork_pair_ms,baseline_capture_ms:$baseline_capture_ms,candidate_capture_ms:$candidate_capture_ms,execution_before_deferred_cleanup_ms:$execution_ms,cleanup_pair_ms:$cleanup_pair_ms,cleanup_golden_ms:$cleanup_golden_ms},log_path:$log_path}' >>"$samples_jsonl"
 }
 
 for ((pair = 1; pair <= pairs; pair++)); do
