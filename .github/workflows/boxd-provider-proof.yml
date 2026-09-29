@@ -2,9 +2,6 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/boxd-behavioral-diff-proof
 
 permissions:
   contents: read
