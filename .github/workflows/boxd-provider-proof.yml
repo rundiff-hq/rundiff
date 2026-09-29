@@ -1,0 +1,66 @@
+name: Boxd Provider Proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boxd-provider-proof
+  cancel-in-progress: false
+
+jobs:
+  fork-isolation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/executor-go
+    env:
+      BOXD_API_KEY: ${{ secrets.BOXD_API_KEY }}
+      RUNDIFF_BOXD_LIVE: "1"
+      RUNDIFF_BOXD_PROOF_ID: "gha-${{ github.run_id }}-${{ github.run_attempt }}"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache-dependency-path: apps/executor-go/go.sum
+
+      - name: Require Boxd API key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${BOXD_API_KEY}" ]]; then
+            echo "Repository secret BOXD_API_KEY is required." >&2
+            exit 1
+          fi
+
+      - name: Install Boxd CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://boxd.sh/downloads/install.sh -o /tmp/install-boxd.sh
+          sh /tmp/install-boxd.sh
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          echo "${HOME}/bin" >> "${GITHUB_PATH}"
+
+      - name: Verify Boxd CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="${HOME}/.local/bin:${HOME}/bin:${PATH}"
+          command -v boxd
+          boxd --help >/dev/null
+
+      - name: Prove create, fork and copy-on-write isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="${HOME}/.local/bin:${HOME}/bin:${PATH}"
+          go test -v ./internal/compute/boxd \
+            -run '^TestLiveForkIsolation$' \
+            -count=1

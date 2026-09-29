@@ -71,6 +71,40 @@ func New(binary string) *CLI {
 	}
 }
 
+func (client *CLI) Create(
+	ctx context.Context,
+	name string,
+	isolated bool,
+) (compute.Machine, error) {
+	if name == "" {
+		return compute.Machine{}, errors.New("boxd machine name is required")
+	}
+
+	args := []string{
+		"machine",
+		"new",
+		name,
+	}
+	if isolated {
+		args = append(args, "--isolated")
+	}
+	args = append(args, "--json")
+
+	result, err := client.runner.Run(ctx, client.binary, args...)
+	if err != nil {
+		return compute.Machine{}, fmt.Errorf("run boxd create: %w", err)
+	}
+	if result.exitCode != 0 {
+		return compute.Machine{}, fmt.Errorf(
+			"boxd create %q exited with code %d",
+			name,
+			result.exitCode,
+		)
+	}
+
+	return compute.Machine{Name: name}, nil
+}
+
 func (client *CLI) Fork(
 	ctx context.Context,
 	sourceName string,
