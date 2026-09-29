@@ -12,12 +12,6 @@ on:
     branches:
       - feat/boxd-optimized-provider-benchmark
 
-    inputs:
-      pairs:
-        description: Paired alternating samples
-        required: false
-        default: "5"
-        type: string
 permissions:
   contents: read
 
