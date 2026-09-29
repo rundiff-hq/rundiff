@@ -193,3 +193,41 @@ func TestSDKRejectsBridgeMachineNameMismatch(t *testing.T) {
 		t.Fatal("expected bridge machine name mismatch error")
 	}
 }
+
+
+func TestSDKGetReturnsMachineByName(t *testing.T) {
+	runner := &fakeSDKBridgeRunner{
+		responses: []sdkBridgeResponse{{
+			Machine: &sdkBridgeMachine{Name: "rundiff-golden-abc"},
+		}},
+	}
+	client := &SDK{runner: runner}
+
+	machine, err := client.Get(context.Background(), "rundiff-golden-abc")
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	if machine.Name != "rundiff-golden-abc" {
+		t.Fatalf("machine name = %q", machine.Name)
+	}
+
+	want := sdkBridgeRequest{
+		Operation: "get",
+		Name:      "rundiff-golden-abc",
+	}
+	if !reflect.DeepEqual(runner.requests[0], want) {
+		t.Fatalf("request = %#v, want %#v", runner.requests[0], want)
+	}
+}
+
+func TestSDKGetReturnsTypedNotFound(t *testing.T) {
+	runner := &fakeSDKBridgeRunner{
+		responses: []sdkBridgeResponse{{NotFound: true}},
+	}
+	client := &SDK{runner: runner}
+
+	_, err := client.Get(context.Background(), "missing")
+	if !errors.Is(err, ErrMachineNotFound) {
+		t.Fatalf("Get error = %v, want ErrMachineNotFound", err)
+	}
+}
