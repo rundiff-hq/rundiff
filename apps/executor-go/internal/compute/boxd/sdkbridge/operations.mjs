@@ -107,7 +107,13 @@ export async function executeRequest(boxd, request) {
 
     case "remove": {
       const machine = requireString(request.machine, "machine");
-      await boxd.machines.delete(machine);
+      try {
+        await boxd.machines.delete(machine);
+      } catch (error) {
+        if (!(error instanceof NotFoundError)) {
+          throw error;
+        }
+      }
       return {};
     }
 
