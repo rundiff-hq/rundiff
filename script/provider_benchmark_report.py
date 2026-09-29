@@ -43,9 +43,12 @@ def main():
     if hosted["count"] != boxd["count"] or hosted["count"] == 0:
         raise SystemExit("hosted and boxd sample counts must match and be non-zero")
 
-    median_ratio = 0
+    hosted_over_boxd = 0
+    boxd_over_hosted = 0
     if boxd["median_ms"]:
-        median_ratio = hosted["median_ms"] / boxd["median_ms"]
+        hosted_over_boxd = hosted["median_ms"] / boxd["median_ms"]
+    if hosted["median_ms"]:
+        boxd_over_hosted = boxd["median_ms"] / hosted["median_ms"]
 
     paired = []
     pairs = sorted({item["pair"] for item in samples})
@@ -79,7 +82,9 @@ def main():
         "summary": {
             "hosted": hosted,
             "boxd": boxd,
-            "hosted_over_boxd_median_ratio": round(median_ratio, 3),
+            "hosted_over_boxd_median_ratio": round(hosted_over_boxd, 3),
+            "boxd_over_hosted_median_ratio": round(boxd_over_hosted, 3),
+            "boxd_minus_hosted_median_ms": boxd["median_ms"] - hosted["median_ms"],
         },
         "paired": paired,
         "samples": samples,
