@@ -1,8 +1,8 @@
 # VS19 - Boxd forked paired-execution spike v1
 
-Status: in progress
+Status: in progress - provider and first product proof complete; repeated comparative sampling pending
 
-Tracking issue: #210
+Tracking issues: #210, #217
 
 ## Goal
 
@@ -106,6 +106,55 @@ Then:
 8. remove both children in cleanup.
 
 Do not compare ad-hoc stdout as the product result. The acceptance is a real existing Behavioral Diff.
+
+
+### Live evidence - 2026-09-29
+
+The first product-level Boxd proof completed successfully in GitHub Actions.
+
+Exact subject pair:
+
+~~~text
+repository: rundiff-hq/example-node-express-postgres
+baseline:   e90bbe1a7055dece4f1cdffe0d5ef9fb3a5b69fb
+candidate:  a1663f54380e3a117989ebc6f1ab8f525f6bed4e
+changed:    server.mjs
+~~~
+
+Observed portable product result:
+
+~~~text
+baseline HTTP:          200
+candidate HTTP:         500
+decision:               regression
+merge_recommendation:   block
+blocking finding:       NEW_RUNTIME_ERROR
+~~~
+
+The proof used the existing tool-owned Node HTTP sensor, validated both Capture
+v1 payloads with `sensor.ValidateCapture`, and passed those captures through
+the existing `comparison.Pair` path before constructing and validating
+Result v1. No Boxd-specific result schema or ad-hoc product comparison was
+introduced.
+
+Observed timings from the successful run:
+
+~~~text
+provider.create.golden_ready_ms   2184
+subject.golden_prepare_ms        11999
+provider.fork_pair_ready_ms       4787
+scenario.baseline_capture_ms      7646
+scenario.candidate_capture_ms     7709
+comparison.behavioral_diff_ms        0
+execution.total_ms               36032
+provider.cleanup.pair_ms          3315
+provider.cleanup.golden_ms        1613
+~~~
+
+The same run also re-proved the lower-level copy-on-write isolation path.
+These are single-run measurements only and are not evidence of a speedup over
+the current hosted executor. Comparative sampling remains required before any
+placement or default-provider decision.
 
 ## Initial subject
 
