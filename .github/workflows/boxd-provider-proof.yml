@@ -2,18 +2,21 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/boxd-prerunning-postgres-product-proof
 
 permissions:
   contents: read
 
 concurrency:
   group: boxd-provider-proof
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   fork-isolation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: apps/executor-go
@@ -22,6 +25,7 @@ jobs:
       RUNDIFF_BOXD_LIVE: "1"
       RUNDIFF_BOXD_PROOF_ID: "gha-${{ github.run_id }}-${{ github.run_attempt }}"
       RUNDIFF_BOXD_TOOL_SHA: "${{ github.sha }}"
+      RUNDIFF_BOXD_PRODUCT_BENCHMARK_OUTPUT: "${{ github.workspace }}/tmp/boxd-prerunning-postgres-product-benchmark.json"
 
     steps:
       - uses: actions/checkout@v6
@@ -91,6 +95,21 @@ jobs:
         run: |
           set -euo pipefail
           go test -v ./internal/compute/boxd -run '^TestLiveRunningPostgresForkIsolation$' -count=1
+
+      - name: Benchmark real product path with pre-running PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd -run '^TestLivePreRunningPostgresBehavioralDiffBenchmark$' -count=1
+
+      - name: Upload pre-running PostgreSQL product benchmark
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxd-prerunning-postgres-product-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/boxd-prerunning-postgres-product-benchmark.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Prove real Behavioral Diff on forked subjects
         shell: bash
