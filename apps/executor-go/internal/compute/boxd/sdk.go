@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/rundiff-hq/rundiff/apps/executor-go/internal/compute"
 )
@@ -91,6 +92,21 @@ func (runner nodeSDKBridgeRunner) Run(
 
 type SDK struct {
 	runner sdkBridgeRunner
+}
+
+type sdkBridgeCloser interface {
+	Close() error
+}
+
+func (client *SDK) Close() error {
+	if client == nil || client.runner == nil {
+		return nil
+	}
+	closer, ok := client.runner.(sdkBridgeCloser)
+	if !ok {
+		return nil
+	}
+	return closer.Close()
 }
 
 func NewSDK(nodeBinary, scriptPath string) *SDK {
@@ -229,17 +245,32 @@ func (client *SDK) Remove(
 		return errors.New("boxd remove machine name is required")
 	}
 
-	_, err := client.runner.Run(
-		ctx,
-		sdkBridgeRequest{
-			Operation: "remove",
-			Machine:   machine.Name,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("boxd sdk remove %q: %w", machine.Name, err)
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		_, err := client.runner.Run(
+			ctx,
+			sdkBridgeRequest{
+				Operation: "remove",
+				Machine:   machine.Name,
+			},
+		)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if attempt == 3 {
+			break
+		}
+
+		delay := time.Duration(attempt) * 250 * time.Millisecond
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
 	}
-	return nil
+
+	return fmt.Errorf("boxd sdk remove %q: %w", machine.Name, lastErr)
 }
 
 func machineFromBridge(

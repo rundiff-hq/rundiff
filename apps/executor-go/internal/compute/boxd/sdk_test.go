@@ -230,3 +230,31 @@ func TestSDKGetReturnsTypedNotFound(t *testing.T) {
 		t.Fatalf("Get error = %v, want ErrMachineNotFound", err)
 	}
 }
+
+func TestSDKRemoveRetriesTransientProviderFailure(t *testing.T) {
+	runner := &fakeSDKBridgeRunner{
+		errs: []error{
+			errors.New("temporary delete failure"),
+			errors.New("temporary delete failure"),
+			nil,
+		},
+	}
+	client := &SDK{runner: runner}
+
+	err := client.Remove(
+		context.Background(),
+		compute.Machine{Name: "execution-candidate"},
+	)
+	if err != nil {
+		t.Fatalf("Remove returned error after retry: %v", err)
+	}
+	if got := len(runner.requests); got != 3 {
+		t.Fatalf("remove attempts = %d, want 3", got)
+	}
+	for _, request := range runner.requests {
+		if request.Operation != "remove" ||
+			request.Machine != "execution-candidate" {
+			t.Fatalf("unexpected remove request: %#v", request)
+		}
+	}
+}

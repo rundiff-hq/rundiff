@@ -51,7 +51,9 @@ jobs:
       - name: Verify Boxd SDK bridge
         working-directory: apps/executor-go/internal/compute/boxd/sdkbridge
         run: |
+          node --check operations.mjs
           node --check bridge.mjs
+          node --check session.mjs
           node -e 'import("@boxd-sh/sdk").then(({ VERSION }) => console.log("boxd_sdk_version=" + VERSION))'
 
       - name: Prove create, fork and copy-on-write isolation
@@ -68,6 +70,14 @@ jobs:
           set -euo pipefail
           go test -v ./internal/compute/boxd \
             -run '^TestLivePersistentGoldenReuse$' \
+            -count=1
+
+      - name: Prove long-lived SDK session reuse
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd \
+            -run '^TestLivePersistentGoldenReuseSession$' \
             -count=1
 
       - name: Prove real Behavioral Diff on forked subjects
