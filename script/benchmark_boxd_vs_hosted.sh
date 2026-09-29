@@ -18,7 +18,12 @@ fi
 
 mkdir -p "$output_root/raw"
 samples_jsonl="$output_root/samples.jsonl"
+agent_log="$output_root/raw/boxd-agent.log"
+agent_ready="$output_root/raw/boxd-agent-ready.json"
+agent_closed="$output_root/raw/boxd-agent-closed.json"
+agent_metadata="$output_root/raw/boxd-agent-metadata.json"
 : > "$samples_jsonl"
+: > "$agent_log"
 
 now_ms() {
   date +%s%3N
@@ -27,6 +32,67 @@ now_ms() {
 assert_block_result() {
   local result_path="$1"
   jq -e '.status == "succeeded" and .payload.result.decision == "regression" and .payload.result.merge_recommendation == "block" and any(.payload.result.findings[]?; .reason_code == "NEW_RUNTIME_ERROR" and .finding_severity == "BLOCKING")' "$result_path" >/dev/null
+}
+
+agent_started=0
+agent_closed_cleanly=0
+agent_read_fd=""
+agent_write_fd=""
+agent_pid=""
+AGENT_RESPONSE=""
+
+read_agent_response() {
+  AGENT_RESPONSE=""
+  local line
+  while IFS= read -r line <&"$agent_read_fd"; do
+    printf '%s\n' "$line" >>"$agent_log"
+    if [[ "$line" == RUNDIFF_AGENT\ * ]]; then
+      AGENT_RESPONSE="${line#RUNDIFF_AGENT }"
+      return 0
+    fi
+  done
+  echo "Boxd benchmark agent exited before returning a structured response" >&2
+  return 1
+}
+
+cleanup_agent() {
+  if (( agent_started == 0 )); then
+    return
+  fi
+
+  if (( agent_closed_cleanly == 0 )); then
+    printf '%s\n' '{"op":"close"}' >&"$agent_write_fd" 2>/dev/null || true
+    read_agent_response >/dev/null 2>&1 || true
+  fi
+
+  exec {agent_write_fd}>&- 2>/dev/null || true
+  exec {agent_read_fd}<&- 2>/dev/null || true
+  wait "$agent_pid" 2>/dev/null || true
+}
+
+start_boxd_agent() {
+  local proof_id
+  proof_id="provider-bench-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+
+  coproc BOXD_AGENT {
+    cd "$GITHUB_WORKSPACE/apps/executor-go/internal/compute/boxd"
+    RUNDIFF_BOXD_PROOF_ID="$proof_id" \
+      RUNDIFF_BOXD_TOOL_SHA="$tool_sha" \
+      "$boxd_test_bin" \
+      -test.v \
+      -test.run '^TestLiveOptimizedProviderBenchmarkAgent$' \
+      -test.count=1 2>&1
+  }
+
+  agent_pid="$BOXD_AGENT_PID"
+  exec {agent_read_fd}<&"${BOXD_AGENT[0]}"
+  exec {agent_write_fd}>&"${BOXD_AGENT[1]}"
+  agent_started=1
+  trap cleanup_agent EXIT
+
+  read_agent_response
+  printf '%s\n' "$AGENT_RESPONSE" >"$agent_ready"
+  jq -e '.type == "ready" and .create_golden_ms >= 0 and .prepare_golden_ms >= 0 and (.parent_started_at | length > 0)' "$agent_ready" >/dev/null
 }
 
 run_hosted() {
@@ -69,19 +135,15 @@ JSON
 
   assert_block_result "$result"
 
-  jq -nc --arg provider hosted --argjson pair "$pair" --argjson sequence_position "$position" --argjson wall_ms "$((ended - started))" --arg result_path "$result" --arg metrics_path "$metrics" '{provider:$provider,pair:$pair,sequence_position:$sequence_position,wall_ms:$wall_ms,outcome:"block",finding:"NEW_RUNTIME_ERROR",result_path:$result_path,metrics_path:$metrics_path}' >>"$samples_jsonl"
-}
-
-extract_metric() {
-  local key="$1"
-  local log="$2"
-  local value
-  value="$(grep -Eo "${key}=[0-9]+" "$log" | tail -1 | cut -d= -f2 || true)"
-  if [[ -z "$value" ]]; then
-    echo "missing Boxd metric $key in $log" >&2
-    return 1
-  fi
-  printf '%s' "$value"
+  jq -nc \
+    --arg provider hosted \
+    --argjson pair "$pair" \
+    --argjson sequence_position "$position" \
+    --argjson wall_ms "$((ended - started))" \
+    --arg result_path "$result" \
+    --arg metrics_path "$metrics" \
+    '{provider:$provider,pair:$pair,sequence_position:$sequence_position,wall_ms:$wall_ms,outcome:"block",finding:"NEW_RUNTIME_ERROR",result_path:$result_path,metrics_path:$metrics_path}' \
+    >>"$samples_jsonl"
 }
 
 run_boxd() {
@@ -91,34 +153,67 @@ run_boxd() {
   id="$(printf "%02d" "$pair")"
   local root="$output_root/raw/boxd-$id"
   mkdir -p "$root"
-  local log="$root/test.log"
 
-  local proof_id started ended
-  proof_id="bench-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$id"
+  local response="$root/agent-response.json"
+  local started ended
   started="$(now_ms)"
-
-  (
-    cd "$GITHUB_WORKSPACE/apps/executor-go/internal/compute/boxd"
-    RUNDIFF_BOXD_PROOF_ID="$proof_id" RUNDIFF_BOXD_TOOL_SHA="$tool_sha" "$boxd_test_bin" -test.v -test.run '^TestLiveBehavioralDiff$' -test.count=1
-  ) >"$log" 2>&1
-
+  printf '{"op":"run","pair":%d,"sequence_position":%d}\n' "$pair" "$position" >&"$agent_write_fd"
+  read_agent_response
   ended="$(now_ms)"
+  printf '%s\n' "$AGENT_RESPONSE" >"$response"
 
-  grep -q 'product.behavioral_diff=block' "$log"
-  grep -q 'product.finding=NEW_RUNTIME_ERROR' "$log"
+  jq -e '.type == "sample" and .sample.mode == "inherited_running" and .sample.decision == "block" and .sample.finding == "NEW_RUNTIME_ERROR"' "$response" >/dev/null
 
-  local create_ms prepare_ms fork_ms base_ms candidate_ms execution_ms cleanup_pair_ms cleanup_golden_ms
-  create_ms="$(extract_metric provider.create.golden_ready_ms "$log")"
-  prepare_ms="$(extract_metric subject.golden_prepare_ms "$log")"
-  fork_ms="$(extract_metric provider.fork_pair_ready_ms "$log")"
-  base_ms="$(extract_metric scenario.baseline_capture_ms "$log")"
-  candidate_ms="$(extract_metric scenario.candidate_capture_ms "$log")"
-  execution_ms="$(extract_metric execution.total_ms "$log")"
-  cleanup_pair_ms="$(extract_metric provider.cleanup.pair_ms "$log")"
-  cleanup_golden_ms="$(extract_metric provider.cleanup.golden_ms "$log")"
-
-  jq -nc --arg provider boxd --argjson pair "$pair" --argjson sequence_position "$position" --argjson wall_ms "$((ended - started))" --argjson create_ms "$create_ms" --argjson golden_prepare_ms "$prepare_ms" --argjson fork_pair_ms "$fork_ms" --argjson baseline_capture_ms "$base_ms" --argjson candidate_capture_ms "$candidate_ms" --argjson execution_ms "$execution_ms" --argjson cleanup_pair_ms "$cleanup_pair_ms" --argjson cleanup_golden_ms "$cleanup_golden_ms" --arg log_path "$log" '{provider:$provider,pair:$pair,sequence_position:$sequence_position,wall_ms:$wall_ms,outcome:"block",finding:"NEW_RUNTIME_ERROR",phases:{create_golden_ms:$create_ms,golden_prepare_ms:$golden_prepare_ms,fork_pair_ms:$fork_pair_ms,baseline_capture_ms:$baseline_capture_ms,candidate_capture_ms:$candidate_capture_ms,execution_before_deferred_cleanup_ms:$execution_ms,cleanup_pair_ms:$cleanup_pair_ms,cleanup_golden_ms:$cleanup_golden_ms},log_path:$log_path}' >>"$samples_jsonl"
+  jq -nc \
+    --arg provider boxd \
+    --argjson pair "$pair" \
+    --argjson sequence_position "$position" \
+    --argjson wall_ms "$((ended - started))" \
+    --slurpfile response "$response" \
+    '($response[0].sample) as $sample | {
+      provider:$provider,
+      pair:$pair,
+      sequence_position:$sequence_position,
+      wall_ms:$wall_ms,
+      outcome:"block",
+      finding:"NEW_RUNTIME_ERROR",
+      agent_total_ms:$sample.total_ms,
+      phases:{
+        fork_pair_ms:$sample.pair_fork_ready_ms,
+        inherited_postgres_ready_ms:$sample.inherited_postgres_ready_ms,
+        baseline_capture_ms:$sample.baseline_capture_ms,
+        candidate_capture_ms:$sample.candidate_capture_ms,
+        comparison_ms:$sample.comparison_ms,
+        cleanup_pair_ms:$sample.cleanup_ms
+      }
+    }' >>"$samples_jsonl"
 }
+
+finish_boxd_agent() {
+  printf '%s\n' '{"op":"close"}' >&"$agent_write_fd"
+  read_agent_response
+  printf '%s\n' "$AGENT_RESPONSE" >"$agent_closed"
+  jq -e '.type == "closed" and .golden_cleanup_ms >= 0' "$agent_closed" >/dev/null
+  agent_closed_cleanly=1
+
+  exec {agent_write_fd}>&-
+  exec {agent_read_fd}<&-
+  wait "$agent_pid"
+  agent_started=0
+  trap - EXIT
+
+  jq -n \
+    --slurpfile ready "$agent_ready" \
+    --slurpfile closed "$agent_closed" \
+    '{
+      create_golden_ms:$ready[0].create_golden_ms,
+      prepare_golden_ms:$ready[0].prepare_golden_ms,
+      golden_cleanup_ms:$closed[0].golden_cleanup_ms,
+      parent_started_at:$ready[0].parent_started_at
+    }' >"$agent_metadata"
+}
+
+start_boxd_agent
 
 for ((pair = 1; pair <= pairs; pair++)); do
   if (( pair % 2 == 1 )); then
@@ -130,5 +225,10 @@ for ((pair = 1; pair <= pairs; pair++)); do
   fi
 done
 
-python3 script/provider_benchmark_report.py --samples "$samples_jsonl" --output "$output_root/report.json"
+finish_boxd_agent
+
+python3 script/provider_benchmark_report.py \
+  --samples "$samples_jsonl" \
+  --boxd-metadata "$agent_metadata" \
+  --output "$output_root/report.json"
 cat "$output_root/report.json"
