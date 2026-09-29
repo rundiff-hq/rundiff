@@ -8,16 +8,12 @@ on:
         required: false
         default: "5"
         type: string
-  push:
-    branches:
-      - feat/boxd-provider-benchmark
-
 permissions:
   contents: read
 
 concurrency:
   group: boxd-provider-benchmark
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   compare:
