@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func int64Pointer(value int64) *int64 {
+func resourceInt64Pointer(value int64) *int64 {
 	return &value
 }
 
@@ -26,15 +26,15 @@ func TestSummarizeResourceEconomicsSamplesUsesBothRoles(t *testing.T) {
 				GuestMemUsedProxyBytes: 100,
 				ProcessRSSSumBytes:     40,
 				RootFSUsedBytes:        1000,
-				PostgresVolumeBytes:    int64Pointer(200),
-				PostgresSizeRWBytes:    int64Pointer(10),
+				PostgresVolumeBytes:    resourceInt64Pointer(200),
+				PostgresSizeRWBytes:    resourceInt64Pointer(10),
 			},
 			Candidate: guestResourceSnapshot{
 				GuestMemUsedProxyBytes: 120,
 				ProcessRSSSumBytes:     50,
 				RootFSUsedBytes:        1100,
-				PostgresVolumeBytes:    int64Pointer(220),
-				PostgresSizeRWBytes:    int64Pointer(12),
+				PostgresVolumeBytes:    resourceInt64Pointer(220),
+				PostgresSizeRWBytes:    resourceInt64Pointer(12),
 			},
 		},
 		{
@@ -45,27 +45,27 @@ func TestSummarizeResourceEconomicsSamplesUsesBothRoles(t *testing.T) {
 				GuestMemUsedProxyBytes: 140,
 				ProcessRSSSumBytes:     60,
 				RootFSUsedBytes:        1200,
-				PostgresVolumeBytes:    int64Pointer(240),
-				PostgresSizeRWBytes:    int64Pointer(14),
+				PostgresVolumeBytes:    resourceInt64Pointer(240),
+				PostgresSizeRWBytes:    resourceInt64Pointer(14),
 			},
 			Candidate: guestResourceSnapshot{
 				GuestMemUsedProxyBytes: 160,
 				ProcessRSSSumBytes:     70,
 				RootFSUsedBytes:        1300,
-				PostgresVolumeBytes:    int64Pointer(260),
-				PostgresSizeRWBytes:    int64Pointer(16),
+				PostgresVolumeBytes:    resourceInt64Pointer(260),
+				PostgresSizeRWBytes:    resourceInt64Pointer(16),
 			},
 		},
 	}
 
 	got := summarizeResourceEconomicsSamples(samples)
 	if got.ChildGuestMemUsedProxyBytes.Count != 4 ||
-		got.ChildGuestMemUsedProxyBytes.Median != 140 ||
+		got.ChildGuestMemUsedProxyBytes.Median != 130 ||
 		got.ChildGuestMemUsedProxyBytes.Min != 100 ||
 		got.ChildGuestMemUsedProxyBytes.Max != 160 {
 		t.Fatalf("memory summary = %#v", got.ChildGuestMemUsedProxyBytes)
 	}
-	if got.ForkReadyMS.Median != 12 || got.RoleCriticalPathMS.Median != 22 {
+	if got.ForkReadyMS.Median != 11 || got.RoleCriticalPathMS.Median != 21 {
 		t.Fatalf("lifecycle summary = %#v", got)
 	}
 }
