@@ -52,12 +52,16 @@ type resourceLifecycleSample struct {
 	BaselineRoleMS       int64
 	CandidateRoleMS      int64
 	RoleCriticalPathMS   int64
-	CleanupMS            int64
-	TotalMS              int64
-	Baseline             guestResourceSnapshot
-	Candidate            guestResourceSnapshot
-	Decision             string
-	Finding              string
+	CleanupMS                              int64
+	TotalMS                                int64
+	Baseline                               guestResourceSnapshot
+	Candidate                              guestResourceSnapshot
+	BaselineRootFSDeltaFromGoldenBytes     int64
+	CandidateRootFSDeltaFromGoldenBytes    int64
+	BaselinePostgresVolumeDeltaGoldenBytes *int64
+	CandidatePostgresVolumeDeltaGoldenBytes *int64
+	Decision                               string
+	Finding                                string
 }
 
 type resourceMetricSummary struct {
@@ -70,10 +74,12 @@ type resourceMetricSummary struct {
 type resourceEconomicsSummary struct {
 	ChildGuestMemUsedProxyBytes resourceMetricSummary
 	ChildProcessRSSSumBytes     resourceMetricSummary
-	ChildRootFSUsedBytes        resourceMetricSummary
-	ChildPostgresVolumeBytes    resourceMetricSummary
-	ChildPostgresSizeRWBytes    resourceMetricSummary
-	ForkReadyMS                 resourceMetricSummary
+	ChildRootFSUsedBytes             resourceMetricSummary
+	ChildRootFSDeltaFromGoldenBytes  resourceMetricSummary
+	ChildPostgresVolumeBytes         resourceMetricSummary
+	ChildPostgresVolumeDeltaBytes    resourceMetricSummary
+	ChildPostgresSizeRWBytes         resourceMetricSummary
+	ForkReadyMS                      resourceMetricSummary
 	RoleCriticalPathMS          resourceMetricSummary
 	CleanupMS                   resourceMetricSummary
 }
@@ -157,6 +163,7 @@ func TestLiveBoxdResourceEconomicsTelemetry(t *testing.T) {
 			client,
 			parent,
 			parentStartedAt,
+			goldenBefore,
 			sample,
 			proofID,
 		))
@@ -266,6 +273,7 @@ func runResourceEconomicsSample(
 	client *PairSDK,
 	parent compute.Machine,
 	parentStartedAt string,
+	golden guestResourceSnapshot,
 	sample int,
 	proofID string,
 ) resourceLifecycleSample {
@@ -386,10 +394,20 @@ func runResourceEconomicsSample(
 		RoleCriticalPathMS:   captures.Critical.Milliseconds(),
 		CleanupMS:            cleanupMS,
 		TotalMS:              time.Since(totalStarted).Milliseconds(),
-		Baseline:             baselineEnvelope.Resource,
-		Candidate:            candidateEnvelope.Resource,
-		Decision:             "block",
-		Finding:              "NEW_RUNTIME_ERROR",
+		Baseline:                            baselineEnvelope.Resource,
+		Candidate:                           candidateEnvelope.Resource,
+		BaselineRootFSDeltaFromGoldenBytes:  baselineEnvelope.Resource.RootFSUsedBytes - golden.RootFSUsedBytes,
+		CandidateRootFSDeltaFromGoldenBytes: candidateEnvelope.Resource.RootFSUsedBytes - golden.RootFSUsedBytes,
+		BaselinePostgresVolumeDeltaGoldenBytes: resourcePointerDelta(
+			baselineEnvelope.Resource.PostgresVolumeBytes,
+			golden.PostgresVolumeBytes,
+		),
+		CandidatePostgresVolumeDeltaGoldenBytes: resourcePointerDelta(
+			candidateEnvelope.Resource.PostgresVolumeBytes,
+			golden.PostgresVolumeBytes,
+		),
+		Decision: "block",
+		Finding:  "NEW_RUNTIME_ERROR",
 	}
 	t.Logf(
 		"resource_economics.sample=%d fork_ms=%d role_critical_ms=%d cleanup_ms=%d total_ms=%d baseline_mem=%d candidate_mem=%d",
@@ -507,7 +525,9 @@ func summarizeResourceEconomicsSamples(
 	var memUsed []int64
 	var rss []int64
 	var rootFS []int64
+	var rootFSDelta []int64
 	var postgresVolume []int64
+	var postgresVolumeDelta []int64
 	var postgresRW []int64
 	var fork []int64
 	var roleCritical []int64
@@ -528,6 +548,19 @@ func summarizeResourceEconomicsSamples(
 				postgresRW = append(postgresRW, *snapshot.PostgresSizeRWBytes)
 			}
 		}
+		rootFSDelta = append(
+			rootFSDelta,
+			sample.BaselineRootFSDeltaFromGoldenBytes,
+			sample.CandidateRootFSDeltaFromGoldenBytes,
+		)
+		for _, delta := range []*int64{
+			sample.BaselinePostgresVolumeDeltaGoldenBytes,
+			sample.CandidatePostgresVolumeDeltaGoldenBytes,
+		} {
+			if delta != nil {
+				postgresVolumeDelta = append(postgresVolumeDelta, *delta)
+			}
+		}
 		fork = append(fork, sample.ForkReadyMS)
 		roleCritical = append(roleCritical, sample.RoleCriticalPathMS)
 		cleanup = append(cleanup, sample.CleanupMS)
@@ -536,13 +569,23 @@ func summarizeResourceEconomicsSamples(
 	return resourceEconomicsSummary{
 		ChildGuestMemUsedProxyBytes: summarizeInt64Metric(memUsed),
 		ChildProcessRSSSumBytes:     summarizeInt64Metric(rss),
-		ChildRootFSUsedBytes:        summarizeInt64Metric(rootFS),
-		ChildPostgresVolumeBytes:    summarizeInt64Metric(postgresVolume),
-		ChildPostgresSizeRWBytes:    summarizeInt64Metric(postgresRW),
+		ChildRootFSUsedBytes:            summarizeInt64Metric(rootFS),
+		ChildRootFSDeltaFromGoldenBytes: summarizeInt64Metric(rootFSDelta),
+		ChildPostgresVolumeBytes:        summarizeInt64Metric(postgresVolume),
+		ChildPostgresVolumeDeltaBytes:   summarizeInt64Metric(postgresVolumeDelta),
+		ChildPostgresSizeRWBytes:        summarizeInt64Metric(postgresRW),
 		ForkReadyMS:                 summarizeInt64Metric(fork),
 		RoleCriticalPathMS:          summarizeInt64Metric(roleCritical),
 		CleanupMS:                   summarizeInt64Metric(cleanup),
 	}
+}
+
+func resourcePointerDelta(value *int64, baseline *int64) *int64 {
+	if value == nil || baseline == nil {
+		return nil
+	}
+	delta := *value - *baseline
+	return &delta
 }
 
 func summarizeInt64Metric(values []int64) resourceMetricSummary {
