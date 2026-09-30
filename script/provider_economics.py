@@ -75,10 +75,23 @@ def boxd_golden_disk_monthly_eur(config, scenario):
 
 
 def capacity(config, scenario):
-    quota = config["rate_cards"]["boxd_cloud"]["default_machine_quota"]
     retained = scenario["retained_goldens"]
     peak = scenario["peak_concurrent_comparisons"]
     required = retained + (2 * peak)
+
+    if scenario["boxd_mode"] == "byoc":
+        return {
+            "default_machine_quota": None,
+            "retained_goldens": retained,
+            "peak_concurrent_comparisons": peak,
+            "required_machines_at_peak": required,
+            "fits_default_quota": None,
+            "max_concurrent_comparisons_with_retained_goldens": None,
+            "quota_increase_or_retention_change_required": None,
+            "capacity_policy": "custom_byoc",
+        }
+
+    quota = config["rate_cards"]["boxd_cloud"]["default_machine_quota"]
     available_for_children = max(0, quota - retained)
     max_concurrency = available_for_children // 2
     return {
@@ -89,6 +102,7 @@ def capacity(config, scenario):
         "fits_default_quota": required <= quota,
         "max_concurrent_comparisons_with_retained_goldens": max_concurrency,
         "quota_increase_or_retention_change_required": required > quota,
+        "capacity_policy": "boxd_cloud_default_quota",
     }
 
 
@@ -193,7 +207,7 @@ def scenario_result(config, scenario):
             "BYOC license and underlying customer compute must be priced separately"
         )
 
-    if not result["capacity"]["fits_default_quota"]:
+    if result["capacity"]["fits_default_quota"] is False:
         result["placement_constraints"].append(
             "Default Boxd 50-machine quota is insufficient for this retention/concurrency scenario"
         )
@@ -281,11 +295,13 @@ def build_markdown(report):
             github["nominal_usd_before_included_minutes"],
             "USD",
         )
-        capacity_value = (
-            "fits"
-            if scenario["capacity"]["fits_default_quota"]
-            else "raise/change"
-        )
+        quota_fit = scenario["capacity"]["fits_default_quota"]
+        if quota_fit is None:
+            capacity_value = "custom"
+        elif quota_fit:
+            capacity_value = "fits"
+        else:
+            capacity_value = "raise/change"
         lines.append(
             "| {label} | {runs:,} | {boxd} | {github} | {paid:.0%} | {quota} |".format(
                 label=scenario["label"],
