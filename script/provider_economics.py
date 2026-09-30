@@ -16,39 +16,61 @@ def load(path):
 
 def github_costs(data):
     rate = data["rates"]["github_actions_private_standard_linux"]["per_minute"]
-    durations = data["observations"]["github_managed_dispatch_jobs"][
-        "job_log_duration_seconds"
+    observation = data["observations"]["github_managed_dispatch_jobs"]
+    durations = observation["job_log_duration_seconds"]
+    observed_public_minutes = [
+        math.ceil(seconds / 60) for seconds in durations
     ]
-    billed_minutes = [math.ceil(seconds / 60) for seconds in durations]
-    per_job = [minutes * rate for minutes in billed_minutes]
-    monthly = {}
-    for executions in data["model_assumptions"]["monthly_execution_scenarios"]:
-        monthly[str(executions)] = money(
-            statistics.mean(per_job) * executions
-        )
+    private_minute_scenarios = data["model_assumptions"][
+        "github_private_billed_minutes_scenarios"
+    ]
+
+    paid_sensitivity = {}
+    for minutes in private_minute_scenarios:
+        paid_sensitivity[str(minutes)] = {
+            "usd_per_dispatch": money(minutes * rate),
+            "monthly_by_execution_count": {
+                str(executions): money(executions * minutes * rate)
+                for executions in data["model_assumptions"][
+                    "monthly_execution_scenarios"
+                ]
+            },
+        }
 
     return {
-        "sample_size": len(durations),
-        "median_job_seconds": statistics.median(durations),
-        "mean_job_seconds": round(statistics.mean(durations), 3),
-        "billed_minutes": {
-            "median": statistics.median(billed_minutes),
-            "mean": round(statistics.mean(billed_minutes), 3),
-            "min": min(billed_minutes),
-            "max": max(billed_minutes),
+        "observed_public_runner": {
+            "repository_visibility": observation["repository_visibility"],
+            "runner_label": observation["runner_label"],
+            "hardware": observation["runner_hardware"],
+            "sample_size": len(durations),
+            "median_job_seconds": statistics.median(durations),
+            "mean_job_seconds": round(statistics.mean(durations), 3),
+            "min_job_seconds": min(durations),
+            "max_job_seconds": max(durations),
+            "rounded_minutes": {
+                "median": statistics.median(observed_public_minutes),
+                "min": min(observed_public_minutes),
+                "max": max(observed_public_minutes),
+            },
         },
-        "marginal_paid_cost_usd": {
-            "median_per_dispatch": money(statistics.median(per_job)),
-            "mean_per_dispatch": money(statistics.mean(per_job)),
-            "monthly_by_execution_count": monthly,
+        "private_standard_runner": {
+            "hardware": data["rates"][
+                "github_actions_private_standard_linux"
+            ]["runner"],
+            "duration_measured": observation[
+                "private_paid_duration_measured"
+            ],
+            "rate_usd_per_minute": rate,
+            "paid_cost_sensitivity": paid_sensitivity,
         },
         "included_minutes_capacity_if_fully_available": data["rates"][
             "github_actions_private_standard_linux"
         ]["included_minutes_by_plan"],
         "caveats": [
+            "Observed dispatch timing is from a public 4-vCPU/16-GiB runner.",
+            "Private standard Linux uses 2 vCPU/8 GiB, so paid job duration is not measured yet.",
             "Included minutes are shared account entitlements.",
             "Public standard runners are free but commercial-service eligibility is a separate terms constraint.",
-            "The model uses observed execute-job duration, not inner executor runtime.",
         ],
     }
 
@@ -154,12 +176,27 @@ def scenario_costs(data, boxd, github):
         )
         pair_concurrency = max(0, (quota - hot_goldens) // 2)
 
-        github_if_all_included = {}
-        for plan, minutes in included.items():
-            paid_minutes = max(0, executions - minutes)
-            github_if_all_included[plan] = money(
-                paid_minutes * github_rate
-            )
+        github_paid_sensitivity = {}
+        for billed_minutes in data["model_assumptions"][
+            "github_private_billed_minutes_scenarios"
+        ]:
+            total_minutes = executions * billed_minutes
+            paid_if_all_included = {}
+            for plan, included_minutes in included.items():
+                paid_minutes = max(0, total_minutes - included_minutes)
+                paid_if_all_included[plan] = money(
+                    paid_minutes * github_rate
+                )
+
+            github_paid_sensitivity[str(billed_minutes)] = {
+                "billed_minutes_per_execution": billed_minutes,
+                "without_included_minutes_usd": money(
+                    total_minutes * github_rate
+                ),
+                "if_all_plan_minutes_available_usd": (
+                    paid_if_all_included
+                ),
+            }
 
         result[name] = {
             "description": scenario["description"],
@@ -180,13 +217,9 @@ def scenario_costs(data, boxd, github):
                 ),
                 "default_quota_pair_concurrency": pair_concurrency,
             },
-            "github_actions": {
-                "paid_without_included_minutes_usd": money(
-                    executions * github_rate
-                ),
-                "paid_if_all_plan_minutes_available_usd": (
-                    github_if_all_included
-                ),
+            "github_actions_private": {
+                "duration_measured": False,
+                "paid_cost_sensitivity": github_paid_sensitivity,
             },
         }
 
