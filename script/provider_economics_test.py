@@ -18,13 +18,25 @@ class ProviderEconomicsTest(unittest.TestCase):
         self.data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
         self.report = provider_economics.build_report(self.data)
 
-    def test_github_observed_dispatch_is_one_billable_minute(self):
+    def test_github_public_timing_is_not_private_paid_measurement(self):
         github = self.report["github_actions"]
-        self.assertEqual(github["billed_minutes"]["median"], 1.0)
-        self.assertEqual(github["billed_minutes"]["max"], 1)
+        observed = github["observed_public_runner"]
+        private = github["private_standard_runner"]
+
+        self.assertEqual(observed["hardware"]["vcpu"], 4)
+        self.assertEqual(observed["hardware"]["ram_gib"], 16)
+        self.assertEqual(observed["rounded_minutes"]["median"], 1.0)
+
+        self.assertFalse(private["duration_measured"])
+        self.assertEqual(private["hardware"]["vcpu"], 2)
+        self.assertEqual(private["hardware"]["ram_gib"], 8)
         self.assertEqual(
-            github["marginal_paid_cost_usd"]["median_per_dispatch"],
+            private["paid_cost_sensitivity"]["1"]["usd_per_dispatch"],
             0.006,
+        )
+        self.assertEqual(
+            private["paid_cost_sensitivity"]["2"]["usd_per_dispatch"],
+            0.012,
         )
 
     def test_boxd_execution_cost_envelope_is_deterministic(self):
@@ -72,14 +84,15 @@ class ProviderEconomicsTest(unittest.TestCase):
             4.06817222,
             places=8,
         )
+        one_minute = low["github_actions_private"][
+            "paid_cost_sensitivity"
+        ]["1"]
         self.assertEqual(
-            low["github_actions"]["paid_without_included_minutes_usd"],
+            one_minute["without_included_minutes_usd"],
             6.0,
         )
         self.assertEqual(
-            low["github_actions"][
-                "paid_if_all_plan_minutes_available_usd"
-            ]["team"],
+            one_minute["if_all_plan_minutes_available_usd"]["team"],
             0.0,
         )
 
@@ -88,14 +101,17 @@ class ProviderEconomicsTest(unittest.TestCase):
             high["boxd"]["default_quota_pair_concurrency"],
             5,
         )
+        high_one_minute = high["github_actions_private"][
+            "paid_cost_sensitivity"
+        ]["1"]
         self.assertEqual(
-            high["github_actions"]["paid_without_included_minutes_usd"],
+            high_one_minute["without_included_minutes_usd"],
             600.0,
         )
         self.assertEqual(
-            high["github_actions"][
-                "paid_if_all_plan_minutes_available_usd"
-            ]["enterprise_cloud"],
+            high_one_minute["if_all_plan_minutes_available_usd"][
+                "enterprise_cloud"
+            ],
             300.0,
         )
 
