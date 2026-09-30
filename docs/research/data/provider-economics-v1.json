@@ -1,0 +1,164 @@
+{
+  "schema_version": "1",
+  "as_of": "2026-09-30",
+  "sources": {
+    "boxd_pricing": "https://boxd.sh/pricing",
+    "github_actions_billing": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+    "github_actions_job_time": "https://docs.github.com/en/actions/how-tos/monitor-workflows/view-job-execution-time",
+    "github_actions_terms": "https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features"
+  },
+  "rates": {
+    "boxd": {
+      "currency": "EUR",
+      "vcpu_hour": 0.049,
+      "resident_ram_gib_hour": 0.015,
+      "written_disk_gib_hour": 0.0001,
+      "default_machine": {
+        "vcpu": 2,
+        "ram_gib": 8,
+        "provisioned_disk_gib": 100,
+        "approx_running_hour": 0.22
+      },
+      "included_machine_quota": 50,
+      "hibernated_billing": "written_disk_only"
+    },
+    "github_actions_private_standard_linux": {
+      "currency": "USD",
+      "per_minute": 0.006,
+      "billing_rounding": "ceil_job_minutes",
+      "runner": {
+        "vcpu": 2,
+        "ram_gib": 8
+      },
+      "included_minutes_by_plan": {
+        "free": 2000,
+        "pro": 3000,
+        "free_organization": 2000,
+        "team": 3000,
+        "enterprise_cloud": 50000
+      }
+    }
+  },
+  "observations": {
+    "boxd6": {
+      "benchmark_run_id": 36646891578,
+      "hosted_median_ms": 2252,
+      "boxd_median_ms": 3105,
+      "boxd_first_sample_ms": 4019,
+      "boxd_samples_ms": [
+        4019,
+        3155,
+        3105,
+        2906,
+        3079
+      ],
+      "hosted_samples_ms": [
+        2689,
+        2252,
+        2238,
+        2274,
+        2205
+      ],
+      "boxd_phase_median_ms": {
+        "pair_fork": 848,
+        "role_critical_path": 2058,
+        "pair_cleanup": 220
+      },
+      "cold_lifecycle_ms": {
+        "create_golden": 2119,
+        "prepare_golden": 15830,
+        "cold_setup": 17949,
+        "golden_cleanup": 108
+      }
+    },
+    "github_managed_dispatch_jobs": {
+      "sample_size": 10,
+      "job_log_duration_seconds": [
+        57.3,
+        49.5,
+        57.6,
+        55.2,
+        57.1,
+        51.2,
+        58.1,
+        52.6,
+        54.2,
+        53.6
+      ],
+      "median_seconds": 54.7,
+      "mean_seconds": 54.64,
+      "min_seconds": 49.5,
+      "max_seconds": 58.1,
+      "repository_visibility": "public",
+      "runner_label": "ubuntu-24.04",
+      "runner_hardware": {
+        "vcpu": 4,
+        "ram_gib": 16
+      },
+      "duration_basis": "public_runner_job_logs",
+      "private_paid_duration_measured": false,
+      "observed_public_rounded_minutes": 1
+    }
+  },
+  "model_assumptions": {
+    "boxd_default_rate_mode": "default_machine_full_running_rate_upper_envelope",
+    "boxd_machine_seconds": {
+      "parent_active_per_execution": 3.105,
+      "child_pair_post_fork_ready_each": 2.278,
+      "conservative_all_three_full_wall_each": 3.105
+    },
+    "golden_written_disk_gib_scenarios": [
+      5,
+      10,
+      20
+    ],
+    "monthly_hours": 720,
+    "monthly_execution_scenarios": [
+      100,
+      1000,
+      10000,
+      100000
+    ],
+    "persistent_golden_count_scenarios": [
+      1,
+      5,
+      10,
+      20,
+      30,
+      40
+    ],
+    "notes": [
+      "Currencies stay separate; no FX assumption is embedded.",
+      "The Boxd approx_running_hour value assumes the published default-machine rate and is an upper-envelope simplification because RAM is billed on actual resident memory.",
+      "The child pair post-fork estimate uses role critical path plus cleanup and excludes unknown child billing during the fork itself.",
+      "The conservative Boxd execution envelope charges parent, baseline and candidate for the full observed Boxd wall time.",
+      "GitHub public standard-runner price is zero, but commercial-service eligibility is treated as a separate terms constraint rather than a price assumption.",
+      "Included GitHub minutes are shared account entitlements and must not be treated as guaranteed RunDiff capacity.",
+      "Observed RunDiff dispatch timings come from a public ubuntu-24.04 runner (4 vCPU / 16 GiB) and must not be treated as measured private standard-runner (2 vCPU / 8 GiB) billing duration."
+    ],
+    "github_private_billed_minutes_scenarios": [
+      1,
+      2
+    ]
+  },
+  "scenario_inputs": {
+    "low_volume": {
+      "description": "Illustrative low-volume managed fleet; not a forecast.",
+      "monthly_executions": 1000,
+      "hot_goldens": 5,
+      "written_disk_gib_per_golden": 10
+    },
+    "medium_volume": {
+      "description": "Illustrative medium managed fleet with a bounded hot cache.",
+      "monthly_executions": 10000,
+      "hot_goldens": 20,
+      "written_disk_gib_per_golden": 10
+    },
+    "high_volume": {
+      "description": "Illustrative high-throughput fleet; default Boxd quota is expected to become a constraint.",
+      "monthly_executions": 100000,
+      "hot_goldens": 40,
+      "written_disk_gib_per_golden": 10
+    }
+  }
+}
