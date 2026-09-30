@@ -2,16 +2,13 @@ name: Boxd Provider Proof
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feat/boxd-resource-economics-telemetry
 
 permissions:
   contents: read
 
 concurrency:
   group: boxd-provider-proof
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   fork-isolation:
