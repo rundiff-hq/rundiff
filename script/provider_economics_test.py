@@ -85,6 +85,13 @@ class ProviderEconomicsTest(unittest.TestCase):
             scenario["boxd"]["quality"],
             "unpriced_custom_byoc",
         )
+        self.assertIsNone(
+            scenario["capacity"]["fits_default_quota"]
+        )
+        self.assertEqual(
+            scenario["capacity"]["capacity_policy"],
+            "custom_byoc",
+        )
 
     def test_report_never_invents_cross_currency_winner(self):
         for scenario in self.report["scenarios"]:
