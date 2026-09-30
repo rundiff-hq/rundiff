@@ -1,0 +1,82 @@
+import importlib.util
+import json
+import pathlib
+import unittest
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+MODULE_PATH = ROOT / "script" / "provider_economics.py"
+DATA_PATH = ROOT / "docs" / "research" / "data" / "provider-economics-v1.json"
+
+spec = importlib.util.spec_from_file_location("provider_economics", MODULE_PATH)
+provider_economics = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(provider_economics)
+
+
+class ProviderEconomicsTest(unittest.TestCase):
+    def setUp(self):
+        self.data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+        self.report = provider_economics.build_report(self.data)
+
+    def test_github_observed_dispatch_is_one_billable_minute(self):
+        github = self.report["github_actions"]
+        self.assertEqual(github["billed_minutes"]["median"], 1.0)
+        self.assertEqual(github["billed_minutes"]["max"], 1)
+        self.assertEqual(
+            github["marginal_paid_cost_usd"]["median_per_dispatch"],
+            0.006,
+        )
+
+    def test_boxd_execution_cost_envelope_is_deterministic(self):
+        boxd = self.report["boxd"]
+        self.assertEqual(
+            boxd["execution_machine_seconds"]["lower_envelope"],
+            7.661,
+        )
+        self.assertEqual(
+            boxd["execution_machine_seconds"]["conservative_envelope"],
+            9.315,
+        )
+        self.assertAlmostEqual(
+            boxd["active_compute_eur_per_execution"]["lower_envelope"],
+            0.00046817,
+            places=8,
+        )
+        self.assertAlmostEqual(
+            boxd["active_compute_eur_per_execution"]["conservative_envelope"],
+            0.00056925,
+            places=8,
+        )
+
+    def test_hibernated_golden_disk_scenarios(self):
+        disk = self.report["boxd"][
+            "hibernated_golden_disk_eur_per_30_day_month"
+        ]
+        self.assertEqual(disk["5"], 0.36)
+        self.assertEqual(disk["10"], 0.72)
+        self.assertEqual(disk["20"], 1.44)
+
+    def test_default_quota_concurrency_is_explicit(self):
+        concurrency = self.report["boxd"][
+            "default_50_machine_quota_pair_concurrency"
+        ]
+        self.assertEqual(concurrency["1"], 24)
+        self.assertEqual(concurrency["10"], 20)
+        self.assertEqual(concurrency["40"], 5)
+
+    def test_model_does_not_embed_currency_conversion(self):
+        self.assertFalse(
+            self.report["currencies"]["fx_conversion_embedded"]
+        )
+
+    def test_public_github_managed_compute_requires_terms_review(self):
+        self.assertEqual(
+            self.report["placement_constraints"]["github_public_managed"][
+                "status"
+            ],
+            "terms_review_required",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
