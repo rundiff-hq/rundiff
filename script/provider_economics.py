@@ -123,6 +123,70 @@ def boxd_costs(data):
     }
 
 
+def scenario_costs(data, boxd, github):
+    result = {}
+    boxd_disk_rate = data["rates"]["boxd"]["written_disk_gib_hour"]
+    monthly_hours = data["model_assumptions"]["monthly_hours"]
+    boxd_lower = boxd["active_compute_eur_per_execution"]["lower_envelope"]
+    boxd_upper = boxd["active_compute_eur_per_execution"][
+        "conservative_envelope"
+    ]
+    github_rate = data["rates"]["github_actions_private_standard_linux"][
+        "per_minute"
+    ]
+    included = data["rates"]["github_actions_private_standard_linux"][
+        "included_minutes_by_plan"
+    ]
+    quota = data["rates"]["boxd"]["included_machine_quota"]
+
+    for name, scenario in data["scenario_inputs"].items():
+        executions = scenario["monthly_executions"]
+        hot_goldens = scenario["hot_goldens"]
+        disk_gib = scenario["written_disk_gib_per_golden"]
+        golden_storage = (
+            hot_goldens * disk_gib * boxd_disk_rate * monthly_hours
+        )
+        pair_concurrency = max(0, (quota - hot_goldens) // 2)
+
+        github_if_all_included = {}
+        for plan, minutes in included.items():
+            paid_minutes = max(0, executions - minutes)
+            github_if_all_included[plan] = money(
+                paid_minutes * github_rate
+            )
+
+        result[name] = {
+            "description": scenario["description"],
+            "inputs": scenario,
+            "boxd": {
+                "hot_golden_storage_eur": money(golden_storage),
+                "active_compute_lower_eur": money(
+                    boxd_lower * executions
+                ),
+                "active_compute_conservative_eur": money(
+                    boxd_upper * executions
+                ),
+                "monthly_total_lower_eur": money(
+                    golden_storage + boxd_lower * executions
+                ),
+                "monthly_total_conservative_eur": money(
+                    golden_storage + boxd_upper * executions
+                ),
+                "default_quota_pair_concurrency": pair_concurrency,
+            },
+            "github_actions": {
+                "paid_without_included_minutes_usd": money(
+                    executions * github_rate
+                ),
+                "paid_if_all_plan_minutes_available_usd": (
+                    github_if_all_included
+                ),
+            },
+        }
+
+    return result
+
+
 def placement_constraints():
     return {
         "github_public_managed": {
@@ -157,6 +221,8 @@ def placement_constraints():
 
 
 def build_report(data):
+    github = github_costs(data)
+    boxd = boxd_costs(data)
     return {
         "schema_version": "1",
         "as_of": data["as_of"],
@@ -166,8 +232,9 @@ def build_report(data):
             "fx_conversion_embedded": False,
         },
         "latency_reference": data["observations"]["boxd6"],
-        "github_actions": github_costs(data),
-        "boxd": boxd_costs(data),
+        "github_actions": github,
+        "boxd": boxd,
+        "scenarios": scenario_costs(data, boxd, github),
         "placement_constraints": placement_constraints(),
         "decision_rule": (
             "Treat provider choice as constrained placement, not one global "
