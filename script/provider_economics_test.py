@@ -64,6 +64,41 @@ class ProviderEconomicsTest(unittest.TestCase):
         self.assertEqual(concurrency["10"], 20)
         self.assertEqual(concurrency["40"], 5)
 
+    def test_scenario_totals_keep_storage_and_compute_separate(self):
+        low = self.report["scenarios"]["low_volume"]
+        self.assertEqual(low["boxd"]["hot_golden_storage_eur"], 3.6)
+        self.assertAlmostEqual(
+            low["boxd"]["monthly_total_lower_eur"],
+            4.06817222,
+            places=8,
+        )
+        self.assertEqual(
+            low["github_actions"]["paid_without_included_minutes_usd"],
+            6.0,
+        )
+        self.assertEqual(
+            low["github_actions"][
+                "paid_if_all_plan_minutes_available_usd"
+            ]["team"],
+            0.0,
+        )
+
+        high = self.report["scenarios"]["high_volume"]
+        self.assertEqual(
+            high["boxd"]["default_quota_pair_concurrency"],
+            5,
+        )
+        self.assertEqual(
+            high["github_actions"]["paid_without_included_minutes_usd"],
+            600.0,
+        )
+        self.assertEqual(
+            high["github_actions"][
+                "paid_if_all_plan_minutes_available_usd"
+            ]["enterprise_cloud"],
+            300.0,
+        )
+
     def test_model_does_not_embed_currency_conversion(self):
         self.assertFalse(
             self.report["currencies"]["fx_conversion_embedded"]
