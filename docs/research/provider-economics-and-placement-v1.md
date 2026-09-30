@@ -95,8 +95,19 @@ terms/legal review before production use.
 
 ## Observed GitHub managed-dispatch job time
 
-The 10 sampled recent successful `RunDiff Executor Dispatch / execute` jobs
-had log durations:
+The current `RunDiff Executor Dispatch` workflow uses
+`runs-on: ubuntu-24.04` in the public `rundiff-hq/rundiff` repository.
+
+GitHub currently assigns different standard-runner hardware by repository
+visibility:
+
+~~~text
+public ubuntu-24.04   4 vCPU / 16 GiB
+private ubuntu-24.04  2 vCPU / 8 GiB
+~~~
+
+The 10 sampled recent successful public-repository `execute` jobs had log
+durations:
 
 ~~~text
 57.3  49.5  57.6  55.2  57.1
@@ -112,17 +123,24 @@ min     49.5 s
 max     58.1 s
 ~~~
 
-All ten fit inside one rounded billable minute.
+All ten observed public-runner jobs fit inside one minute. That observation is
+useful for workflow overhead, but it is **not** a measured private-runner paid
+cost because the private standard runner has half the CPU and RAM.
 
-Therefore the current paid private-runner marginal comparator, beyond included
-quota, is:
+Therefore v1 models private GitHub cost as sensitivity rather than a point
+estimate:
 
 ~~~text
-$0.006 / dispatch
+1 billable minute / execution  -> $0.006
+2 billable minutes / execution -> $0.012
 ~~~
 
-This is more representative for billing than the 2.252-second inner executor
-benchmark because GitHub bills the job, not only the RunDiff comparison phase.
+A private 2-vCPU / 8-GiB measurement is required before choosing one of those
+as the expected paid cost.
+
+This is more methodologically correct than multiplying the 2.252-second inner
+executor benchmark by the GitHub minute rate. GitHub bills the whole job and
+rounds billable job time up to the next minute.
 
 ## Boxd active execution envelope
 
@@ -246,9 +264,12 @@ Boxd:
   active compute             €0.47 - €0.57
   total                      €4.07 - €4.17
 
-GitHub paid marginal:
-  without included minutes   $6.00
-  Team minutes all unused    $0.00
+GitHub private sensitivity:
+  1 min/execution, no allowance   $6.00
+  2 min/execution, no allowance  $12.00
+  Team allowance fully free:
+    1 min/execution                $0.00
+    2 min/execution                $0.00
 ~~~
 
 At low volume, golden retention dominates Boxd compute.
@@ -265,10 +286,15 @@ Boxd:
   active compute             €4.68 - €5.69
   total                      €19.08 - €20.09
 
-GitHub paid marginal:
-  without included minutes   $60.00
-  Team minutes all unused    $42.00
-  Enterprise allowance unused $0.00
+GitHub private sensitivity:
+  1 min/execution, no allowance   $60.00
+  2 min/execution, no allowance  $120.00
+  Team allowance fully free:
+    1 min/execution                $42.00
+    2 min/execution               $102.00
+  Enterprise allowance fully free:
+    1 min/execution                 $0.00
+    2 min/execution                 $0.00
 ~~~
 
 ### High volume
@@ -283,10 +309,15 @@ Boxd:
   active compute             €46.82 - €56.93
   total                      €75.62 - €85.73
 
-GitHub paid marginal:
-  without included minutes   $600.00
-  Team minutes all unused    $582.00
-  Enterprise minutes all unused $300.00
+GitHub private sensitivity:
+  1 min/execution, no allowance    $600.00
+  2 min/execution, no allowance  $1,200.00
+  Team allowance fully free:
+    1 min/execution                 $582.00
+    2 min/execution               $1,182.00
+  Enterprise allowance fully free:
+    1 min/execution                 $300.00
+    2 min/execution                 $900.00
 ~~~
 
 At this point Boxd's default 50-machine quota becomes a stronger constraint
@@ -380,11 +411,12 @@ Before using the model for production pricing:
 3. measure hibernate -> fork ready latency;
 4. verify whether hibernated machines consume the 50-machine quota;
 5. measure Boxd queue/control-plane latency under concurrent load;
-6. measure GitHub runner queue time separately from execution time;
-7. decide whether customer-owned GitHub Actions is a supported product mode;
-8. get explicit terms/legal review before using GitHub Actions as RunDiff-managed
+6. measure the dispatch workflow on private-equivalent 2-vCPU / 8-GiB GitHub hardware;
+7. measure GitHub runner queue time separately from execution time;
+8. decide whether customer-owned GitHub Actions is a supported product mode;
+9. get explicit terms/legal review before using GitHub Actions as RunDiff-managed
    commercial compute;
-9. model custom Boxd/BYOC pricing when available.
+10. model custom Boxd/BYOC pricing when available.
 
 ## Files
 
