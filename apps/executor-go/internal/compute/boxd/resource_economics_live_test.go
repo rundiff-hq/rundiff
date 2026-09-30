@@ -17,22 +17,22 @@ import (
 const resourceEconomicsMeasurementKind = "guest_observed_proxy_not_provider_billing"
 
 type guestResourceSnapshot struct {
-	CollectedAtUTC          string
-	Stage                   string
-	Role                    string
-	Machine                 string
-	GuestMemTotalBytes      int64
-	GuestMemAvailableBytes  int64
-	GuestMemUsedProxyBytes  int64
-	ProcessRSSSumBytes      int64
+	CollectedAtUTC           string
+	Stage                    string
+	Role                     string
+	Machine                  string
+	GuestMemTotalBytes       int64
+	GuestMemAvailableBytes   int64
+	GuestMemUsedProxyBytes   int64
+	ProcessRSSSumBytes       int64
 	CgroupMemoryCurrentBytes *int64
-	RootFSUsedBytes         int64
-	RepoBytes               int64
-	NodeModulesBytes        int64
-	DockerRootBytes         *int64
-	PostgresSizeRWBytes     *int64
-	PostgresSizeRootFSBytes *int64
-	PostgresVolumeBytes     *int64
+	RootFSUsedBytes          int64
+	RepoBytes                int64
+	NodeModulesBytes         int64
+	DockerRootBytes          *int64
+	PostgresSizeRWBytes      *int64
+	PostgresSizeRootFSBytes  *int64
+	PostgresVolumeBytes      *int64
 }
 
 type resourceRoleEnvelope struct {
