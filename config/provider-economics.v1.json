@@ -75,9 +75,10 @@
       "boxd_actual_ram_gib_per_running_machine_assumption": 2,
       "boxd_written_disk_gib_per_golden_assumption": 20,
       "boxd_child_written_disk_gib_per_execution_assumption": 1,
-      "github_paid_fraction_assumption": 1.0,
+      "github_paid_fraction_assumption": 1,
       "boxd_mode": "cloud",
-      "notes": "One hot golden per repository; all GitHub minutes assumed marginally paid."
+      "notes": "One hot golden per repository; all GitHub minutes assumed marginally paid.",
+      "golden_builds_per_retained_per_month_assumption": 1
     },
     {
       "id": "medium_saas",
@@ -89,9 +90,10 @@
       "boxd_actual_ram_gib_per_running_machine_assumption": 2,
       "boxd_written_disk_gib_per_golden_assumption": 20,
       "boxd_child_written_disk_gib_per_execution_assumption": 1,
-      "github_paid_fraction_assumption": 1.0,
+      "github_paid_fraction_assumption": 1,
       "boxd_mode": "cloud",
-      "notes": "Only 25 hottest golden fingerprints retained; default Boxd quota still fits 8 concurrent comparisons."
+      "notes": "Only 25 hottest golden fingerprints retained; default Boxd quota still fits 8 concurrent comparisons.",
+      "golden_builds_per_retained_per_month_assumption": 4
     },
     {
       "id": "high_concurrency_saas",
@@ -103,9 +105,10 @@
       "boxd_actual_ram_gib_per_running_machine_assumption": 3,
       "boxd_written_disk_gib_per_golden_assumption": 25,
       "boxd_child_written_disk_gib_per_execution_assumption": 2,
-      "github_paid_fraction_assumption": 1.0,
+      "github_paid_fraction_assumption": 1,
       "boxd_mode": "cloud",
-      "notes": "Requires a raised Boxd machine quota or a different retention/concurrency policy."
+      "notes": "Requires a raised Boxd machine quota or a different retention/concurrency policy.",
+      "golden_builds_per_retained_per_month_assumption": 8
     },
     {
       "id": "customer_byoc",
@@ -117,9 +120,10 @@
       "boxd_actual_ram_gib_per_running_machine_assumption": 2,
       "boxd_written_disk_gib_per_golden_assumption": 20,
       "boxd_child_written_disk_gib_per_execution_assumption": 1,
-      "github_paid_fraction_assumption": 1.0,
+      "github_paid_fraction_assumption": 1,
       "boxd_mode": "byoc",
-      "notes": "Public Boxd cloud rate card does not price BYOC license or customer hardware."
+      "notes": "Public Boxd cloud rate card does not price BYOC license or customer hardware.",
+      "golden_builds_per_retained_per_month_assumption": 4
     },
     {
       "id": "customer_github_minutes",
@@ -133,7 +137,8 @@
       "boxd_child_written_disk_gib_per_execution_assumption": 1,
       "github_paid_fraction_assumption": 0.2,
       "boxd_mode": "cloud",
-      "notes": "Assumes 80% of job-minutes are absorbed by the customer's included allowance; contractual fit still requires review."
+      "notes": "Assumes 80% of job-minutes are absorbed by the customer's included allowance; contractual fit still requires review.",
+      "golden_builds_per_retained_per_month_assumption": 4
     }
   ]
 }
