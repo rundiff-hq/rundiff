@@ -81,6 +81,16 @@ jobs:
           ruby -c bin/collect-production-proof
           find lab -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
+      - name: Provider economics model
+        run: |
+          python3 script/provider_economics_test.py
+          python3 script/provider_economics.py \
+            --config config/provider-economics.v1.json \
+            --output /tmp/provider-economics.json \
+            --markdown /tmp/provider-economics.md
+          test -s /tmp/provider-economics.json
+          test -s /tmp/provider-economics.md
+
       - name: Demo portable behavioral diff
         run: |
           bin/rundiff diff \
