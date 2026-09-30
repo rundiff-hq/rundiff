@@ -1,0 +1,139 @@
+{
+  "schema_version": "1",
+  "checked_at": "2026-09-30",
+  "sources": {
+    "boxd_pricing": "https://boxd.sh/pricing",
+    "boxd_faq": "https://boxd.sh/faq/",
+    "github_actions_billing": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+    "github_actions_runner_pricing": "https://docs.github.com/en/billing/reference/actions-runner-pricing",
+    "github_actions_terms": "https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features"
+  },
+  "rate_cards": {
+    "boxd_cloud": {
+      "currency": "EUR",
+      "vcpu_eur_per_vcpu_hour": 0.049,
+      "ram_eur_per_gib_hour": 0.015,
+      "disk_eur_per_gib_hour": 0.0001,
+      "default_machine": {
+        "vcpu": 2,
+        "ram_gib_provisioned": 8,
+        "disk_gib_provisioned": 100
+      },
+      "default_machine_quota": 50,
+      "hibernated_billing": "disk_only_actual_written",
+      "running_ram_billing": "actual_resident",
+      "disk_billing": "actual_written"
+    },
+    "github_actions": {
+      "currency": "USD",
+      "linux_2_core_usd_per_minute": 0.006,
+      "job_rounding": "ceil_to_whole_minute",
+      "public_standard_runner_price": 0,
+      "included_minutes_depend_on_plan": true,
+      "commercial_service_terms_review_required": true
+    }
+  },
+  "execution_evidence": {
+    "boxd6": {
+      "run_id": 36646891578,
+      "hosted_executor_median_ms": 2252,
+      "boxd_steady_state_median_ms": 3105,
+      "boxd_create_golden_ms": 2119,
+      "boxd_prepare_golden_ms": 15830,
+      "boxd_final_cleanup_ms": 108,
+      "boxd_role_critical_median_ms": 2058,
+      "boxd_pair_cleanup_median_ms": 220,
+      "boxd_child_active_ms_estimate": 2278,
+      "boxd_child_active_ms_estimate_note": "role critical median plus pair cleanup median; billing-start semantics during fork are not measured"
+    },
+    "github_managed_dispatch": {
+      "sample_count": 10,
+      "median_job_seconds": 54.7,
+      "min_job_seconds": 49.5,
+      "max_job_seconds": 58.1,
+      "observed_billable_minutes_each": 1
+    }
+  },
+  "measurement_gaps": [
+    "RunDiff golden actual resident RAM has not yet been measured",
+    "RunDiff child actual resident RAM has not yet been measured",
+    "Representative prepared golden actual written disk has not yet been measured",
+    "Per-child actual written disk during one execution has not yet been measured",
+    "Boxd billing start boundary during fork is not yet measured",
+    "Boxd queue/start latency is not included",
+    "GitHub queue latency is not included",
+    "BYOC license and infrastructure prices are custom and not public"
+  ],
+  "scenarios": [
+    {
+      "id": "low_volume_saas",
+      "label": "Low-volume SaaS",
+      "repositories": 10,
+      "executions_per_repo_per_day": 5,
+      "retained_goldens": 10,
+      "peak_concurrent_comparisons": 2,
+      "boxd_actual_ram_gib_per_running_machine_assumption": 2,
+      "boxd_written_disk_gib_per_golden_assumption": 20,
+      "boxd_child_written_disk_gib_per_execution_assumption": 1,
+      "github_paid_fraction_assumption": 1.0,
+      "boxd_mode": "cloud",
+      "notes": "One hot golden per repository; all GitHub minutes assumed marginally paid."
+    },
+    {
+      "id": "medium_saas",
+      "label": "Medium SaaS with TTL/LRU golden cache",
+      "repositories": 100,
+      "executions_per_repo_per_day": 10,
+      "retained_goldens": 25,
+      "peak_concurrent_comparisons": 8,
+      "boxd_actual_ram_gib_per_running_machine_assumption": 2,
+      "boxd_written_disk_gib_per_golden_assumption": 20,
+      "boxd_child_written_disk_gib_per_execution_assumption": 1,
+      "github_paid_fraction_assumption": 1.0,
+      "boxd_mode": "cloud",
+      "notes": "Only 25 hottest golden fingerprints retained; default Boxd quota still fits 8 concurrent comparisons."
+    },
+    {
+      "id": "high_concurrency_saas",
+      "label": "High-concurrency SaaS",
+      "repositories": 1000,
+      "executions_per_repo_per_day": 20,
+      "retained_goldens": 200,
+      "peak_concurrent_comparisons": 50,
+      "boxd_actual_ram_gib_per_running_machine_assumption": 3,
+      "boxd_written_disk_gib_per_golden_assumption": 25,
+      "boxd_child_written_disk_gib_per_execution_assumption": 2,
+      "github_paid_fraction_assumption": 1.0,
+      "boxd_mode": "cloud",
+      "notes": "Requires a raised Boxd machine quota or a different retention/concurrency policy."
+    },
+    {
+      "id": "customer_byoc",
+      "label": "Customer BYOC",
+      "repositories": 100,
+      "executions_per_repo_per_day": 10,
+      "retained_goldens": 50,
+      "peak_concurrent_comparisons": 20,
+      "boxd_actual_ram_gib_per_running_machine_assumption": 2,
+      "boxd_written_disk_gib_per_golden_assumption": 20,
+      "boxd_child_written_disk_gib_per_execution_assumption": 1,
+      "github_paid_fraction_assumption": 1.0,
+      "boxd_mode": "byoc",
+      "notes": "Public Boxd cloud rate card does not price BYOC license or customer hardware."
+    },
+    {
+      "id": "customer_github_minutes",
+      "label": "Customer-owned GitHub Actions minutes",
+      "repositories": 100,
+      "executions_per_repo_per_day": 10,
+      "retained_goldens": 25,
+      "peak_concurrent_comparisons": 8,
+      "boxd_actual_ram_gib_per_running_machine_assumption": 2,
+      "boxd_written_disk_gib_per_golden_assumption": 20,
+      "boxd_child_written_disk_gib_per_execution_assumption": 1,
+      "github_paid_fraction_assumption": 0.2,
+      "boxd_mode": "cloud",
+      "notes": "Assumes 80% of job-minutes are absorbed by the customer's included allowance; contractual fit still requires review."
+    }
+  ]
+}
