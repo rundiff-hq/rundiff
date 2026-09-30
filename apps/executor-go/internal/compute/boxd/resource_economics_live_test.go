@@ -41,27 +41,27 @@ type resourceRoleEnvelope struct {
 }
 
 type resourceLifecycleSample struct {
-	Sample               int
-	ForkStartedAtUTC     string
-	PairReadyAtUTC       string
-	CaptureStartedAtUTC  string
-	CaptureFinishedAtUTC string
-	CleanupStartedAtUTC  string
-	CleanupFinishedAtUTC string
-	ForkReadyMS          int64
-	BaselineRoleMS       int64
-	CandidateRoleMS      int64
-	RoleCriticalPathMS   int64
-	CleanupMS                              int64
-	TotalMS                                int64
-	Baseline                               guestResourceSnapshot
-	Candidate                              guestResourceSnapshot
-	BaselineRootFSDeltaFromGoldenBytes     int64
-	CandidateRootFSDeltaFromGoldenBytes    int64
-	BaselinePostgresVolumeDeltaGoldenBytes *int64
+	Sample                                  int
+	ForkStartedAtUTC                        string
+	PairReadyAtUTC                          string
+	CaptureStartedAtUTC                     string
+	CaptureFinishedAtUTC                    string
+	CleanupStartedAtUTC                     string
+	CleanupFinishedAtUTC                    string
+	ForkReadyMS                             int64
+	BaselineRoleMS                          int64
+	CandidateRoleMS                         int64
+	RoleCriticalPathMS                      int64
+	CleanupMS                               int64
+	TotalMS                                 int64
+	Baseline                                guestResourceSnapshot
+	Candidate                               guestResourceSnapshot
+	BaselineRootFSDeltaFromGoldenBytes      int64
+	CandidateRootFSDeltaFromGoldenBytes     int64
+	BaselinePostgresVolumeDeltaGoldenBytes  *int64
 	CandidatePostgresVolumeDeltaGoldenBytes *int64
-	Decision                               string
-	Finding                                string
+	Decision                                string
+	Finding                                 string
 }
 
 type resourceMetricSummary struct {
@@ -72,16 +72,16 @@ type resourceMetricSummary struct {
 }
 
 type resourceEconomicsSummary struct {
-	ChildGuestMemUsedProxyBytes resourceMetricSummary
-	ChildProcessRSSSumBytes     resourceMetricSummary
-	ChildRootFSUsedBytes             resourceMetricSummary
-	ChildRootFSDeltaFromGoldenBytes  resourceMetricSummary
-	ChildPostgresVolumeBytes         resourceMetricSummary
-	ChildPostgresVolumeDeltaBytes    resourceMetricSummary
-	ChildPostgresSizeRWBytes         resourceMetricSummary
-	ForkReadyMS                      resourceMetricSummary
-	RoleCriticalPathMS          resourceMetricSummary
-	CleanupMS                   resourceMetricSummary
+	ChildGuestMemUsedProxyBytes     resourceMetricSummary
+	ChildProcessRSSSumBytes         resourceMetricSummary
+	ChildRootFSUsedBytes            resourceMetricSummary
+	ChildRootFSDeltaFromGoldenBytes resourceMetricSummary
+	ChildPostgresVolumeBytes        resourceMetricSummary
+	ChildPostgresVolumeDeltaBytes   resourceMetricSummary
+	ChildPostgresSizeRWBytes        resourceMetricSummary
+	ForkReadyMS                     resourceMetricSummary
+	RoleCriticalPathMS              resourceMetricSummary
+	CleanupMS                       resourceMetricSummary
 }
 
 type resourceEconomicsReport struct {
@@ -381,19 +381,19 @@ func runResourceEconomicsSample(
 	cleaned = true
 
 	result := resourceLifecycleSample{
-		Sample:               sample,
-		ForkStartedAtUTC:     forkStartedAt.Format(time.RFC3339Nano),
-		PairReadyAtUTC:       pairReadyAt.Format(time.RFC3339Nano),
-		CaptureStartedAtUTC:  captureStartedAt.Format(time.RFC3339Nano),
-		CaptureFinishedAtUTC: captureFinishedAt.Format(time.RFC3339Nano),
-		CleanupStartedAtUTC:  cleanupStartedAt.Format(time.RFC3339Nano),
-		CleanupFinishedAtUTC: cleanupFinishedAt.Format(time.RFC3339Nano),
-		ForkReadyMS:          forkReadyMS,
-		BaselineRoleMS:       captures.Baseline.Elapsed.Milliseconds(),
-		CandidateRoleMS:      captures.Candidate.Elapsed.Milliseconds(),
-		RoleCriticalPathMS:   captures.Critical.Milliseconds(),
-		CleanupMS:            cleanupMS,
-		TotalMS:              time.Since(totalStarted).Milliseconds(),
+		Sample:                              sample,
+		ForkStartedAtUTC:                    forkStartedAt.Format(time.RFC3339Nano),
+		PairReadyAtUTC:                      pairReadyAt.Format(time.RFC3339Nano),
+		CaptureStartedAtUTC:                 captureStartedAt.Format(time.RFC3339Nano),
+		CaptureFinishedAtUTC:                captureFinishedAt.Format(time.RFC3339Nano),
+		CleanupStartedAtUTC:                 cleanupStartedAt.Format(time.RFC3339Nano),
+		CleanupFinishedAtUTC:                cleanupFinishedAt.Format(time.RFC3339Nano),
+		ForkReadyMS:                         forkReadyMS,
+		BaselineRoleMS:                      captures.Baseline.Elapsed.Milliseconds(),
+		CandidateRoleMS:                     captures.Candidate.Elapsed.Milliseconds(),
+		RoleCriticalPathMS:                  captures.Critical.Milliseconds(),
+		CleanupMS:                           cleanupMS,
+		TotalMS:                             time.Since(totalStarted).Milliseconds(),
 		Baseline:                            baselineEnvelope.Resource,
 		Candidate:                           candidateEnvelope.Resource,
 		BaselineRootFSDeltaFromGoldenBytes:  baselineEnvelope.Resource.RootFSUsedBytes - golden.RootFSUsedBytes,
@@ -567,16 +567,16 @@ func summarizeResourceEconomicsSamples(
 	}
 
 	return resourceEconomicsSummary{
-		ChildGuestMemUsedProxyBytes: summarizeInt64Metric(memUsed),
-		ChildProcessRSSSumBytes:     summarizeInt64Metric(rss),
+		ChildGuestMemUsedProxyBytes:     summarizeInt64Metric(memUsed),
+		ChildProcessRSSSumBytes:         summarizeInt64Metric(rss),
 		ChildRootFSUsedBytes:            summarizeInt64Metric(rootFS),
 		ChildRootFSDeltaFromGoldenBytes: summarizeInt64Metric(rootFSDelta),
 		ChildPostgresVolumeBytes:        summarizeInt64Metric(postgresVolume),
 		ChildPostgresVolumeDeltaBytes:   summarizeInt64Metric(postgresVolumeDelta),
 		ChildPostgresSizeRWBytes:        summarizeInt64Metric(postgresRW),
-		ForkReadyMS:                 summarizeInt64Metric(fork),
-		RoleCriticalPathMS:          summarizeInt64Metric(roleCritical),
-		CleanupMS:                   summarizeInt64Metric(cleanup),
+		ForkReadyMS:                     summarizeInt64Metric(fork),
+		RoleCriticalPathMS:              summarizeInt64Metric(roleCritical),
+		CleanupMS:                       summarizeInt64Metric(cleanup),
 	}
 }
 
