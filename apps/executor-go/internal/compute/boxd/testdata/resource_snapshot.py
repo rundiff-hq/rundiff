@@ -46,7 +46,7 @@ def cgroup_current():
 
 
 def du_bytes(path, use_sudo=False):
-    if not os.path.exists(path):
+    if not use_sudo and not os.path.exists(path):
         return None
     command = ["du", "-sb", path]
     if use_sudo:
