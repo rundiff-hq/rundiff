@@ -108,5 +108,21 @@ class ProviderEconomicsTest(unittest.TestCase):
         self.assertGreater(amortized["10"], amortized["50"])
 
 
+    def test_provider_capabilities_are_first_class_inputs(self):
+        capabilities = self.report["provider_capabilities"]
+        self.assertTrue(
+            capabilities["boxd_cloud"]["fork_native_persistent_state"]
+        )
+        self.assertEqual(
+            capabilities["github_actions_hosted"][
+                "commercial_service_eligibility"
+            ],
+            "terms_review_required",
+        )
+        self.assertIsNone(
+            capabilities["customer_byoc"]["public_price"]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
