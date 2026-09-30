@@ -89,7 +89,15 @@
       "mean_seconds": 54.64,
       "min_seconds": 49.5,
       "max_seconds": 58.1,
-      "rounded_billable_minutes_per_job": 1
+      "repository_visibility": "public",
+      "runner_label": "ubuntu-24.04",
+      "runner_hardware": {
+        "vcpu": 4,
+        "ram_gib": 16
+      },
+      "duration_basis": "public_runner_job_logs",
+      "private_paid_duration_measured": false,
+      "observed_public_rounded_minutes": 1
     }
   },
   "model_assumptions": {
@@ -125,7 +133,12 @@
       "The child pair post-fork estimate uses role critical path plus cleanup and excludes unknown child billing during the fork itself.",
       "The conservative Boxd execution envelope charges parent, baseline and candidate for the full observed Boxd wall time.",
       "GitHub public standard-runner price is zero, but commercial-service eligibility is treated as a separate terms constraint rather than a price assumption.",
-      "Included GitHub minutes are shared account entitlements and must not be treated as guaranteed RunDiff capacity."
+      "Included GitHub minutes are shared account entitlements and must not be treated as guaranteed RunDiff capacity.",
+      "Observed RunDiff dispatch timings come from a public ubuntu-24.04 runner (4 vCPU / 16 GiB) and must not be treated as measured private standard-runner (2 vCPU / 8 GiB) billing duration."
+    ],
+    "github_private_billed_minutes_scenarios": [
+      1,
+      2
     ]
   },
   "scenario_inputs": {
