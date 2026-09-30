@@ -551,9 +551,14 @@ func summarizeInt64Metric(values []int64) resourceMetricSummary {
 	}
 	ordered := append([]int64(nil), values...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+	middle := len(ordered) / 2
+	median := ordered[middle]
+	if len(ordered)%2 == 0 {
+		median = (ordered[middle-1] + ordered[middle]) / 2
+	}
 	return resourceMetricSummary{
 		Count:  int64(len(ordered)),
-		Median: ordered[len(ordered)/2],
+		Median: median,
 		Min:    ordered[0],
 		Max:    ordered[len(ordered)-1],
 	}
