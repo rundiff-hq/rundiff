@@ -45,8 +45,20 @@
       "hosted_median_ms": 2252,
       "boxd_median_ms": 3105,
       "boxd_first_sample_ms": 4019,
-      "boxd_samples_ms": [4019, 3155, 3105, 2906, 3079],
-      "hosted_samples_ms": [2689, 2252, 2238, 2274, 2205],
+      "boxd_samples_ms": [
+        4019,
+        3155,
+        3105,
+        2906,
+        3079
+      ],
+      "hosted_samples_ms": [
+        2689,
+        2252,
+        2238,
+        2274,
+        2205
+      ],
       "boxd_phase_median_ms": {
         "pair_fork": 848,
         "role_critical_path": 2058,
@@ -87,10 +99,26 @@
       "child_pair_post_fork_ready_each": 2.278,
       "conservative_all_three_full_wall_each": 3.105
     },
-    "golden_written_disk_gib_scenarios": [5, 10, 20],
+    "golden_written_disk_gib_scenarios": [
+      5,
+      10,
+      20
+    ],
     "monthly_hours": 720,
-    "monthly_execution_scenarios": [100, 1000, 10000, 100000],
-    "persistent_golden_count_scenarios": [1, 5, 10, 20, 30, 40],
+    "monthly_execution_scenarios": [
+      100,
+      1000,
+      10000,
+      100000
+    ],
+    "persistent_golden_count_scenarios": [
+      1,
+      5,
+      10,
+      20,
+      30,
+      40
+    ],
     "notes": [
       "Currencies stay separate; no FX assumption is embedded.",
       "The Boxd approx_running_hour value assumes the published default-machine rate and is an upper-envelope simplification because RAM is billed on actual resident memory.",
@@ -99,5 +127,25 @@
       "GitHub public standard-runner price is zero, but commercial-service eligibility is treated as a separate terms constraint rather than a price assumption.",
       "Included GitHub minutes are shared account entitlements and must not be treated as guaranteed RunDiff capacity."
     ]
+  },
+  "scenario_inputs": {
+    "low_volume": {
+      "description": "Illustrative low-volume managed fleet; not a forecast.",
+      "monthly_executions": 1000,
+      "hot_goldens": 5,
+      "written_disk_gib_per_golden": 10
+    },
+    "medium_volume": {
+      "description": "Illustrative medium managed fleet with a bounded hot cache.",
+      "monthly_executions": 10000,
+      "hot_goldens": 20,
+      "written_disk_gib_per_golden": 10
+    },
+    "high_volume": {
+      "description": "Illustrative high-throughput fleet; default Boxd quota is expected to become a constraint.",
+      "monthly_executions": 100000,
+      "hot_goldens": 40,
+      "written_disk_gib_per_golden": 10
+    }
   }
 }
