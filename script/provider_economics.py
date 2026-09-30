@@ -127,10 +127,16 @@ def scenario_costs(data, boxd, github):
     result = {}
     boxd_disk_rate = data["rates"]["boxd"]["written_disk_gib_hour"]
     monthly_hours = data["model_assumptions"]["monthly_hours"]
-    boxd_lower = boxd["active_compute_eur_per_execution"]["lower_envelope"]
-    boxd_upper = boxd["active_compute_eur_per_execution"][
-        "conservative_envelope"
+    running_rate = data["rates"]["boxd"]["default_machine"][
+        "approx_running_hour"
     ]
+    machine_seconds = boxd["execution_machine_seconds"]
+    boxd_lower = (
+        machine_seconds["lower_envelope"] * running_rate / 3600
+    )
+    boxd_upper = (
+        machine_seconds["conservative_envelope"] * running_rate / 3600
+    )
     github_rate = data["rates"]["github_actions_private_standard_linux"][
         "per_minute"
     ]
