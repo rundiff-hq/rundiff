@@ -91,6 +91,11 @@ jobs:
           test -s /tmp/provider-economics.json
           test -s /tmp/provider-economics.md
 
+      - name: Boxd resource telemetry helpers
+        run: |
+          python3 -m py_compile apps/executor-go/internal/compute/boxd/testdata/resource_snapshot.py
+          bash -n apps/executor-go/internal/compute/boxd/testdata/resource_role_capture.sh
+
       - name: Demo portable behavioral diff
         run: |
           bin/rundiff diff \
