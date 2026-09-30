@@ -207,6 +207,7 @@ def build_report(config):
         "checked_at": config["checked_at"],
         "sources": config["sources"],
         "rate_cards": config["rate_cards"],
+        "provider_capabilities": config["provider_capabilities"],
         "execution_evidence": config["execution_evidence"],
         "measurement_gaps": config["measurement_gaps"],
         "method": {
