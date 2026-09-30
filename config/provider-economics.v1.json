@@ -140,5 +140,35 @@
       "notes": "Assumes 80% of job-minutes are absorbed by the customer's included allowance; contractual fit still requires review.",
       "golden_builds_per_retained_per_month_assumption": 4
     }
-  ]
+  ],
+  "provider_capabilities": {
+    "boxd_cloud": {
+      "fork_native_persistent_state": true,
+      "persistent_prepared_golden": true,
+      "vm_isolation": true,
+      "private_vm_networking": true,
+      "self_host_or_byoc_available": true,
+      "default_data_residency": "EU",
+      "default_machine_quota": 50,
+      "commercial_service_eligibility": "provider_product_designed_for_company_workloads",
+      "queue_start_latency_evidence": "missing"
+    },
+    "github_actions_hosted": {
+      "fork_native_persistent_state": false,
+      "persistent_prepared_golden": false,
+      "native_github_repository_integration": true,
+      "customer_included_minutes_possible": true,
+      "public_standard_runner_direct_price_can_be_zero": true,
+      "commercial_service_eligibility": "terms_review_required",
+      "queue_start_latency_evidence": "missing"
+    },
+    "customer_byoc": {
+      "fork_native_persistent_state": true,
+      "private_networking": true,
+      "customer_controlled_data_residency": true,
+      "customer_owned_compute": true,
+      "public_price": null,
+      "commercial_service_eligibility": "custom_contract_required"
+    }
+  }
 }
