@@ -64,6 +64,70 @@ The economics model also uses a **2,278 ms estimated child-active window**
 (role-critical median + pair cleanup median). This is explicitly an estimate
 until Boxd billing-start semantics during fork are measured.
 
+## Measured Boxd guest resource proxies
+
+RESOURCE1 canonical live run `36651288216` measured the exact BOXD6
+Node/PostgreSQL fixture while the golden and both child roles were active.
+
+Artifact:
+
+~~~text
+boxd-resource-economics-36651288216-1
+artifact id: 11070293216
+sha256: 498e42ec8e6dd06c55a08c16dd4aca2d55920e005f7b6f201390545192f4cf95
+retention: 14 days
+~~~
+
+Measurement label:
+
+~~~text
+guest_observed_proxy_not_provider_billing
+~~~
+
+Golden before five executions:
+
+| Guest-observed metric | Value |
+| --- | ---: |
+| memory used proxy (MemTotal - MemAvailable) | 448.4 MiB |
+| visible process RSS sum | 325.4 MiB |
+| root filesystem used | 6.876 GiB |
+| Docker root `du` | 326.1 MiB |
+| PostgreSQL data volume `du` | 45.5 MiB |
+| fixture repo | 3.05 MiB |
+| node_modules | 2.92 MiB |
+
+Across ten active child-role snapshots:
+
+| Guest-observed metric | Median | Min | Max |
+| --- | ---: | ---: | ---: |
+| memory used proxy | 470.3 MiB | 465.1 MiB | 481.7 MiB |
+| visible process RSS sum | 413.9 MiB | 408.4 MiB | 415.8 MiB |
+| rootfs delta from golden | 0 B | 0 B | 0 B |
+| PostgreSQL volume delta from golden | 0 B | 0 B | 0 B |
+
+The zero guest-visible disk deltas are **not** treated as zero billed writes.
+Boxd's fork/storage backend can account for CoW state below the guest
+filesystem view. The evidence only says that this workload did not produce a
+visible increase in guest `df` usage or PostgreSQL volume `du` at the
+measurement point.
+
+Likewise, the approximately 0.46 GiB child memory-used proxy is not substituted
+directly for Boxd's billable resident-RAM counter. The v1 scenarios deliberately
+retain their conservative 2-3 GiB RAM assumptions until a provider-side usage
+counter or billing export can validate the mapping.
+
+Lifecycle evidence from the same five samples:
+
+~~~text
+fork-ready median          929 ms  (805-1649)
+role critical median      2559 ms  (2466-2732)
+pair cleanup median        221 ms  (213-223)
+~~~
+
+The report also records UTC timestamps for fork start, pair ready, capture
+start/end and cleanup start/end. Those are RunDiff lifecycle timestamps, not a
+claim about Boxd's invoice boundary.
+
 ## Cost method
 
 For Boxd cloud, the model separates:
