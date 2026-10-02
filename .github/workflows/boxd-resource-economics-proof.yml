@@ -1,0 +1,74 @@
+name: Boxd Resource Economics Proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/boxd-resource-economics-telemetry
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boxd-resource-economics-proof
+  cancel-in-progress: true
+
+jobs:
+  resource-economics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/executor-go
+    env:
+      BOXD_API_KEY: ${{ secrets.BOXD_API_KEY }}
+      RUNDIFF_BOXD_LIVE: "1"
+      RUNDIFF_BOXD_PROOF_ID: "resource-${{ github.run_id }}-${{ github.run_attempt }}"
+      RUNDIFF_BOXD_TOOL_SHA: "${{ github.sha }}"
+      RUNDIFF_BOXD_RESOURCE_ECONOMICS_REPORT: ${{ github.workspace }}/tmp/rundiff/boxd-resource-economics.json
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/executor-go/go.mod
+          cache-dependency-path: apps/executor-go/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Require Boxd API key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${BOXD_API_KEY}"
+
+      - name: Install pinned Boxd SDK bridge
+        working-directory: apps/executor-go/internal/compute/boxd/sdkbridge
+        run: npm install --no-audit --no-fund
+
+      - name: Verify resource telemetry helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile internal/compute/boxd/testdata/resource_snapshot.py
+          bash -n internal/compute/boxd/testdata/resource_role_capture.sh
+
+      - name: Measure Boxd resource economics proxies
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd \
+            -run '^TestLiveBoxdResourceEconomicsTelemetry$' \
+            -count=1
+
+      - name: Upload Boxd resource economics evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxd-resource-economics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/boxd-resource-economics.json
+          if-no-files-found: error
+          retention-days: 14

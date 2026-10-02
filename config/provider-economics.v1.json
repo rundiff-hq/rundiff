@@ -44,7 +44,51 @@
       "boxd_role_critical_median_ms": 2058,
       "boxd_pair_cleanup_median_ms": 220,
       "boxd_child_active_ms_estimate": 2278,
-      "boxd_child_active_ms_estimate_note": "role critical median plus pair cleanup median; billing-start semantics during fork are not measured"
+      "boxd_child_active_ms_estimate_note": "role critical median plus pair cleanup median; billing-start semantics during fork are not measured",
+      "resource_proxy": {
+        "run_id": 36651288216,
+        "artifact_id": 11070293216,
+        "artifact_sha256": "498e42ec8e6dd06c55a08c16dd4aca2d55920e005f7b6f201390545192f4cf95",
+        "measurement_kind": "guest_observed_proxy_not_provider_billing",
+        "golden_before_samples": {
+          "guest_mem_used_proxy_bytes": 470138880,
+          "process_rss_sum_bytes": 341250048,
+          "rootfs_used_bytes": 7382933504,
+          "docker_root_bytes": 341978451,
+          "postgres_volume_bytes": 47737557,
+          "repo_bytes": 3202581,
+          "node_modules_bytes": 3065578
+        },
+        "active_children": {
+          "observations": 10,
+          "guest_mem_used_proxy_bytes_median": 493191168,
+          "guest_mem_used_proxy_bytes_min": 487653376,
+          "guest_mem_used_proxy_bytes_max": 505110528,
+          "process_rss_sum_bytes_median": 434012160,
+          "process_rss_sum_bytes_min": 428220416,
+          "process_rss_sum_bytes_max": 436035584,
+          "rootfs_delta_from_golden_bytes_median": 0,
+          "postgres_volume_delta_from_golden_bytes_median": 0,
+          "postgres_size_rw_bytes_median": 20480
+        },
+        "lifecycle": {
+          "samples": 5,
+          "fork_ready_ms_median": 929,
+          "fork_ready_ms_min": 805,
+          "fork_ready_ms_max": 1649,
+          "role_critical_path_ms_median": 2559,
+          "role_critical_path_ms_min": 2466,
+          "role_critical_path_ms_max": 2732,
+          "cleanup_ms_median": 221,
+          "cleanup_ms_min": 213,
+          "cleanup_ms_max": 223
+        },
+        "caveats": [
+          "Guest memory and filesystem counters are not Boxd invoice counters.",
+          "Zero guest-visible child disk delta does not prove zero provider-side CoW or billed writes.",
+          "cgroup memory.current was unavailable in the guest during this proof."
+        ]
+      }
     },
     "github_managed_dispatch": {
       "sample_count": 10,
@@ -55,14 +99,14 @@
     }
   },
   "measurement_gaps": [
-    "RunDiff golden actual resident RAM has not yet been measured",
-    "RunDiff child actual resident RAM has not yet been measured",
-    "Representative prepared golden actual written disk has not yet been measured",
-    "Per-child actual written disk during one execution has not yet been measured",
-    "Boxd billing start boundary during fork is not yet measured",
-    "Boxd queue/start latency is not included",
-    "GitHub queue latency is not included",
-    "BYOC license and infrastructure prices are custom and not public"
+    "Provider-side Boxd resident-RAM billing counter is not exposed to this proof; guest memory/RSS proxies are measured.",
+    "Provider-side Boxd actual-written-disk billing counter is not exposed to this proof; guest rootfs/Docker/volume proxies are measured.",
+    "Boxd CoW/provider-side child written-disk delta remains unmeasured; guest-visible rootfs and PostgreSQL-volume deltas were zero on this fixture.",
+    "Boxd billing start boundary during fork is not yet measured; RunDiff lifecycle timestamps are recorded separately.",
+    "Boxd queue/start latency is not included.",
+    "GitHub queue latency is not included.",
+    "BYOC license and infrastructure prices are custom and not public.",
+    "Representative Rails/PostgreSQL golden RAM/disk proxies have not yet been measured."
   ],
   "scenarios": [
     {

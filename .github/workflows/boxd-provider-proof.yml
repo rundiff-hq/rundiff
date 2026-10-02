@@ -23,6 +23,7 @@ jobs:
       RUNDIFF_BOXD_PROOF_ID: "gha-${{ github.run_id }}-${{ github.run_attempt }}"
       RUNDIFF_BOXD_TOOL_SHA: "${{ github.sha }}"
       RUNDIFF_BOXD_BEHAVIORAL_DB_BENCHMARK_REPORT: ${{ github.workspace }}/tmp/rundiff/boxd-prerunning-postgres-benchmark.json
+      RUNDIFF_BOXD_RESOURCE_ECONOMICS_REPORT: ${{ github.workspace }}/tmp/rundiff/boxd-resource-economics.json
 
     steps:
       - uses: actions/checkout@v6
@@ -105,6 +106,23 @@ jobs:
         with:
           name: boxd-prerunning-postgres-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
           path: tmp/rundiff/boxd-prerunning-postgres-benchmark.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Measure Boxd resource economics proxies
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -v ./internal/compute/boxd \
+            -run '^TestLiveBoxdResourceEconomicsTelemetry$' \
+            -count=1
+
+      - name: Upload Boxd resource economics evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxd-resource-economics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/rundiff/boxd-resource-economics.json
           if-no-files-found: error
           retention-days: 14
 
